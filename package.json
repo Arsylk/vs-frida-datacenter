@@ -1,0 +1,36 @@
+{
+  "name": "frida-clockwork",
+  "version": "1.0.0",
+  "description": "Collection various frida toys",
+  "type": "module",
+  "scripts": {
+    "prepare": "npm run build",
+    "build": "frida-compile ./agent/index.ts -o ./agent/dist/script.js -w",
+    "attach": "run() { frida -U \"$1\" -l ./agent/dist/script.js --runtime=v8 -o ./session.txt; }; run",
+    "spawn": "run() { frida -U -f \"$1\" -l ./agent/dist/script.js --runtime=v8 -o ./session.txt; }; run",
+    "app-spawn": "npm run spawn com.text.sms.chatting.messaged"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arsylk/frida-clockwork.git"
+  },
+  "keywords": [
+    "frida"
+  ],
+  "author": "Arsylk",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Arsylk/frida-clockwork/issues"
+  },
+  "homepage": "https://github.com/Arsylk/frida-clockwork#readme",
+  "dependencies": {
+    "frida-compile": "^16.4.1"
+  },
+  "devDependencies": {
+    "@tsconfig/node21": "^21.0.0"
+  },
+  "workspaces": [
+    "packages/logging",
+    "packages/cli"
+  ]
+}
