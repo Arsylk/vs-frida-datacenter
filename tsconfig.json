@@ -1,7 +1,14 @@
 {
+    "compilerOptions": {
+        "esModuleInterop": true
+    },
     "files": [],
     "references": [
         { "path": "packages/logging" },
-        { "path": "packages/cli" },
+        { "path": "packages/common" },
+        { "path": "packages/hooks" },
+        { "path": "packages/network" },
+        { "path": "packages/native" },
+        { "path": "packages/jnitrace" },
     ]
 }

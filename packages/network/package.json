@@ -1,16 +1,14 @@
 {
-    "name": "@clockwork/cli",
+    "name": "@clockwork/network",
     "version": "1.0.0",
-    "description": "",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
-    "scripts": {
-        "start": "node dist/index.js"
-    },
     "type": "module",
     "author": "Arsylk",
     "license": "ISC",
     "dependencies": {
-        "@clockwork/logging": "^1.0.0"
+        "@clockwork/common": "^1.0.0",
+        "@clockwork/logging": "^1.0.0",
+        "@clockwork/hooks": "^1.0.0"
     }
 }

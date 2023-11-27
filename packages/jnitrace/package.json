@@ -1,12 +1,14 @@
 {
-    "name": "@clockwork/logging",
+    "name": "@clockwork/jnitrace",
     "version": "1.0.0",
+    "description": "",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "type": "module",
     "author": "Arsylk",
     "license": "ISC",
     "dependencies": {
-        "pino": "^8.16.2"
+        "@clockwork/logging": "^1.0.0",
+        "@clockwork/common": "^1.0.0"
     }
 }

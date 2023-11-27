@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "prepare": "npm run build",
-    "build": "frida-compile ./agent/index.ts -o ./agent/dist/script.js -w",
+    "build": " npx webpack --config webpack.config.js",
     "attach": "run() { frida -U \"$1\" -l ./agent/dist/script.js --runtime=v8 -o ./session.txt; }; run",
-    "spawn": "run() { frida -U -f \"$1\" -l ./agent/dist/script.js --runtime=v8 -o ./session.txt; }; run",
-    "app-spawn": "npm run spawn com.text.sms.chatting.messaged"
+    "spawn": "run() { frida -U -f \"$1\" -l ./agent/dist/script.js --runtime=v8 --debug -o ./session.txt; }; run",
+    "app-spawn": "npm run spawn com.keudewmz.royal"
   },
   "repository": {
     "type": "git",
@@ -24,13 +24,23 @@
   },
   "homepage": "https://github.com/Arsylk/frida-clockwork#readme",
   "dependencies": {
+    "colorette": "^2.0.20",
     "frida-compile": "^16.4.1"
   },
   "devDependencies": {
-    "@tsconfig/node21": "^21.0.0"
+    "@tsconfig/node21": "^21.0.0",
+    "@types/frida-gum": "^18.4.7",
+    "frida-il2cpp-bridge": "^0.9.0",
+    "ts-loader": "^9.5.1",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4"
   },
   "workspaces": [
     "packages/logging",
-    "packages/cli"
+    "packages/common",
+    "packages/hooks",
+    "packages/network",
+    "packages/native",
+    "packages/jnitrace"
   ]
 }

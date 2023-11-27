@@ -1,12 +1,13 @@
 {
-    "name": "@clockwork/logging",
+    "name": "@clockwork/common",
     "version": "1.0.0",
+    "description": "",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "type": "module",
     "author": "Arsylk",
     "license": "ISC",
     "dependencies": {
-        "pino": "^8.16.2"
+        "@clockwork/logging": "^1.0.0"
     }
 }

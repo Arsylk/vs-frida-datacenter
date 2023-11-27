@@ -1,5 +1,5 @@
 {
-    "name": "@clockwork/logging",
+    "name": "@clockwork/native",
     "version": "1.0.0",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
@@ -7,6 +7,7 @@
     "author": "Arsylk",
     "license": "ISC",
     "dependencies": {
-        "pino": "^8.16.2"
+        "@clockwork/common": "^1.0.0",
+        "@clockwork/logging": "^1.0.0"
     }
 }
