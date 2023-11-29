@@ -1,0 +1,201 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "hide": true,
+            "label": "AVD Manager: frida spawn",
+            "command": "${command:avdmanager.frida-spawn}"
+        },
+        {
+            "label": "run-frida-debug",
+            "command": "frida",
+            "args": ["--device", "emulator-5554", "-f", "${input:appPackage}", "-l", "script.js", "--runtime=v8", "--debug"],
+            "isBackground": true,
+            "type": "shell",
+            "problemMatcher": [
+                {
+                    "pattern": [
+                        {
+                            "regexp": ".",
+                            "file": 1,
+                            "location": 2,
+                            "message": 3
+                        }
+                    ],
+                    "background": {
+                        "activeOnStart": true,
+                        "beginsPattern": "Chrome Inspector server listening on port",
+                        "endsPattern": "\\d+"
+                    }
+                }
+            ],
+            "hide": true
+        },
+        {
+            "label": "Run Frida",
+            "detail": "Start a frida session",
+            "command": "frida",
+            "args": [
+                "--device",
+                "emulator-5554",
+                "-o",
+                "session.txt",
+                "-f",
+                "${input:appPackage}",
+                "-l",
+                "script.js"
+                // "dumpjs_key_hook.js"
+            ],
+            "type": "shell",
+            "group": "test",
+            "runOptions": {
+                "reevaluateOnRerun": true,
+                "instanceLimit": 1
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "showReuseMessage": false,
+                "clear": true
+            },
+            "problemMatcher": [
+                {
+                    "pattern": [
+                        {
+                            "regexp": ".",
+                            "file": 1,
+                            "location": 2,
+                            "message": 3
+                        }
+                    ],
+                    "background": {
+                        "activeOnStart": true,
+                        "beginsPattern": "Chrome Inspector server listening on port",
+                        "endsPattern": "\\d+"
+                    }
+                }
+            ]
+        },
+        {
+            "label": "Build: watch",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "icon": { "id": "wrench" },
+            "dependsOn": ["tsc: watch", "webpack: watch"]
+        },
+        {
+            "isBackground": true,
+            "type": "shell",
+            "group": "build",
+            "command": "npx tsc -b -w",
+            "problemMatcher": ["$tsc-watch"],
+            "label": "tsc: watch",
+            "detail": "npx tsc -b -w",
+            "presentation": {
+                "reveal": "silent",
+                "group": "build"
+            },
+            "icon": {
+                "color": "terminal.ansiCyan"
+            }
+        },
+        {
+            "isBackground": true,
+            "type": "shell",
+            "command": "npx nodemon ~/Projects/Typescript/work-watcher/build/index.js",
+            "problemMatcher": [
+                // TODO
+            ],
+            "label": "workspace: nodemon",
+            "detail": "npx nodemon",
+            "presentation": {
+                "reveal": "silent"
+            },
+            "icon": {
+                "id": "file-zip",
+            }
+        },
+        {
+            "isBackground": true,
+            "type": "shell",
+            "group": "build",
+            "command": "npx webpack --config webpack.config.js --watch",
+            "problemMatcher": ["$ts-webpack-watch"],
+            "label": "webpack: watch",
+            "detail": "npx webpack --config webpack.config.js --watch",
+            "presentation": {
+                "reveal": "silent",
+                "group": "build"
+            },
+            "icon": {
+                "color": "terminal.ansiYellow"
+            }
+        },
+        {
+            "label": "Android Clear App Data",
+            "detail": "Perform pm clear on selected package",
+            "type": "shell",
+            "command": "adb shell pm clear ${input:appPackage}",
+            "icon": {
+                "id": "trashcan"
+            },
+            "presentation": {
+                "reveal": "never",
+                "close": true
+            },
+            "problemMatcher": [
+                {
+                    "pattern": {
+                        "regexp": "^adb: (.*)"
+                    }
+                }
+            ]
+        },
+        {
+            "label": "Cocos2dx Dump",
+            "detail": "Pull dumped cocos2dx scripts",
+            "type": "shell",
+            "command": "adb shell su 0 'cp -r /data/data/${input:appPackage}/files/dump_cocos2dx_${input:appPackage} /sdcard/cocos2dx/' && adb pull /sdcard/cocos2dx/dump_cocos2dx_${input:appPackage} ~/Downloads",
+            "icon": {
+                "id": "debug-reverse-continue"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Copy Package Name",
+            "detail": "Pick and copy to clipboard package name",
+            "type": "shell",
+            "command": "echo ${input:appPackage} | pbcopy",
+            "presentation": {
+                "reveal": "silent",
+                "revealProblems": "onProblem",
+                "close": true
+            },
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "appPackage",
+            "type": "command",
+            "command": "shellCommand.execute",
+            "args": {
+                "command": "adb shell pm list packages -f -U | sed 's/^package:\\(.*\\)=\\(.*\\) uid:\\(.*\\)/\\2|\\2|\\3|\\1/g' | sort -g -t '|' -k3,3 -r",
+                "fieldSeparator": "|",
+                "rememberPrevious": true,
+                "taskId": "task.input.appPackage"
+            }
+        },
+        {
+            "id": "appFullLabel",
+            "type": "command",
+            "command": "shellCommand.execute",
+            "args": {
+                "command": "adb shell pm list packages -f -U | sed 's/^package:\\(.*\\)=\\(.*\\) uid:\\(.*\\)/\\2|\\1|\\3/g' | sort -g -t '|' -k3,3 -r | tr '|' '\\0' | tr '\\n' '\\0'  | xargs -0 -n 3 sh -c 'echo $0\\|$(adb shell /data/local/tmp/aapt2 dump badging \"$1\" | grep \"application: label=\" | sed \"s/^.*label=.\\(.*\\). icon=.*$/\\1/g\")\\|$0\\|$1'",
+                "fieldSeparator": "|"
+            }
+        }
+    ]
+}

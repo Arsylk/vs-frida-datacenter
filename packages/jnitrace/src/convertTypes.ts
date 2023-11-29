@@ -1,3 +1,4 @@
+import { Text } from '@clockwork/common'
 const ARRAY_TYPE_INDEX = 1;
 const TYPE_SIZE_64_BIT = 8;
 const TYPE_SIZE_CHAR = 1;
@@ -14,14 +15,7 @@ const PrimitiveTypes: { [key: string]: string } = {
 };
 
 const Types = {
-    prettifySignature(param: string): string {
-        const len = param.length;
-        for (; param.charAt(0) === '['; param = param.substring(1));
-        const depth = len - param.length;
-        if (param.charAt(0) === 'L' && param.charAt(param.length - 1) === ';')
-            return param.substring(1, param.length - 1).replaceAll('/', '.') + '[]'.repeat(depth);
-        return (PrimitiveTypes[param] ?? param) + '[]'.repeat(depth);
-    },
+    prettifySignature: Text.toPrettyType,
     isComplexObjectType(type: string): boolean {
         const JOBJECT = ['jobject', 'jclass', 'jweak'];
 

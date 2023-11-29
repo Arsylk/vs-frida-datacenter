@@ -41,6 +41,7 @@
     "packages/hooks",
     "packages/network",
     "packages/native",
-    "packages/jnitrace"
+    "packages/jnitrace",
+    "packages/cocos2dx"
   ]
 }

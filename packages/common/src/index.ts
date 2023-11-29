@@ -1,4 +1,4 @@
-import { ClassesProxy } from './define/java.js';
+import { ClassesProxy as Classes } from './define/java.js';
 import { LibcFinderProxy } from './define/libc.js';
 import * as Std from './define/std.js';
 import { enumerateMembers, findClass, getClass } from './search.js';
@@ -8,4 +8,9 @@ function isJWrapper(clazzOrName: Java.Wrapper | string): clazzOrName is Java.Wra
     return clazzOrName?.hasOwnProperty('$className');
 }
 
-export { ClassesProxy as Classes, LibcFinderProxy as Libc, isJWrapper, findClass, getClass, enumerateMembers, Text, Std };
+function stacktrace(): string {
+    const e = Classes.Exception.$new();
+    return Classes.Log.getStackTraceString(e).split('\n').slice(1).join('\n');
+}
+
+export {  Classes, LibcFinderProxy as Libc, isJWrapper, stacktrace, findClass, getClass, enumerateMembers, Text, Std };

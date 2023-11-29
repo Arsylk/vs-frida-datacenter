@@ -16,4 +16,25 @@ function toByteSize(size: number): string {
     return Number((size / Math.pow(1024, i)).toFixed(2)) * 1 + ' ' + ['B', 'kB', 'MB', 'GB', 'TB'][i];
 }
 
-export { maxLengh, noLines, toHex, toByteSize };
+const PRIMITIVE_TYPE: { [key: string]: string } = {
+    Z: 'boolean',
+    B: 'byte',
+    C: 'char',
+    D: 'double',
+    F: 'float',
+    I: 'int',
+    J: 'long',
+    S: 'short',
+    V: 'void',
+}
+
+function toPrettyType(type: string): string {
+    const len = type.length;
+    for (; type.charAt(0) === '['; type = type.substring(1));
+    const depth = len - type.length;
+    if (type.charAt(0) === 'L' && type.charAt(type.length - 1) === ';')
+        return type.substring(1, type.length - 1).replaceAll('/', '.') + '[]'.repeat(depth);
+    return (PRIMITIVE_TYPE[type] ?? type) + '[]'.repeat(depth);
+}
+
+export { maxLengh, noLines, toHex, toByteSize, toPrettyType };

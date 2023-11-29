@@ -1,0 +1,1 @@
+/Users/krzysztofi/Projects/Typescript/frida-clockwork/agent/dist/script.js

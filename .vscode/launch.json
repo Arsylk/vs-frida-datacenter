@@ -1,0 +1,10 @@
+{
+    "configurations": [
+        {
+            "name": "Launch",
+            "preLaunchTask": "AVD Manager: frida spawn",
+            "type": "node",
+            "request": "attach"
+        }
+    ]
+}

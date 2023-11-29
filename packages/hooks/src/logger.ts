@@ -1,8 +1,8 @@
-import { logger } from '@clockwork/logging';
-import { createColors } from 'colorette';
+import { logger, Color } from '@clockwork/logging';
 import { LoggerOptions } from './types.js';
 import { OmitFirstArg } from '@clockwork/common/src/types.js';
-const { black, gray, blue, green, cyan, dim, italic, bold } = createColors({ useColor: true });
+import { Text } from '@clockwork/common'
+const { black, gray, blue, green, cyan, dim, italic, bold } = Color.use();
 
 const DEFAULT_LOGGER_OPTIONS: LoggerOptions = {
     spacing: '   ',
@@ -21,7 +21,7 @@ const HOOK_LOGGER = {
     },
 
     mapClass(config: LoggerOptions, className: string): string {
-        const splits: string[] = className.split('.');
+        const splits: string[] = Text.toPrettyType(className).split('.');
         if (config.short) return cyan(splits[splits.length - 1]);
         return splits.map(cyan).join('.');
     },

@@ -79,4 +79,4 @@ function dumpFile(stringPtr: NativePointer, size: number, relativePath: string, 
     return true;
 }
 
-export { dellocate, getSelfProcessName, getSelfFiles, dumpFile as dump_file };
+export { dellocate, getSelfProcessName, getSelfFiles, dumpFile };

@@ -1,5 +1,6 @@
 import { createColors } from 'colorette';
-const colors = createColors({ useColor: true });
+import { use } from './color.js';
+const colors = use();
 const array = [colors.red, colors.green, colors.yellow, colors.blue, colors.magenta, colors.cyan, colors.gray];
 
 const colormap = new Map<string, (text: string | number) => string>();

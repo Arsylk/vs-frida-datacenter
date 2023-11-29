@@ -1,5 +1,10 @@
 import { createColors } from 'colorette';
-const { cyan, green } = createColors({ useColor: true });
+const Colors = createColors({ useColor: true });
+const { cyan, green } = use();
+
+function use() {
+    return Colors;
+}
 
 const className: (className: any) => string = (className: any) => {
     if (!className) return className;
@@ -19,4 +24,4 @@ const args: (args: string[]) => string = (args: string[]) => {
     return `\n${joined}\n`;
 };
 
-export { className, method, args };
+export { className, method, args, use };

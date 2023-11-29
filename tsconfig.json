@@ -10,5 +10,6 @@
         { "path": "packages/network" },
         { "path": "packages/native" },
         { "path": "packages/jnitrace" },
+        { "path": "packages/cocos2dx" },
     ]
 }
