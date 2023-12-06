@@ -1,8 +1,7 @@
 import { Libc } from '@clockwork/common';
-import { subLogger } from '@clockwork/logging';
-import { createColors } from 'colorette';
-const { gray, green, red } = createColors({ useColor: true });
-const logger = subLogger('SysProp');
+import { subLogger, Color } from '@clockwork/logging';
+const { gray, green, red } = Color.use();
+const logger = subLogger('sysprop');
 
 function attachSystemPropertyGet(fn?: (this: InvocationContext, key: string, value: string | null) => string | undefined) {
     fn &&

@@ -1,9 +1,9 @@
 import { createHash } from 'crypto';
-import { JNIHook, dumpFile } from '@clockwork/native';
+import { Inject, dumpFile } from '@clockwork/native';
 import { Text } from '@clockwork/common';
 import { Color, subLogger } from '@clockwork/logging';
-const { red, dim, blue } = Color.use()
-const logger = subLogger('cocos2dx')
+const { red, dim, blue } = Color.use();
+const logger = subLogger('cocos2dx');
 
 type ModuleOffset = { name: string; offset: NativePointer };
 
@@ -26,14 +26,12 @@ const hookEvalString: InvocationListenerCallbacks = {
         const [_, scripts, len, a4, filename] = [args[0], args[1], args[2], args[3], args[4]];
         let length: number | null = null;
         let path: string | null = null;
+        let data: string | null = null;
         if (filename && (path = filename.readCString())) {
             length = len.toUInt32();
-        } else {
-            const data = scripts.readCString();
-            if (data) {
-                path = createHash('sha256').update(data).digest('hex') + '.js';
-                length = data.length;
-            }
+        } else if ((data = scripts.readCString())) {
+            path = createHash('sha256').update(data).digest('hex') + '.js';
+            length = data.length;
         }
         if (!length || !path) return;
         const result = dumpFile(scripts, length, path, 'cocos2dx');
@@ -57,7 +55,8 @@ const hookLuaLLoadbuffer: InvocationListenerCallbacks = {
 };
 
 function dump(...targets: ModuleOffset[]) {
-    JNIHook.afterInitArray((module: any, method: any) => {
+    const notFoundId = setTimeout(() => logger.warn('10 seconds have passed and no cocos2dx methods were called yet'), 10000)
+    Inject.afterInitArrayModule((module: Module) => {
         const addresses: NativePointer[] = [];
         targets.forEach(({ name, offset }) => {
             if (name === module.name) {
@@ -73,7 +72,7 @@ function dump(...targets: ModuleOffset[]) {
             hookTemp && addresses.push(hookTemp);
         }
         addresses.forEach((address) => {
-            logger.info(`evalString ${module.name} ${address}`);
+            logger.info(`evalString ${module.name} ${DebugSymbol.fromAddress(address)}`);
             Interceptor.attach(address, hookEvalString);
         });
         const lual = module.findExportByName('luaL_loadbuffer');
@@ -83,7 +82,7 @@ function dump(...targets: ModuleOffset[]) {
         }
         const xxtea_decrypt = module.findExportByName('_Z13xxtea_decryptPhjS_jPj');
         if (xxtea_decrypt) {
-            logger.info(`xxtea_decrypt ${module.name} ${xxtea_decrypt.address}`);
+            logger.info(`xxtea_decrypt ${module.name} ${xxtea_decrypt}`);
             Interceptor.attach(xxtea_decrypt, {
                 onEnter: function (args) {
                     logger.info('key -> ' + args[2].readCString(Math.min(args[3].toUInt32(), 16)));
@@ -92,8 +91,9 @@ function dump(...targets: ModuleOffset[]) {
             });
         }
 
-        if (addresses.length === 0 && !lual && !xxtea_decrypt) {
+        if (addresses.length > 0 || lual || xxtea_decrypt) {
             // logger.warn('dump: no cocos2dx functions found')
+            clearTimeout(notFoundId)
         }
     });
 }

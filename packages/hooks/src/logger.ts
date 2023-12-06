@@ -2,7 +2,7 @@ import { logger, Color } from '@clockwork/logging';
 import { LoggerOptions } from './types.js';
 import { OmitFirstArg } from '@clockwork/common/src/types.js';
 import { Text } from '@clockwork/common'
-const { black, gray, blue, green, cyan, dim, italic, bold } = Color.use();
+const { black, gray, blue, green, cyan, dim, italic, bold, yellow } = Color.use();
 
 const DEFAULT_LOGGER_OPTIONS: LoggerOptions = {
     spacing: '   ',
@@ -21,9 +21,16 @@ const HOOK_LOGGER = {
     },
 
     mapClass(config: LoggerOptions, className: string): string {
-        const splits: string[] = Text.toPrettyType(className).split('.');
-        if (config.short) return cyan(splits[splits.length - 1]);
-        return splits.map(cyan).join('.');
+        let type = Text.toPrettyType(className);
+        let array = '';
+        const index = type.indexOf('[')
+        if (index !== -1) {
+            array = dim(yellow(type.substring(index)))
+            type = type.substring(0, index)
+        }
+        const splits: string[] = type.split('.');
+        if (config.short) return cyan(splits[splits.length - 1]) + array;
+        return splits.map(cyan).join('.') + array;
     },
 
     mapArgs(config: LoggerOptions, args: any[]): string {

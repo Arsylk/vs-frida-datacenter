@@ -9,7 +9,6 @@ function getColor(tag: string): (text: string | number) => string {
     let roll = colormap.get(tag);
     if (roll) return roll;
     const hash = hashCode(tag);
-    console.log(tag, roll, hash)
     roll = array[Math.abs(hash % array.length)];
     colormap.set(tag, roll);
     return roll;

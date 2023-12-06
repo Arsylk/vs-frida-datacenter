@@ -4,10 +4,12 @@
   "description": "Collection various frida toys",
   "type": "module",
   "scripts": {
-    "prepare": "npm run build",
-    "build": " npx webpack --config webpack.config.js",
-    "attach": "run() { frida -U \"$1\" -l ./agent/dist/script.js --runtime=v8 -o ./session.txt; }; run",
-    "spawn": "run() { frida -U -f \"$1\" -l ./agent/dist/script.js --runtime=v8 --debug -o ./session.txt; }; run",
+    "prepublish": "npm run tsc",
+    "prepare": "npm run webpack",
+    "tsc": "npx tsc --build",
+    "webpack": " npx webpack --config webpack.config.js",
+    "attach": "run() { frida -U \"$1\" -l ./script.js --runtime=v8 -o ./session.txt; }; run",
+    "spawn": "run() { frida -U -f \"$1\" -l ./script.js --runtime=v8 --debug -o ./session.txt; }; run",
     "app-spawn": "npm run spawn com.keudewmz.royal"
   },
   "repository": {
@@ -24,7 +26,6 @@
   },
   "homepage": "https://github.com/Arsylk/frida-clockwork#readme",
   "dependencies": {
-    "colorette": "^2.0.20",
     "frida-compile": "^16.4.1"
   },
   "devDependencies": {
@@ -36,12 +37,13 @@
     "webpack-cli": "^5.1.4"
   },
   "workspaces": [
-    "packages/logging",
+    "packages/logging", 
     "packages/common",
     "packages/hooks",
     "packages/network",
     "packages/native",
     "packages/jnitrace",
-    "packages/cocos2dx"
+    "packages/cocos2dx",
+    "packages/unity"
   ]
 }

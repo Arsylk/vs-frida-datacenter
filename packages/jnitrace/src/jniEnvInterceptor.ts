@@ -10,14 +10,13 @@ abstract class JNIEnvInterceptor {
 
     public constructor() {}
 
-    public getCallMethodArgs(caller: string, args: NativeCallbackArgumentValue[], isStatic: boolean = false): NativeCallbackArgumentValue[] {
-        const callArgs: NativeCallbackArgumentValue[] = [];
+    public getCallMethodArgs(caller: string, args: NativeCallbackArgumentValue[], isStatic: boolean): NativeCallbackArgumentValue[] | null {
         let methodIndex = METHOD_ID_INDEX;
         if (caller.includes('Nonvirtual')) {
             methodIndex = NON_VIRTUAL_METHOD_ID_INDEX;
         }
         if (!caller.endsWith('va_list') && !caller.endsWith('jvalue')) {
-            return callArgs;
+            return null;
         }
 
         const jMethodId = args[methodIndex] as NativePointer;
@@ -27,9 +26,11 @@ abstract class JNIEnvInterceptor {
         const jMethod = resolveMethod(jMethodId, isStatic);
         if (!jMethod) {
             console.error('[JniEnvInterceptor]', 'Method not found for id:', jMethodId);
-            return callArgs;
+            return null;
         }
+        
 
+        const callArgs: NativeCallbackArgumentValue[] = [];
         const callArgsPtr = args[args.length - 1] as NativePointer;
         if (isVaList) this.setUpVaListArgExtract(callArgsPtr);
         

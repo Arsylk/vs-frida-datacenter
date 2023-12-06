@@ -20,6 +20,8 @@ const ClassesString = {
     Date: 'java.util.Date',
     Integer: 'java.lang.Integer',
     Method: 'java.lang.reflect.Method',
+    Runtime: 'java.lang.Runtime',
+    Map$Entry: 'java.util.Map$Entry',
 
     Application: 'android.app.Application',
     WebView: 'android.webkit.WebView',

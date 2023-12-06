@@ -1,9 +1,15 @@
-import { Color, logger } from "@clockwork/logging";
-const { blue, red, magentaBright: pink } = Color.use()
+import { Color, logger } from '@clockwork/logging';
+const { blue, red, magentaBright: pink } = Color.use();
+
+type NatveFunctionCallbacks = {
+    onEnter?: (this: InvocationContext, args: InvocationArguments) => void;
+    onLeave?: (this: InvocationContext, retval: NativeFunctionReturnValue) => void;
+};
 
 // using namespace for singleton with all callbacks
-namespace JNIHook {
-    let afterInitArrayCallback: ((module: Module, method: NativePointer | null) => void) | null = null;
+namespace Inject {
+    export const modules = new ModuleMap();
+    const initArrayCallbacks: ((name: string) => void)[] = [];
 
     let do_dlopen: NativePointer;
     let call_ctor: NativePointer;
@@ -29,8 +35,9 @@ namespace JNIHook {
             const libName = (this.libName = libPath.split('/').pop()!!);
             logger.info(`[${pink('dlopen')}] ${libPath}`);
 
+            modules.update();
             return;
-            // TODO investigate 
+            // TODO investigate
             let handle: InvocationListener | null = null;
             const unhook = () => handle?.detach();
             handle = Interceptor.attach(call_ctor, ctorListenerCallback(libName, unhook));
@@ -42,7 +49,10 @@ namespace JNIHook {
     });
 
     // call_constructor callback
-    const ctorListenerCallback: (libName: string, detach: () => void) => InvocationListenerCallbacks = (libName: string, detach: () => void) => ({
+    const ctorListenerCallback: (libName: string, detach: () => void) => InvocationListenerCallbacks = (
+        libName: string,
+        detach: () => void,
+    ) => ({
         onEnter(args) {
             logger.debug('[Ctor]', libName, red('->'), args[0]);
         },
@@ -53,16 +63,47 @@ namespace JNIHook {
     });
 
     function onAfterInitArray(libName: string) {
-        const module = Process.findModuleByName(libName);
-        if (module) {
-            const JNI_OnLoad = module.findExportByName('JNI_OnLoad');
-            afterInitArrayCallback?.(module, JNI_OnLoad ?? null);
+        for (const cb of initArrayCallbacks) {
+            cb(libName);
         }
     }
 
-    export function afterInitArray(callback: (module: Module, method: NativePointer | null) => void) {
-        afterInitArrayCallback = callback;
+    export function afterInitArray(fn: (name: string) => void) {
+        initArrayCallbacks.push(fn);
+    }
+
+    export function afterInitArrayModule(fn: (module: Module) => void) {
+        initArrayCallbacks.push((name) => {
+            const module = Process.findModuleByName(name);
+            if (module) fn(module);
+        });
+    }
+
+    export function attachInModule(name: string, address: NativePointer, callbacks: NatveFunctionCallbacks): void;
+    export function attachInModule(
+        predicate: (ptr: NativePointer) => boolean,
+        address: NativePointer,
+        callbacks: NatveFunctionCallbacks,
+    ): void;
+    export function attachInModule(
+        nameOrPredicate: string | ((ptr: NativePointer) => boolean),
+        address: NativePointer,
+        callbacks: NatveFunctionCallbacks,
+    ): void {
+        const fn = typeof nameOrPredicate === 'function' ? nameOrPredicate : (ptr: NativePointer) => modules.findName(ptr) === nameOrPredicate;
+        Interceptor.attach(address, {
+            onEnter(args) {
+                if (fn(this.returnAddress)) {
+                    callbacks?.onEnter?.call?.(this, args);
+                }
+            },
+            onLeave(retval) {
+                if (fn(this.returnAddress)) {
+                    callbacks?.onLeave?.call(this, retval);
+                }
+            },
+        });
     }
 }
 
-export { JNIHook };
+export { Inject };

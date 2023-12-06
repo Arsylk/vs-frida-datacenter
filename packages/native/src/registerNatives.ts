@@ -1,6 +1,5 @@
-import { createColors } from 'colorette';
-import { getSelfProcessName } from './utils.js';
-const { green, redBright, bold, dim, black } = createColors({ useColor: true });
+import { Color } from '@clockwork/logging';
+const { green, redBright, bold, dim, black } = Color.use();
 
 let cachedVtable: any = null;
 function vtable(instance: Java.Env) {
@@ -31,6 +30,7 @@ function attachRegisterNatives() {
         return;
     }
 
+    // fallback previous method
     const libart = Process.getModuleByName('libart.so');
     const symbols = libart.enumerateSymbols();
     symbols.forEach(({ name, address }) => {

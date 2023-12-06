@@ -13,4 +13,15 @@ function stacktrace(): string {
     return Classes.Log.getStackTraceString(e).split('\n').slice(1).join('\n');
 }
 
-export {  Classes, LibcFinderProxy as Libc, isJWrapper, stacktrace, findClass, getClass, enumerateMembers, Text, Std };
+
+declare global {
+    function findClass(className: string, ...loaders: Java.Wrapper[]): Java.Wrapper | null
+}
+Object.defineProperties(global, {
+    findClass: {
+        value: findClass
+    },
+})
+
+
+export { Classes, LibcFinderProxy as Libc, isJWrapper, stacktrace, findClass, getClass, enumerateMembers, Text, Std };
