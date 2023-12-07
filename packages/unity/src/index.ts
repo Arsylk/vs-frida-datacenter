@@ -1,5 +1,8 @@
+import 'frida-il2cpp-bridge';
 
-import 'frida-il2cpp-bridge'
+function setVersion(version: string) {
+    (globalThis as any).IL2CPP_UNITY_VERSION = version;
+}
 
 function attachStrings() {
     Il2Cpp.perform(() => {
@@ -15,8 +18,7 @@ function attachStrings() {
             )
             .and()
             .attach();
-    })
+    });
 }
 
-
-export { attachStrings }
+export { setVersion, attachStrings };

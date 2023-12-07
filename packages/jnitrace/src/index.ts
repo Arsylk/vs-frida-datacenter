@@ -1,7 +1,7 @@
 import { JavaMethod } from './javaMethod.js';
 import { JNIEnvInterceptorARM64 } from './jniEnvInterceptorArm64.js';
 import { JNIEnvInterceptor } from './jniEnvInterceptor.js';
-import { Classes, Std, enumerateMembers } from '@clockwork/common';
+import { Text, Classes, Std, enumerateMembers } from '@clockwork/common';
 import { Color, subLogger } from '@clockwork/logging';
 import { JNIMethod } from './jniMethod.js';
 import { fastpathMethod, resolveMethod } from './tracer.js';
@@ -20,7 +20,7 @@ function ColorMethod(jMethodId: NativePointer, method: JavaMethod): string {
     sb += '::';
     sb += Color.method(method.name);
     sb += blue('(');
-    sb += method.parameters.map(Color.className).join(',');
+    sb += method.javaParams.map(Color.className).join(', ');
     sb += blue(')');
     sb += ': ';
     sb += Color.className(method.javaRet);
@@ -37,9 +37,9 @@ function ColorMethodInvoke(method: JavaMethod, args: any[]): string {
     sb += Color.method(method.name);
     sb += blue('(');
     if (args.length > 0) {
-        sb += '\n'
+        sb += '\n';
         sb += args.map((arg) => `    ${arg}`).join(', \n');
-        sb += '\n'
+        sb += '\n';
     }
     sb += blue(')');
     sb += ': ';
@@ -91,6 +91,20 @@ function formatCallMethod(nativeName: string, jMethodId: NativePointer, method: 
         return ColorMethodInvoke(method, mappedArgs);
     }
     return null;
+}
+
+function formatMethodReturn(value: NativePointer | null): string | null {
+    if (!value || value.isNull()) return null;
+    let text = `${value}`;
+    let type = Java.vm.tryGetEnv()?.getObjectClassName(value);
+    if (type && (type = Text.toPrettyType(type))) {
+        if (type == Classes.String.$className) {
+            text = yellow(`"${Java.cast(value, Classes.String)}"`);
+        } else if (type.includes('.')) {
+            text = `${Java.cast(value, Classes.Object)}`;
+        }
+    }
+    return `${dim('return')} ${text}`;
 }
 
 /*
@@ -235,7 +249,7 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
             onLeave: hookIfTag<NativePointer>(`Get${isStatic ? 'Static' : ''}MethodID`, function (retval) {
                 const className = Java.vm.tryGetEnv().getClassName(this.clazz);
                 const method = fastpathMethod(retval, className, this.name, this.sig, isStatic);
-                return ColorMethod(retval, method as any);
+                return ColorMethod(retval, method);
             }),
         };
     };
@@ -280,10 +294,7 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
                 const callArgs = jniInterceptor.getCallMethodArgs(name, [env, jclass, jMethodId, args], true);
                 return formatCallMethod(name, jMethodId, method, callArgs);
             }),
-            onLeave: hookIfTag('CallStatic', (retval) => {
-                console.log(`return ${retval}`);
-                return null;
-            }),
+            onLeave: hookIfTag('CallStatic', formatMethodReturn),
         });
     });
     addrsCallNonvirtual.forEach(({ address, name }) => {
@@ -299,6 +310,7 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
                 const callArgs = jniInterceptor.getCallMethodArgs(name, [env, jobject, jclass, jMethodId, args], false);
                 return formatCallMethod(name, jMethodId, method, callArgs);
             }),
+            onLeave: hookIfTag('CallNonvirtual', formatMethodReturn),
         });
     });
     addrsCallMethod.forEach(({ address, name }) => {
@@ -312,7 +324,7 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
                 const method = resolveMethod(jMethodId, false);
                 const callArgs = jniInterceptor.getCallMethodArgs(name, [env, jobject, jMethodId, args], false);
 
-                // TODO this logging api 
+                // TODO this logging api
                 // const cn = Java.vm.tryGetEnv().getObjectClassName(jobject);
                 // if (cn.includes('.')) {
                 //     const str = Java.cast(jobject, Java.use('java.lang.Object'));
@@ -320,11 +332,7 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
                 // }
                 return formatCallMethod(name, jMethodId, method, callArgs);
             }),
-            onLeave: hookIfTag('CallMethod', (retval) => {
-                if (!retval || retval.isNull()) return null;
-                const cn = Java.vm.tryGetEnv().getObjectClassName(retval);
-                return `${dim('return')} ${cn} -> ${retval}`;
-            })
+            onLeave: hookIfTag('CallMethod', formatMethodReturn),
         });
     });
 }

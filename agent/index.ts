@@ -92,27 +92,22 @@ function hookPrefs() {
 Java.performNow(() => {
     hookActivity();
     hookWebview();
-    // hookJson();
-    // hookPrefs();
-    // hookCrypto();
-    // hook(Classes.URL, 'openConnection');
+    hookJson();
+    hookPrefs();
+    hookCrypto();
+    hook(Classes.URL, 'openConnection');
     hook(Classes.Runtime, 'exec');
-    hook('android.telephony.TelephonyManager', 'getSimOperator', {
-        replace: ifReturn(() => log(pink(stacktrace()))),
-    });
-    let x: string[] = [];
+    hook('android.telephony.TelephonyManager', 'getSimOperator');
+    let x: any = null;
     ClassLoader.perform((cl) => {
-        uniqHook('III11.IIl1lII11l', 'l1l11', {
-            after(method, returnValue, ...args) {
-                console.log(`# ${returnValue}`);
-            },
-            logging: { call: false, return: false },
-        });
+        uniqHook('nsee.iwbkc.tnvgr.frxzhjzyzzgcry', 'fawiheb', { replace: always(true) });
     });
 });
 
-// Network.attachNativeSocket();
-// Native.attachRegisterNatives();
+Network.attachGetAddrInfo();
+Network.attachGetHostByName();
+Network.attachNativeSocket();
+Native.attachRegisterNatives();
 Native.attachSystemPropertyGet(function (key) {
     // console.log(DebugSymbol.fromAddress(this.returnAddress));
     switch (key) {
@@ -125,63 +120,53 @@ Native.attachSystemPropertyGet(function (key) {
     }
 });
 
-// Cocos2dx.dump({ name: 'libcocos.so', offset: ptr(0x0030be50) });
+Cocos2dx.dump();
+// Unity.setVersion('2020.3.15f2')
 // Unity.attachStrings();
 
 const predicate = (returnAddress: NativePointer) => {
     const name = Native.Inject.modules.findName(returnAddress);
-    if (
-        [
-            'libpl_droidsonroids_gif.so',
-            'libping-lib.so',
-            'libpartner-celpher.so',
-            'libovpnexec.so',
-            'libopvpnutil.so',
-            'libopenvpn.so',
-            'libkeys.so',
-            'libhydra.so',
-        ].includes(name ?? '')
-    )
-        return true;
-    return false;
+    return ['libcocos2dlua.so', 'main.so', 'libunity.so'].includes(name ?? '');
 };
 
-JniTrace.attach(({ returnAddress }) => {
-    return predicate(returnAddress);
-});
+// JniTrace.attach(({ returnAddress }) => {
+//     return predicate(returnAddress);
+// });
 
-['strcmp', 'strncmp', 'strstr'].forEach((ex) => {
-    const strcmp = Module.getExportByName(null, ex);
-    Native.Inject.attachInModule(predicate, strcmp, {
-        onEnter(args) {
-            logger.info({ tag: ex }, `"${args[0].readCString()}", "${args[1].readCString()}"`);
-        },
-    });
-});
-[
-    '__android_log_print',
-    'getpid',
-    'sprintf',
-    'open',
-    'access',
-    'pthread_kill',
-    'kill',
-    'fork',
-    'pthread_create',
-    'exit',
-    '_exit',
-    'killpg',
-    'signal',
-    'abort',
-    'gettimeofday',
-].forEach((ex) => {
-    const strcmp = Module.getExportByName(null, ex);
-    Native.Inject.attachInModule(predicate, strcmp, {
-        onEnter(args) {
-            logger.info({ tag: ex }, `"${args[0].readCString()}"`);
-        },
-    });
-});
+// ['strcmp', 'strncmp', 'strstr'].forEach((ex) => {
+//     const strcmp = Module.getExportByName(null, ex);
+//     Native.Inject.attachInModule(predicate, strcmp, {
+//         onEnter(args) {
+//             logger.info({ tag: ex }, `"${args[0].readCString()}", "${args[1].readCString()}"`);
+//         },
+//     });
+// });
+// [
+//     'access',
+//     'vprintf',
+//     '__android_log_print',
+//     'getpid',
+//     'sprintf',
+//     'open',
+//     'access',
+//     'pthread_kill',
+//     'kill',
+//     'fork',
+//     'pthread_create',
+//     'exit',
+//     '_exit',
+//     'killpg',
+//     'signal',
+//     'abort',
+//     'localtime',
+// ].forEach((ex) => {
+//     const strcmp = Module.getExportByName(null, ex);
+//     Native.Inject.attachInModule(predicate, strcmp, {
+//         onEnter(args) {
+//             logger.info({ tag: ex }, `"${args[0].readCString()}"`);
+//         },
+//     });
+// });
 // Native.Inject.attachInModule('libcocos.so', Libc.access, {
 //     onEnter(args) {
 //         logger.info({ tag: 'access' }, `"${args[0].readCString()}"`);

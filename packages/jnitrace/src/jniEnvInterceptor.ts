@@ -1,4 +1,3 @@
-import { Types } from './convertTypes.js';
 import { JavaMethod } from './javaMethod.js';
 import { resolveMethod } from './tracer.js';
 
@@ -34,8 +33,8 @@ abstract class JNIEnvInterceptor {
         const callArgsPtr = args[args.length - 1] as NativePointer;
         if (isVaList) this.setUpVaListArgExtract(callArgsPtr);
         
-        for (let i = 0; i < jMethod.parameters.length; i++) {
-            const type = Types.convertNativeJTypeToFridaType(jMethod.parameters[i]);
+        for (let i = 0; i < jMethod.javaParams.length; i++) {
+            const type = jMethod.javaParams[i];
             let value: NativeCallbackArgumentValue;
             if (isVaList) {
                 const currentPtr = this.extractVaListArgValue(jMethod, i);

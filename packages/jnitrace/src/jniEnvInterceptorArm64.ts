@@ -35,7 +35,7 @@ class JNIEnvInterceptorARM64 extends JNIEnvInterceptor {
         const MAX_GR_REG_NUM = 4;
         let currentPtr = NULL;
 
-        if (method.fridaParams[paramId] === 'float' || method.fridaParams[paramId] === 'double') {
+        if (method.javaParams[paramId] === 'float' || method.javaParams[paramId] === 'double') {
             if (this.vrOffsIndex < MAX_VR_REG_NUM) {
                 currentPtr = this.vrTop.add(this.vrOffs).add(this.vrOffsIndex * Process.pointerSize * VR_REG_SIZE);
 

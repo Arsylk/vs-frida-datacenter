@@ -1,6 +1,6 @@
 import { createColors } from 'colorette';
 const Colors = createColors({ useColor: true });
-const { cyan, green } = use();
+const { cyan, green, underline } = use();
 
 function use() {
     return Colors;
@@ -17,11 +17,15 @@ const method: (methodName: any) => string = (methodName: any) => {
     return green(`${methodName}`);
 };
 
-const args: (args: string[]) => string = (args: string[]) => {
+const args: (args: any[]) => string = (args: string[]) => {
     if (args.length === 0) return '';
     const joinBy = true ? ', \n' : ', ';
     const joined = args.map((arg: any) => `    ${arg}`).join(joinBy);
     return `\n${joined}\n`;
 };
 
-export { className, method, args, use };
+const url: (url: any) => string = (url: string) => {
+    return underline(`${url}`);
+}
+
+export { className, method, args, url, use };

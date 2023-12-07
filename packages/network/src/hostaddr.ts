@@ -1,3 +1,5 @@
+import { logger, Color } from '@clockwork/logging';
+
 function attachGetHostByName() {
     const gethostbyname = Module.getExportByName('libc.so', 'gethostbyname');
     Interceptor.attach(gethostbyname, {
@@ -5,7 +7,7 @@ function attachGetHostByName() {
             this.name = args[0].readCString();
         },
         onLeave(res) {
-            console.error(`[gethostbyname] name: ${this.name} -> result: ${res}`);
+            logger.info({ tag: 'gethostbyname' }, `${Color.url(this.name)} -> result: ${res}`);
         },
     });
 }
@@ -20,11 +22,13 @@ function attachGetAddrInfo(detailed: boolean = false) {
         },
         onLeave(res) {
             const resInt = res.toUInt32();
-            console.error(`[getaddrinfo] name: ${this.host}:${this.port} -> ok: ${resInt}`);
+            const text = !this.port || this.port === 'null' ? `${this.host}` : `${this.host}:${this.port}`;
+            const result = resInt === 0x0 ? 'success' : 'failure';
+            logger.info({ tag: 'getaddrinfo' }, `${Color.url(text)} -> ${result}`);
             if (resInt == 0x0) {
                 let ptr: NativePointer = this.result;
                 if (!detailed) return;
-            
+
                 const aiFlags = (ptr = ptr.add(0)).readInt();
                 const aiFamilty = (ptr = ptr.add(4)).readInt();
                 const aiSockType = (ptr = ptr.add(4)).readInt();
@@ -33,20 +37,26 @@ function attachGetAddrInfo(detailed: boolean = false) {
                 const aiAddr = (ptr = ptr.add(4)).readPointer();
                 const aiCannonName = (ptr = ptr.add(8)).readCString();
                 const aiNext = (ptr = ptr.add(8)).readPointer();
-                console.log(JSON.stringify({
-                    aiFlags: aiFlags,
-                    aiFamilty: aiFamilty,
-                    aiSockType: aiSockType,
-                    aiProtocol: aiProtocol,
-                    aiAddrLen: aiAddrLen,
-                    aiAddr: aiAddr,
-                    aiCannonName: aiCannonName,
-                    aiNext: aiNext,
-                }, null, 2));
+                logger.info(
+                    { tag: 'getaddrinfo' },
+                    JSON.stringify(
+                        {
+                            aiFlags: aiFlags,
+                            aiFamilty: aiFamilty,
+                            aiSockType: aiSockType,
+                            aiProtocol: aiProtocol,
+                            aiAddrLen: aiAddrLen,
+                            aiAddr: aiAddr,
+                            aiCannonName: aiCannonName,
+                            aiNext: aiNext,
+                        },
+                        null,
+                        2,
+                    ),
+                );
             }
         },
     });
 }
 
-
-export { attachGetAddrInfo, attachGetHostByName }
+export { attachGetAddrInfo, attachGetHostByName };
