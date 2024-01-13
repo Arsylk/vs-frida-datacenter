@@ -2,7 +2,7 @@ import { logger, Color } from '@clockwork/logging';
 import { LoggerOptions } from './types.js';
 import { OmitFirstArg } from '@clockwork/common/src/types.js';
 import { Classes, ClassesString, Text } from '@clockwork/common';
-const { black, gray, red, green, cyan, dim, italic, bold, yellow, magenta } = Color.use();
+const { black, gray, red, green, cyan, dim, italic, bold, yellow, hidden } = Color.use();
 
 const DEFAULT_LOGGER_OPTIONS: LoggerOptions = {
     spacing: '   ',
@@ -35,19 +35,19 @@ const HOOK_LOGGER = {
 
     mapValue(arg: any): string {
         if (typeof arg === 'string') {
-            return yellow(`"${arg}"`);
+            return Color.string(arg);
         }
         if (typeof arg === 'boolean' || typeof arg === 'number') {
-            return magenta(`${arg}`);
+            return Color.number(`${arg}`);
         }
         if (arg === null || arg === undefined) {
-            return magenta(`${null}`);
+            return Color.number(`${null}`);
         }
         try {
             //@ts-ignore
             return Classes.String.valueOf(arg);
-        } catch(e) {
-            return `${arg}@${typeof arg}`
+        } catch (e) {
+            return `${arg}@${typeof arg}`;
         }
     },
 
@@ -60,7 +60,7 @@ const HOOK_LOGGER = {
         return config.multiline ? `\n${joined}\n` : joined;
     },
 
-    printHookClass(config: LoggerOptions, className: string) {
+    printHookClass(config: LoggerOptions, className: string, logId: string) {
         if (!config.hook) return;
 
         let sb = '';
@@ -68,10 +68,10 @@ const HOOK_LOGGER = {
         sb += ' ';
         sb += this.mapClass(config, className);
 
-        logger.info(sb);
+        this.logInfo(sb, logId);
     },
 
-    printHookMethod(config: LoggerOptions, methodName: string, argTypes: string[], returnType: string) {
+    printHookMethod(config: LoggerOptions, methodName: string, argTypes: string[], returnType: string, logId: string) {
         if (!config.hook) return;
 
         let sb = '';
@@ -83,7 +83,7 @@ const HOOK_LOGGER = {
         sb += ': ';
         sb += this.mapClass(config, returnType);
 
-        logger.info(sb);
+        this.logInfo(sb, logId);
     },
 
     printCall(
@@ -92,6 +92,7 @@ const HOOK_LOGGER = {
         methodName: string,
         argValues: any[],
         returnType: string,
+        logId: string,
         isReplaced: boolean = false,
     ) {
         if (!config.call) return;
@@ -117,10 +118,10 @@ const HOOK_LOGGER = {
             sb += Color.bracket(')');
         }
 
-        logger.info(sb);
+        this.logInfo(sb, logId);
     },
 
-    printReturn(config: LoggerOptions, returnValue: any) {
+    printReturn(config: LoggerOptions, returnValue: any, logId: string) {
         if (!config.return) return;
 
         let sb = '';
@@ -128,8 +129,26 @@ const HOOK_LOGGER = {
         sb += ' ';
         sb += `${this.mapValue(returnValue)}`;
 
-        logger.info(sb);
+        this.logInfo(sb, logId);
     },
+
+    mapLogId(logId: any): string {
+        // janky support for kitty background, needs to be set per theme 
+        return ` \x1b[38;2;45;42;46m${hidden(logId)}\x1b[0m`;
+    },
+
+    logInfo(text: string, logId: string | null) {
+        // fix line endings
+        let sb = text.replaceAll(/\r\n?$/gm, '\n')
+
+        // append logId to all lines
+        if (logId) {
+            sb = sb.replaceAll(/$/gm, `${this.mapLogId(logId)}`)
+        }
+
+    
+        logger.info(sb);
+    }
 };
 
 function getLogger(options?: Partial<LoggerOptions>): { [key in keyof typeof HOOK_LOGGER]: OmitFirstArg<(typeof HOOK_LOGGER)[key]> } {

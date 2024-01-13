@@ -1,6 +1,6 @@
 import { createColors } from 'colorette';
 const Colors = createColors({ useColor: true });
-const { cyan, green, blue, underline } = use();
+const { cyan, green, blue, underline, yellow, magenta } = use();
 
 function use() {
     return Colors;
@@ -33,4 +33,12 @@ const url: (url: any) => string = (url: string) => {
     return underline(`${url}`);
 }
 
-export { className, method, args, bracket, url, use };
+const string: (string: any) => string = (string: any) => {
+    return yellow(`"${string}"`);
+}
+
+const number: (number: any) => string = (number: any) => {
+    return magenta(`${number}`);
+}
+
+export { className, method, args, bracket, url, string, number, use };

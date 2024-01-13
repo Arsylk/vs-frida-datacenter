@@ -11,8 +11,9 @@ import { log, Filter, Color, logger } from '@clockwork/logging';
 import { always, ifKey, ifReturn } from '@clockwork/hooks/dist/addons';
 import { dumpFile, gPtr } from '@clockwork/native';
 import { createHash } from 'crypto';
+import * as Dump from '@clockwork/dump';
 const uniqHook = getHookUnique();
-const { blue, blueBright, redBright, magentaBright: pink, yellow } = Color.use();
+const { blue, blueBright, redBright, magentaBright: pink, yellow, dim } = Color.use();
 
 function hookActivity() {
     hook(Classes.Activity, '$init', {
@@ -37,8 +38,29 @@ function hookActivity() {
 function hookWebview() {
     hook(Classes.WebView, 'evaluateJavascript');
     hook(Classes.WebView, 'loadDataWithBaseURL');
-    hook(Classes.WebView, 'loadUrl', {
-        after: () => log(pink(stacktrace())),
+    hook(Classes.WebView, 'loadUrl');
+}
+
+function hookNetwork() {
+    hook(Classes.URL, 'openConnection', {
+        loggingPredicate: Filter.url,
+    });
+
+    let RealCall: Java.Wrapper | null = null;
+    ClassLoader.perform(() => {
+        !RealCall &&
+            (RealCall = findClass('okhttp3.internal.connection.RealCall')) &&
+            hook(RealCall, 'callStart', {
+                after(method, returnValue, ...args) {
+                    const original = this.originalRequest?.value;
+                    if (original) {
+                        const url = original._url?.value;
+                        const method = original._method?.value;
+                        //@ts-ignore
+                        logger.info(`${dim(method)} ${Color.url(Classes.String.valueOf(url))}`);
+                    }
+                },
+            });
     });
 }
 
@@ -51,14 +73,14 @@ function hookCrypto() {
         after(m, r, ...p) {
             if (this.opmode.value === 1) {
                 const str = Classes.String.$new(p[0]);
-                log(`[${blueBright('encrypt')}] ${str}`);
+                logger.info({ tag: 'encrypt' }, `${str}`);
             }
             if (this.opmode.value === 2) {
                 try {
                     const str = Classes.String.$new(r);
-                    log(`[${redBright('decrypt')}] ${str}`);
+                    logger.info({ tag: 'decrypt' }, `${str}`);
                 } catch (e) {
-                    log(`[${redBright('decrypt')}] ${r}`);
+                    logger.info({ tag: 'decrypt' }, `${r}`);
                 }
             }
         },
@@ -79,6 +101,10 @@ function hookJson(fn?: (key: string, method: string) => any) {
     hook(Classes.JSONObject, 'has', {
         loggingPredicate: Filter.json,
         logging: { multiline: false, short: true },
+        replace: ifKey(function (key) {
+            switch (key) {
+            }
+        }),
     });
 
     for (const item of getOpt) {
@@ -111,6 +137,10 @@ function hookPrefs(fn?: (key: string, method: string) => any) {
             loggingPredicate: Filter.prefs,
             logging: { multiline: false, short: true },
             replace(method, ...args) {
+                switch (args[0]) {
+                    case 'isEnabled':
+                        return true;
+                }
                 return method.call(this, ...args);
             },
         });
@@ -183,7 +213,7 @@ function hookDevice() {
 }
 
 function hookSettings() {
-    const settings = { development_settings_enabled: 0, adb_enabled: 0 };
+    const settings = { development_settings_enabled: 0, adb_enabled: 0, install_non_market_apps: 0, play_protect_enabled: 1 };
     hook(Classes.Settings$Secure, 'getInt', {
         logging: { call: true, return: true },
         replace(method, ...params) {
@@ -197,19 +227,57 @@ function hookSettings() {
 Java.performNow(() => {
     hookActivity();
     hookWebview();
+    hookNetwork();
     hookJson(function (key, method) {
+        // if (method?.toLowerCase()?.includes('boolean')) {
+        //     return true
+        // }
         switch (key) {
+            case '#title':
+                return 'https://google.pl/search?q=hi';
+            case 'withdraw_page_switch':
+                return 'true';
+            case 'isActive':
+                return 'true';
+            case 'always_reward_user':
+                return 'true';
+            case 'referrer':
+                return 'utm_amazon';
+            case 'state':
+                log(pink(stacktrace()));
         }
     });
     hookPrefs(function (key, method) {
         switch (key) {
+            case 'ads':
+                return false;
+            case 'invld_id':
+            case 'key_umeng_sp_oaid':
+            case 'UTDID2':
+                return 'https://google.pl/search?q=nya';
+            case 'isEnabled':
+                return true;
+            case 'tenjin_advertising_id':
+            case 'uuid':
+            case 'KEY_UID':
+                return '123e4567-e89b-42d3-a456-556642440000';
+            case 'MEDIA_SOURCE':
+            case 'tenjin_campaign_id':
+            case 'tenjin_campaign_name':
+            case 'tenjin_ad_network':
+            case 'last_active_buy_media_source':
+            case 'last_active_buy_channel':
+            case 'last_active_buy_campaign':
+            case 'tenjinGoogleInstallReferrer':
+            case 'install_referrer':
+            case 'referrer':
+                return 'Non-Organic';
+            case 'key_real_country':
+                return 'BR';
         }
     });
-    hookCrypto();
+    // hookCrypto();
     hookSettings();
-    hook(Classes.URL, 'openConnection', {
-        loggingPredicate: Filter.url,
-    });
     hook(Classes.Runtime, 'exec', {
         replace(method, ...args) {
             if (`${args[0]}`.includes('nya') === false) return Classes.Runtime.exec.call(this, 'echo nya');
@@ -218,11 +286,20 @@ Java.performNow(() => {
     });
     hookCountry();
     hookDevice();
-    Anticloak.InstallReferrer.replace();
+    Anticloak.InstallReferrer.replace({ install_referrer: 'utm_medium=Non-Organic' });
 
-    let x: any = null;
+    hook(Classes.Object, 'equals')
+    hook(Classes.String, 'equals')
+    hook(Classes.DexPathList, '$init', {
+        after(method, returnValue, ...args) {
+            log(pink(stacktrace()));
+        },
+    });
+    let x: any = null,
+        z: string[] = [];
     ClassLoader.perform((cl) => {
-        logger.info(blue(`${cl}`))
+        uniqHook('c2.b', 'y');
+        // logger.info({ tag: 'cl' }, `${cl?.$className} ${cl}`);
     });
 });
 
@@ -238,6 +315,7 @@ Native.attachSystemPropertyGet(function (key) {
             return '0';
         case 'ro.product.model':
             return 'Raven';
+        case 'ro.product.manufacturer':
         case 'ro.product.brand':
             return 'Xiaomi';
         case 'ro.build.flavor':
@@ -246,76 +324,73 @@ Native.attachSystemPropertyGet(function (key) {
             return 'sdm720';
         case 'gsm.version.baseband':
             return 's';
+        case 'ro.boot.qemu.gltransport.name':
+            return 'n';
     }
     // if (Native.Inject.isWithinOwnRange(this.returnAddress)) return 'nya';
 });
 
 // Anticloak.Jigau.memoryPatch('l6d6dba95.so');
-Cocos2dx.dump();
-// Unity.setVersion('2020.3.0f1c1')
-// Unity.attachStrings();
+// Cocos2dx.dump();
+// Unity.setVersion('2020.3.0f1c1');
+Unity.attachStrings();
 
-let x = true;
+let x = false;
 // let z = false;
-// setTimeout(() => (x = true), 4000);
+// setTimeout(() => (x = false), 5000);
 const predicate = (r) => x && Native.Inject.isWithinOwnRange(r);
 JniTrace.attach(({ returnAddress }) => {
     return predicate(returnAddress);
 });
 
-// ['free', 'strlen', 'strstr', 'strncmp', 'strcmp'].forEach((ex) => {
+// [/*'free', */ 'strlen', 'strstr', 'strncmp', 'strcmp'].forEach((ex) => {
 //     const strcmp = Module.getExportByName(null, ex);
 //     Native.Inject.attachInModule(predicate, strcmp, {
 //         onEnter(args) {
 //             this.a0 = args[0].readCString();
 //             this.a1 = args[1].readCString();
-//             logger.info(
-//                 { tag: ex },
-//                 `"${this.a0}", "${this.a1}" ${Color.bracket(Native.Inject.modules.findName(this.returnAddress))}`,
-//             );
+//             logger.info({ tag: ex }, `"${this.a0}", "${this.a1}" ${Color.bracket(Native.Inject.modules.findName(this.returnAddress))}`);
 //         },
-//         onLeave(retval) {
-//         },
+//         onLeave(retval) {},
 //     });
 // });
-// [
-//     'fopen',
-//     'fwrite',
-//     'stat',
-//     'access',
-//     'vprintf',
-//     '__android_log_print',
-//     'sprintf',
-//     'open',
-//     'statvfs',
-//     'access',
-//     'pthread_kill',
-//     'kill',
-//     'exit',
-//     '_exit',
-//     'killpg',
-//     'signal',
-//     'abort',
-// ].forEach((ex) => {
-//     const exp = Module.getExportByName(null, ex);
-//     Native.Inject.attachInModule(predicate, exp, {
-//         onEnter(args) {
-
-//             const arg = ex === '__android_log_print' ? args[2] : args[0];
-//             switch (ex) {
-//                 case '__android_log_print': {
-//                     logger.info({ tag: ex }, `"${args[2].readCString()}"`);
-//                     return;
-//                 }
-//                 case 'sprintf': {
-//                     logger.info({ tag: ex }, `"${args[0].readCString()}" "${args[1].readCString()}"`);
-//                     return;
-//                 }
-//                 default: {
-//                     logger.info({ tag: ex }, `"${arg.readCString()}"`);
-//                     return;
-//                 }
-//             }
-//         },
-//     });
-// });
+[
+    'fopen',
+    'fwrite',
+    'stat',
+    'access',
+    'vprintf',
+    '__android_log_print',
+    'sprintf',
+    'open',
+    'statvfs',
+    'access',
+    'pthread_kill',
+    'kill',
+    'exit',
+    '_exit',
+    'killpg',
+    'signal',
+    'abort',
+].forEach((ex) => {
+    const exp = Module.getExportByName(null, ex);
+    Native.Inject.attachInModule(predicate, exp, {
+        onEnter(args) {
+            const arg = ex === '__android_log_print' ? args[2] : args[0];
+            switch (ex) {
+                case '__android_log_print': {
+                    logger.info({ tag: ex }, `"${args[2].readCString()}"`);
+                    return;
+                }
+                case 'sprintf': {
+                    logger.info({ tag: ex }, `"${args[0].readCString()}" "${args[1].readCString()}"`);
+                    return;
+                }
+                default: {
+                    logger.info({ tag: ex }, `"${arg.readCString()}"`);
+                    return;
+                }
+            }
+        },
+    });
+});

@@ -24,6 +24,10 @@ const ClassesString = {
     Map$Entry: 'java.util.Map$Entry',
     Locale: 'java.util.Locale',
     TimeZone: 'java.util.TimeZone',
+    Thread: 'java.lang.Thread',
+    Arrays: 'java.util.Arrays',
+    Math: 'java.lang.Math',
+    DexPathList: 'dalvik.system.DexPathList',
 
     Application: 'android.app.Application',
     Settings$Secure: 'android.provider.Settings$Secure',
@@ -32,6 +36,7 @@ const ClassesString = {
     WebChromeClient: 'android.webkit.WebChromeClient',
     Log: 'android.util.Log',
     JSONObject: 'org.json.JSONObject',
+    JSONArray: 'org.json.JSONArray',
     Bundle: 'android.os.Bundle',
     Intent: 'android.content.Intent',
     Activity: 'android.app.Activity',

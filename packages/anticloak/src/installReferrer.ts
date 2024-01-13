@@ -19,7 +19,7 @@ function createInstallReferrer(classWrapper: Java.Wrapper, details: ReferrerDeta
     bundle.putBoolean('google_play_instant', details?.google_play_instant ?? true);
     bundle.putLong('install_begin_timestamp_seconds', details?.install_begin_timestamp_seconds ?? now - 30 * 1000);
     bundle.putLong('install_begin_timestamp_server_seconds', details?.install_begin_timestamp_server_seconds ?? now - 30 * 1000);
-    bundle.putString('install_referrer', details?.install_referrer ?? 'utm_medium=non-organic');
+    bundle.putString('install_referrer', details?.install_referrer ?? 'utm_medium=Non-Organic');
     bundle.putString('install_version', details?.install_version ?? '1.0.0');
     bundle.putLong('referrer_click_timestamp_seconds', details?.referrer_click_timestamp_seconds ?? now - 65 * 1000);
     bundle.putLong('referrer_click_timestamp_server_seconds', details?.referrer_click_timestamp_server_seconds ?? now - 65 * 1000);
@@ -72,4 +72,4 @@ function replace(details: ReferrerDetails = {}) {
     });
 }
 
-export { replace };
+export { replace, createInstallReferrer };

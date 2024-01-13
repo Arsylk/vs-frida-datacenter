@@ -98,12 +98,18 @@ function dump(...targets: Cocos2dxOffset[]) {
         xxtea_decrypt && xxteaAddresses.push(xxtea_decrypt);
         xxteaAddresses.forEach((address) => {
             logger.info(`xxtea_decrypt ${module.name} ${DebugSymbol.fromAddress(address)}`);
-            Interceptor.attach(address, {
-                onEnter: function (args) {
-                    logger.info('key -> ' + args[2].readCString(Math.min(args[3].toUInt32(), 16)));
-                },
-                onLeave: function (retval) {},
-            });
+
+            // no idea why this often crashes
+            try {
+                Interceptor.attach(address, {
+                    onEnter: function (args) {
+                        logger.info('key -> ' + args[2].readCString(Math.min(args[3].toUInt32(), 16)));
+                    },
+                    onLeave: function (retval) {},
+                });
+            } catch (e) {
+                logger.warn(`could not attach to xxtea_decrypt at ${address}`);
+            }
         });
 
         if (evalStringAddresses.length > 0 || lual || xxteaAddresses.length > 0) {

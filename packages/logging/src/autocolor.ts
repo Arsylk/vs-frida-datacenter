@@ -1,9 +1,10 @@
-import { createColors } from 'colorette';
 import { use } from './color.js';
 const colors = use();
 const array = [colors.red, colors.green, colors.yellow, colors.blue, colors.magenta, colors.cyan, colors.gray];
 
 const colormap = new Map<string, (text: string | number) => string>();
+colormap.set('encrypt', colors.blueBright)
+colormap.set('decrypt', colors.redBright)
 
 function getColor(tag: string): (text: string | number) => string {
     let roll = colormap.get(tag);

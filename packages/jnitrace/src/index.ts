@@ -75,19 +75,36 @@ function formatCallMethod(nativeName: string, jMethodId: NativePointer, method: 
             switch (param) {
                 case 'java.lang.String': {
                     const wrapped = Java.cast(args[i] as any, Classes.String);
-                    mappedArgs[i] = yellow(`"${wrapped}"`);
-                    break;
-                }
-                case 'jobject': {
-                    const wrapped = Java.cast(args[i] as any, Classes.Object);
-                    mappedArgs[i] = `${wrapped.toString()}`;
+                    mappedArgs[i] = Color.string(wrapped);
+                    continue;
                 }
                 case 'boolean': {
                     const textBoolean = args[i] ? 'true' : 'false';
-                    mappedArgs[i] = textBoolean;
+                    mappedArgs[i] = Color.number(textBoolean);
+                    continue;
+                }
+                case 'double':
+                case 'float':
+                case 'int':
+                case 'long': {
+                    mappedArgs[i] = Color.number(args[i]);
+                    continue
                 }
             }
+
+            if ((args[i] instanceof NativePointer) && (args[i] as NativePointer)?.isNull()) {
+                mappedArgs[i] = Color.number(null)
+                continue
+            }
+
+            try {
+                const wrapped = Java.cast(args[i] as any, Classes.Object);
+                //@ts-ignore
+                mappedArgs[i] = Classes.String.valueOf(wrapped)
+            } catch(e) {
+            }
         }
+        
         return ColorMethodInvoke(method, mappedArgs);
     }
     return null;

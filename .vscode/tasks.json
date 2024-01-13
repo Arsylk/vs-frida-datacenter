@@ -43,8 +43,8 @@
                 "-f",
                 "${input:appPackage}",
                 "-l",
-                "agent/dist/justdump.js"
-                // "dumpjs_key_hook.js"
+                "script.js"
+                // "agent/dist/justdump.js"
             ],
             "type": "shell",
             "group": "test",
@@ -104,7 +104,7 @@
         {
             "isBackground": true,
             "type": "shell",
-            "command": "npx nodemon ~/Projects/Typescript/work-watcher/build/index.js",
+            "command": "npx nodemon ~/Projects/Typescript/work-watcher/dist/index.js",
             "problemMatcher": [
                 // TODO
             ],
@@ -182,10 +182,10 @@
             "type": "command",
             "command": "shellCommand.execute",
             "args": {
-                "command": "adb shell pm list packages -f -U | sed 's/^package:\\(.*\\)=\\(.*\\) uid:\\(.*\\)/\\2|\\2|\\3|\\1/g' | sort -g -t '|' -k3,3 -r",
+                "command": "adb -s emulator-5554 shell pm list packages -f -U | sed 's/^package:\\(.*\\)=\\(.*\\) uid:\\(.*\\)/\\2|\\2|\\3|\\1/g' | sort -g -t '|' -k3,3 -r",
                 "fieldSeparator": "|",
                 "rememberPrevious": true,
-                "taskId": "task.input.appPackage"
+                "taskId": "task.input.appPackage",
             }
         },
         {
@@ -197,5 +197,5 @@
                 "fieldSeparator": "|"
             }
         }
-    ]
+    ],
 }

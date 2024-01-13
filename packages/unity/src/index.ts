@@ -11,6 +11,7 @@ function attachStrings() {
             .filterClasses((kclass) => kclass.name == 'String')
             .filterMethods(
                 (m) =>
+                    (m.name.toLowerCase().includes('equal') || m.name.toLowerCase().includes('compare')) &&
                     !m.name.includes('get_Chars') &&
                     !m.name.includes('FastAllocateString') &&
                     !m.name.includes('FillStringChecked') &&

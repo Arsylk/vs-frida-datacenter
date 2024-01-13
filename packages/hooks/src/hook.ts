@@ -2,6 +2,8 @@ import { getLogger } from './logger.js';
 import { isJWrapper, findClass } from '@clockwork/common';
 import { logger } from '@clockwork/logging';
 import { HookParameters } from './types.js';
+import { Ids } from './ids.js';
+
 
 function hook(clazzOrName: Java.Wrapper | string, methodName: string, params: HookParameters = {}): void {
     const { before, replace, after, logging, loggingPredicate } = params;
@@ -16,27 +18,31 @@ function hook(clazzOrName: Java.Wrapper | string, methodName: string, params: Ho
 
     const overloads = method._o;
     const classString = clazz.$className;
-    logger.printHookClass(classString);
+
+    const cId = Ids.genClassId(classString);
+    const mId = Ids.genMethodId(classString, methodName);
+    logger.printHookClass(classString, Ids.classId(cId));
 
     for (let i = 0; i < overloads.length; i++) {
         const overload = overloads[i];
         if (params?.predicate?.(overload, i) === false) continue;
 
+        const logId = Ids.uniqueId(cId, mId, i);
         const { argumentTypes }: { argumentTypes: any[] } = overload;
         const argTypesString: string[] = argumentTypes.map((t) => t.className);
         const returnTypeString = overload.returnType.className;
-        logger.printHookMethod(methodName, argTypesString, returnTypeString);
+        logger.printHookMethod(methodName, argTypesString, returnTypeString, logId);
 
         const methodDef: Java.Method = method.overload(...argTypesString);
         methodDef.implementation = function (...params: any[]) {
             const doLog = loggingPredicate ? loggingPredicate.call(this, methodDef, ...params) : true;
-            doLog && logger.printCall(classString, methodName, params, returnTypeString, replace !== undefined);
+            doLog && logger.printCall(classString, methodName, params, returnTypeString, logId, replace !== undefined);
 
             before?.call(this, methodDef, ...params);
-            const returnValue: any | undefined = replace ? replace.call(this, methodDef, ...params) : methodDef.call(this, ...params);
+            const returnValue = replace ? replace.call(this, methodDef, ...params) : methodDef.call(this, ...params);
             after?.call(this, methodDef, returnValue, ...params);
 
-            if (returnTypeString !== 'void') doLog && logger.printReturn(returnValue);
+            if (returnTypeString !== 'void') doLog && logger.printReturn(returnValue, logId);
 
             return returnValue;
         };

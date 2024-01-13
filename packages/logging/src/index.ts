@@ -12,7 +12,8 @@ const logger = pino({
             let print: string | null = `${msg}`;
             if (tag) {
                 const color = getColor(tag);
-                print = `[${color(`${tag}`)}] ${msg}`;
+                const ctag = `[${color(`${tag}`)}] `;
+                print = `${msg}`.replaceAll(/^/g, ctag)
             }
             if (print) console.log(print);
         },
