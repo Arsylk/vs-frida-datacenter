@@ -1,11 +1,7 @@
 import { resolve } from 'path';
 
-export default {
-    entry: './agent/index.ts',
-    output: {
-        filename: 'script.js',
-        path: resolve('./agent/dist'),
-    },
+const base = {
+    name: 'base',
     module: {
         rules: [
             {
@@ -50,3 +46,29 @@ export default {
     },
     mode: 'production',
 };
+export default [
+    Object.assign(Object.assign({}, base), {
+        name: 'index',
+        entry: './agent/index.ts',
+        output: {
+            filename: 'script.js',
+            path: resolve('./agent/dist'),
+        },
+    }),
+    Object.assign(Object.assign({}, base), {
+        name: 'justdump',
+        entry: './agent/justdump.ts',
+        output: {
+            filename: 'justdump.js',
+            path: resolve('./agent/dist'),
+        },
+    }),
+    Object.assign(Object.assign({}, base), {
+        name: 'skillup7',
+        entry: './agent/skillup7.ts',
+        output: {
+            filename: 'skillup7.js',
+            path: resolve('./agent/dist'),
+        },
+    }),
+];

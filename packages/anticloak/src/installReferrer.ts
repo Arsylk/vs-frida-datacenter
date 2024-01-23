@@ -1,5 +1,6 @@
-import { findClass, Classes, ClassesString } from '@clockwork/common';
+import { findClass, Classes, ClassesString, enumerateMembers } from '@clockwork/common';
 import { ClassLoader, hook } from '@clockwork/hooks';
+import { MethodOverload } from '@clockwork/hooks/dist/types';
 import { subLogger, Color } from '@clockwork/logging';
 const logger = subLogger('installreferrer');
 
@@ -27,6 +28,20 @@ function createInstallReferrer(classWrapper: Java.Wrapper, details: ReferrerDeta
 }
 
 function replace(details: ReferrerDetails = {}) {
+    let isHooked = false;
+    ClassLoader.perform((_) => {
+        if (isHooked) return;
+
+        const client = findClass(ClassesString.InstallReferrerClient);
+        if (!client) return;
+        isHooked = true;
+
+        const [startMethod, getMethod] = matchReferrerClientMethods(client);
+        performReplace(details, client, startMethod, getMethod);
+    });
+}
+
+function performReplace(details: ReferrerDetails, client: Java.Wrapper, startMethod: string, getMethod: string) {
     const beforeInit = function (this: Java.Wrapper) {
         const paretnClass = findClass(this.$className);
         if (!paretnClass) {
@@ -34,42 +49,119 @@ function replace(details: ReferrerDetails = {}) {
             return;
         }
 
-        hook(paretnClass, 'startConnection', {
-            replace(_, listener) {
-                let msg = Color.method('startConnection');
-                msg += Color.bracket('(')
-                msg += Color.className(listener.$className)
-                msg += Color.bracket(')')
-                msg += ' -> '
-                msg += Color.method('onInstallReferrerSetupFinished')
-                msg += `${Color.bracket('(')}0${Color.bracket(')')}`
+        hook(paretnClass, startMethod, {
+            predicate: startConnectionPredicate,
+            replace(method, listener) {
+                const baseClass = findClass(ClassesString.InstallReferrerStateListener);
+                if (!baseClass) {
+                    logger.warn(`missing base class: ${ClassesString.InstallReferrerStateListener}`);
+                    return method.call(this, listener);
+                }
+
+                const onFinishedMethod = matchStateListenerMethod(baseClass);
+
+                let msg = Color.method(startMethod);
+                msg += Color.bracket('(');
+                msg += Color.className(listener.$className);
+                msg += Color.bracket(')');
+                msg += ' -> ';
+                msg += Color.method(onFinishedMethod);
+                msg += `${Color.bracket('(')}${Color.number('0')}${Color.bracket(')')}`;
                 logger.info(msg);
-                listener.onInstallReferrerSetupFinished(0);
+
+                listener[onFinishedMethod](0);
             },
         });
 
-        hook(paretnClass, 'getInstallReferrer', {
+        hook(paretnClass, getMethod, {
+            predicate: getInstallReferrerPredicate,
             replace(method) {
                 const referrerDetails = findClass(ClassesString.ReferrerDetails);
                 if (!referrerDetails) {
                     logger.warn(`missing referrer class: ${ClassesString.ReferrerDetails}`);
                     return method.call(this);
                 }
-                hook(referrerDetails, 'getInstallReferrer')
+
+                enumerateMembers(
+                    referrerDetails,
+                    {
+                        onMatchMethod(clazz, member) {
+                            hook(clazz, member);
+                        },
+                    },
+                    1,
+                );
+
                 return createInstallReferrer(referrerDetails, details);
             },
         });
     };
 
-    let isHooked = false;
-    ClassLoader.perform((_) => {
-        if (isHooked) return;
-        const client = findClass(ClassesString.InstallReferrerClient);
-        if (client) {
-            isHooked = true;
-            hook(client, '$init', { before: beforeInit });
-        }
-    });
+    hook(client, '$init', { before: beforeInit });
 }
+
+function matchReferrerClientMethods(clazz: Java.Wrapper): [string, string] {
+    let startMethod = null,
+        getMethod = null;
+    enumerateMembers(
+        clazz,
+        {
+            onMatchMethod(clazz, member) {
+                const def = clazz[member];
+                if (!def) return;
+                for (const overload of def.overloads) {
+                    if (startConnectionPredicate(overload)) {
+                        startMethod ??= member;
+                        continue;
+                    }
+
+                    if (getInstallReferrerPredicate(overload)) {
+                        getMethod ??= member;
+                        continue;
+                    }
+                }
+            },
+        },
+        1,
+    );
+
+    return [startMethod ?? 'startConnection', getMethod ?? 'getInstallReferrer'];
+}
+
+function matchStateListenerMethod(clazz: Java.Wrapper): string {
+    let found = null;
+    enumerateMembers(
+        clazz,
+        {
+            onMatchMethod(clazz, member) {
+                const def = clazz[member];
+                if (!def) return;
+                for (const overload of def.overloads) {
+                    if (onInstallReferrerSetupFinishedPredicate(overload)) {
+                        found ??= member;
+                        return;
+                    }
+                }
+            },
+        },
+        1,
+    );
+
+    return found ?? 'onInstallReferrerSetupFinished';
+}
+
+const startConnectionPredicate: (overload: MethodOverload) => boolean = ({ returnType, argumentTypes }) => {
+    return (
+        returnType.className === 'void' &&
+        argumentTypes.length === 1 &&
+        argumentTypes[0].className === ClassesString.InstallReferrerStateListener
+    );
+};
+const getInstallReferrerPredicate: (overload: MethodOverload) => boolean = ({ returnType, argumentTypes }) => {
+    return returnType.className === ClassesString.ReferrerDetails && argumentTypes.length === 0;
+};
+const onInstallReferrerSetupFinishedPredicate: (overload: MethodOverload) => boolean = ({ returnType, argumentTypes }) => {
+    return returnType.className === 'void' && argumentTypes.length === 1 && argumentTypes[0].className === 'int';
+};
 
 export { replace, createInstallReferrer };

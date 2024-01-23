@@ -34,7 +34,7 @@ const HOOK_LOGGER = {
     },
 
     mapValue(arg: any): string {
-        if (typeof arg === 'string') {
+        if (typeof arg === 'string' || arg?.$className === ClassesString.String) {
             return Color.string(arg);
         }
         if (typeof arg === 'boolean' || typeof arg === 'number') {

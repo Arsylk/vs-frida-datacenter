@@ -28,6 +28,7 @@ const ClassesString = {
     Arrays: 'java.util.Arrays',
     Math: 'java.lang.Math',
     DexPathList: 'dalvik.system.DexPathList',
+    PendingIntent: 'android.app.PendingIntent',
 
     Application: 'android.app.Application',
     Settings$Secure: 'android.provider.Settings$Secure',

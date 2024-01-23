@@ -6,13 +6,14 @@ import * as JniTrace from '@clockwork/jnitrace';
 import * as Cocos2dx from '@clockwork/cocos2dx';
 import * as Unity from '@clockwork/unity';
 import { hook } from '@clockwork/hooks';
-import { Text, Classes, Libc, enumerateMembers, findClass, stacktrace } from '@clockwork/common';
+import { Text, Classes, Libc, enumerateMembers, findClass, stacktrace, getFindUnique, ClassesString } from '@clockwork/common';
 import { log, Filter, Color, logger } from '@clockwork/logging';
 import { always, ifKey, ifReturn } from '@clockwork/hooks/dist/addons';
 import { dumpFile, gPtr } from '@clockwork/native';
 import { createHash } from 'crypto';
 import * as Dump from '@clockwork/dump';
 const uniqHook = getHookUnique();
+const uniqFind = getFindUnique();
 const { blue, blueBright, redBright, magentaBright: pink, yellow, dim } = Color.use();
 
 function hookActivity() {
@@ -129,22 +130,21 @@ function hookJson(fn?: (key: string, method: string) => any) {
 }
 
 function hookPrefs(fn?: (key: string, method: string) => any) {
-    const fns = ['contains', 'getAll'];
     const keyFns = ['getBoolean', 'getFloat', 'getInt', 'getLong', 'getString', 'getStringSet'];
 
-    for (const item of fns) {
-        hook(Classes.SharedPreferencesImpl, item, {
-            loggingPredicate: Filter.prefs,
-            logging: { multiline: false, short: true },
-            replace(method, ...args) {
-                switch (args[0]) {
-                    case 'isEnabled':
-                        return true;
-                }
-                return method.call(this, ...args);
-            },
-        });
-    }
+    hook(Classes.SharedPreferencesImpl, 'contains', {
+        loggingPredicate: Filter.prefs,
+        logging: { multiline: false, short: true },
+        replace(method, key) {
+            const found = fn?.(key, 'contains') !== undefined;
+            return found || method.call(this, key);
+        },
+    });
+    hook(Classes.SharedPreferencesImpl, 'getAll', {
+        loggingPredicate: Filter.prefs,
+        logging: { multiline: false, short: true },
+    });
+
     for (const item of keyFns) {
         hook(Classes.SharedPreferencesImpl, item, {
             loggingPredicate: Filter.prefs,
@@ -224,42 +224,45 @@ function hookSettings() {
     });
 }
 
+function bypassIntentFlags() {
+    hook(Classes.PendingIntent, 'getBroadcastAsUser', {
+        replace(method, ...args) {
+            const flags = args[3];
+            const flagImmutableSet = (flags & Classes.PendingIntent.FLAG_IMMUTABLE.value) != 0;
+            const flagMutableSet = (flags & Classes.PendingIntent.FLAG_MUTABLE.value) != 0;
+            if (!flagImmutableSet && !flagMutableSet) {
+                const newFlags = flags | Classes.PendingIntent.FLAG_MUTABLE.value;
+                args[3] = newFlags;
+            }
+            return method.call(this, ...args);
+        },
+    });
+}
+
 Java.performNow(() => {
     hookActivity();
     hookWebview();
     hookNetwork();
     hookJson(function (key, method) {
-        // if (method?.toLowerCase()?.includes('boolean')) {
-        //     return true
-        // }
         switch (key) {
-            case '#title':
-                return 'https://google.pl/search?q=hi';
-            case 'withdraw_page_switch':
-                return 'true';
-            case 'isActive':
-                return 'true';
-            case 'always_reward_user':
-                return 'true';
             case 'referrer':
                 return 'utm_amazon';
-            case 'state':
-                log(pink(stacktrace()));
         }
     });
     hookPrefs(function (key, method) {
         switch (key) {
-            case 'ads':
-                return false;
+            case 'LOAD_WHEEL':
+                return true;
             case 'invld_id':
             case 'key_umeng_sp_oaid':
             case 'UTDID2':
                 return 'https://google.pl/search?q=nya';
-            case 'isEnabled':
-                return true;
+            case 'adid':
             case 'tenjin_advertising_id':
             case 'uuid':
             case 'KEY_UID':
+            case 'deviceId':
+            case 'deviceuuid':
                 return '123e4567-e89b-42d3-a456-556642440000';
             case 'MEDIA_SOURCE':
             case 'tenjin_campaign_id':
@@ -271,12 +274,17 @@ Java.performNow(() => {
             case 'tenjinGoogleInstallReferrer':
             case 'install_referrer':
             case 'referrer':
-                return 'Non-Organic';
+            case 'amuseville_data':
+                return 'utm_medium=Non-organic';
+            case 'userCountry':
             case 'key_real_country':
                 return 'BR';
+            case '9hgm':
+            case 'vv4gW':
+                return 'https://google.pl/search?q=hi';
         }
     });
-    // hookCrypto();
+    hookCrypto();
     hookSettings();
     hook(Classes.Runtime, 'exec', {
         replace(method, ...args) {
@@ -286,19 +294,13 @@ Java.performNow(() => {
     });
     hookCountry();
     hookDevice();
-    Anticloak.InstallReferrer.replace({ install_referrer: 'utm_medium=Non-Organic' });
+    Anticloak.InstallReferrer.replace({ install_referrer: 'utm_medium=Non-organic' });
 
-    hook(Classes.Object, 'equals')
-    hook(Classes.String, 'equals')
-    hook(Classes.DexPathList, '$init', {
-        after(method, returnValue, ...args) {
-            log(pink(stacktrace()));
-        },
-    });
-    let x: any = null,
-        z: string[] = [];
+    hook(Classes.DexPathList, '$init');
+
+    //
+    let x: any = 0;
     ClassLoader.perform((cl) => {
-        uniqHook('c2.b', 'y');
         // logger.info({ tag: 'cl' }, `${cl?.$className} ${cl}`);
     });
 });
@@ -330,20 +332,20 @@ Native.attachSystemPropertyGet(function (key) {
     // if (Native.Inject.isWithinOwnRange(this.returnAddress)) return 'nya';
 });
 
-// Anticloak.Jigau.memoryPatch('l6d6dba95.so');
-// Cocos2dx.dump();
+// Anticloak.Jigau.memoryPatch('l7df3e7c4.so');
+// [INFO] {"name": "libcocos.so", "fn_dump": "0x002ad2a0", "fn_key": "0x00293468"}
+// Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x00c0036c), fn_key: ptr(0x00c0036c) });
 // Unity.setVersion('2020.3.0f1c1');
-Unity.attachStrings();
+// Unity.attachStrings();
 
 let x = false;
-// let z = false;
-// setTimeout(() => (x = false), 5000);
+// // setTimeout(() => (x = false), 5000);
 const predicate = (r) => x && Native.Inject.isWithinOwnRange(r);
-JniTrace.attach(({ returnAddress }) => {
-    return predicate(returnAddress);
-});
+// JniTrace.attach(({ returnAddress }) => {
+//     return predicate(returnAddress);
+// });
 
-// [/*'free', */ 'strlen', 'strstr', 'strncmp', 'strcmp'].forEach((ex) => {
+// [/*'free',*/ 'strlen', 'strstr', 'strncmp', 'strcmp'].forEach((ex) => {
 //     const strcmp = Module.getExportByName(null, ex);
 //     Native.Inject.attachInModule(predicate, strcmp, {
 //         onEnter(args) {
@@ -354,43 +356,53 @@ JniTrace.attach(({ returnAddress }) => {
 //         onLeave(retval) {},
 //     });
 // });
-[
-    'fopen',
-    'fwrite',
-    'stat',
-    'access',
-    'vprintf',
-    '__android_log_print',
-    'sprintf',
-    'open',
-    'statvfs',
-    'access',
-    'pthread_kill',
-    'kill',
-    'exit',
-    '_exit',
-    'killpg',
-    'signal',
-    'abort',
-].forEach((ex) => {
-    const exp = Module.getExportByName(null, ex);
-    Native.Inject.attachInModule(predicate, exp, {
-        onEnter(args) {
-            const arg = ex === '__android_log_print' ? args[2] : args[0];
-            switch (ex) {
-                case '__android_log_print': {
-                    logger.info({ tag: ex }, `"${args[2].readCString()}"`);
-                    return;
-                }
-                case 'sprintf': {
-                    logger.info({ tag: ex }, `"${args[0].readCString()}" "${args[1].readCString()}"`);
-                    return;
-                }
-                default: {
-                    logger.info({ tag: ex }, `"${arg.readCString()}"`);
-                    return;
-                }
-            }
-        },
-    });
-});
+// [
+//     'fopen',
+//     'fwrite',
+//     'stat',
+//     'access',
+//     'vprintf',
+//     '__android_log_print',
+//     'sprintf',
+//     'open',
+//     'statvfs',
+//     'access',
+//     'pthread_kill',
+//     'kill',
+//     'exit',
+//     '_exit',
+//     'killpg',
+//     'signal',
+//     'abort',
+// ].forEach((ex) => {
+//     const exp = Module.getExportByName(null, ex);
+//     Native.Inject.attachInModule(predicate, exp, {
+//         onEnter(args) {
+//             const arg = ex === '__android_log_print' ? args[2] : args[0];
+//             switch (ex) {
+//                 case '__android_log_print': {
+//                     logger.info({ tag: ex }, `"${args[2].readCString()}"`);
+//                     return;
+//                 }
+//                 case 'sprintf': {
+//                     logger.info({ tag: ex }, `"${args[0].readCString()}" "${args[1].readCString()}"`);
+//                     return;
+//                 }
+//                 default: {
+//                     logger.info({ tag: ex }, `"${arg.readCString()}"`);
+//                     return;
+//                 }
+//             }
+//         },
+//     });
+// });
+
+// ['kill'].forEach((ex) => {
+//     const kill = Module.getExportByName(null, ex);
+//     Native.Inject.attachInModule(predicate, kill, {
+//         onEnter(args) {
+//             logger.info({ tag: ex }, `kill called !`);
+//         },
+//         onLeave(retval) {},
+//     });
+// });

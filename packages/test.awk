@@ -1,0 +1,1 @@
+(match($0, /(.*) \((.*)\) < (.*)/, out)){i+=1; for (x = 1; x <= 3; x+=1) a[i,x]=out[x]} END {len=length(a)/3;for(x=1;x<=3;x+=1) max[x]=0;for (i=1;i<=len;i+=1) {for(x=1;x<=3;x+=1) if (length(a[i,x])>max[x]) max[x]=length(a[i,x])} for (i=1;i<=len;i+=1) printf "%-*s \t \x1b[31m%*s\x1b[0m  \x1b[90m→\x1b[39m   \x1b[32m%*s\x1b[0m\n", max[1], a[i,1], max[2], a[i,2], max[3], a[i,3]}

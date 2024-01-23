@@ -1,7 +1,7 @@
 import { ClassesProxy as Classes, ClassesString } from './define/java.js';
 import { LibcFinderProxy } from './define/libc.js';
 import * as Std from './define/std.js';
-import { enumerateMembers, findClass, getClass } from './search.js';
+import { enumerateMembers, findClass, getClass, getFindUnique } from './search.js';
 import * as Text from './text.js';
 
 function isJWrapper(clazzOrName: Java.Wrapper | string): clazzOrName is Java.Wrapper {
@@ -24,4 +24,4 @@ Object.defineProperties(global, {
 })
 
 
-export { Classes, ClassesString, LibcFinderProxy as Libc, isJWrapper, stacktrace, findClass, getClass, enumerateMembers, Text, Std };
+export { Classes, ClassesString, LibcFinderProxy as Libc, isJWrapper, stacktrace, findClass, getClass, enumerateMembers, getFindUnique, Text, Std };

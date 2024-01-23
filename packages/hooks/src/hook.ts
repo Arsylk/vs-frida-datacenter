@@ -1,7 +1,7 @@
 import { getLogger } from './logger.js';
 import { isJWrapper, findClass } from '@clockwork/common';
 import { logger } from '@clockwork/logging';
-import { HookParameters } from './types.js';
+import { HookParameters, MethodOverload } from './types.js';
 import { Ids } from './ids.js';
 
 
@@ -16,7 +16,7 @@ function hook(clazzOrName: Java.Wrapper | string, methodName: string, params: Ho
         throw Error(`hook: method ${methodName} not found in ${clazz} !`);
     }
 
-    const overloads = method._o;
+    const overloads: MethodOverload[] = method._o;
     const classString = clazz.$className;
 
     const cId = Ids.genClassId(classString);

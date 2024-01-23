@@ -24,10 +24,10 @@ interface EnumerateMembersCallbacks {
     onComplete?: () => void;
 }
 
-function enumerateMembers(clazz: Java.Wrapper, callback: EnumerateMembersCallbacks) {
+function enumerateMembers(clazz: Java.Wrapper, callback: EnumerateMembersCallbacks, maxDepth: number = Infinity) {
     let current: Wrapper | undefined = clazz as Wrapper;
     let depth = 0;
-    while (current && current.$n !== 'java.lang.Object') {
+    while (depth < maxDepth && current && current.$n !== 'java.lang.Object') {
         const model = current.$l;
         const members = model.list();
 
@@ -76,4 +76,22 @@ function getClass(className: string, ...loaders: Java.Wrapper[]): Java.Wrapper {
     throw Error(`class not found: ${className}`)
 }
 
-export { getClass, findClass, enumerateMembers };
+function getFindUnique() {
+    const found = new Set<string>();
+
+    return (clazzName: string, fn: (clazz: Java.Wrapper) => void) => {
+        const clazz = findClass(clazzName)
+        if (!clazz) {
+            logger.info({ tag: 'findUnique' }, `class ${clazzName} not found !`);
+            return;
+        }
+
+        const ptr = `${clazz.$l.handle}`;
+        if (!found.has(ptr)) {
+            found.add(ptr);
+            fn(clazz);
+        }
+    };
+}
+
+export { getClass, findClass, getFindUnique, enumerateMembers };

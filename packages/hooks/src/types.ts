@@ -20,8 +20,13 @@ type HookParameters = {
     loggingPredicate?: LoggingPredicate,
 };
 
+type MethodOverload = {
+    argumentTypes: {className: string}[];
+    returnType: {className: string}; 
+}
+
 type MethodHookPredicate = (
-    overload: any, // ! do bettert
+    overload: MethodOverload,
     index: number,
 ) => boolean;
 
@@ -34,4 +39,4 @@ type FridaBeforeMethod = (this: Java.Wrapper, method: Java.Method, ...args: any[
 
 type FridaAfterMethod = (this: Java.Wrapper, method: Java.Method, returnValue?: any, ...args: any[]) => void;
 
-export { LoggerOptions, HookParameters, FridaMethodReplacement, FridaMethodReplacementOptional };
+export { LoggerOptions, HookParameters, MethodOverload, FridaMethodReplacement, FridaMethodReplacementOptional };

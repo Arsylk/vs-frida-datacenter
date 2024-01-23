@@ -155,7 +155,7 @@
         },
         {
             "label": "Cocos2dx Dump",
-            "detail": "Pull dumped cocos2dx scripts",
+            "detail": "Pull dumped cocos2dx scr ipts",
             "type": "shell",
             "command": "adb-files-workspace ${input:appPackage} files/dump_cocos2dx_${input:appPackage}",
             "icon": {
@@ -182,7 +182,7 @@
             "type": "command",
             "command": "shellCommand.execute",
             "args": {
-                "command": "adb -s emulator-5554 shell pm list packages -f -U | sed 's/^package:\\(.*\\)=\\(.*\\) uid:\\(.*\\)/\\2|\\2|\\3|\\1/g' | sort -g -t '|' -k3,3 -r",
+                "command": "adb -s emulator-5554 shell pm list packages -3 -f -U | sed 's/^package:\\(.*\\)=\\(.*\\) uid:\\(.*\\)/\\2|\\2|\\3|\\1/g' | sort -g -t '|' -k3,3 -r",
                 "fieldSeparator": "|",
                 "rememberPrevious": true,
                 "taskId": "task.input.appPackage",
@@ -193,7 +193,7 @@
             "type": "command",
             "command": "shellCommand.execute",
             "args": {
-                "command": "adb shell pm list packages -f -U | sed 's/^package:\\(.*\\)=\\(.*\\) uid:\\(.*\\)/\\2|\\1|\\3/g' | sort -g -t '|' -k3,3 -r | tr '|' '\\0' | tr '\\n' '\\0'  | xargs -0 -n 3 sh -c 'echo $0\\|$(adb shell /data/local/tmp/aapt2 dump badging \"$1\" | grep \"application: label=\" | sed \"s/^.*label=.\\(.*\\). icon=.*$/\\1/g\")\\|$0\\|$1'",
+                "command": "adb shell pm list packages -3 -f -U | sed 's/^package:\\(.*\\)=\\(.*\\) uid:\\(.*\\)/\\2|\\1|\\3/g' | sort -g -t '|' -k3,3 -r | tr '|' '\\0' | tr '\\n' '\\0'  | xargs -0 -n 3 sh -c 'echo $0\\|$(adb shell /data/local/tmp/aapt2 dump badging \"$1\" | grep \"application: label=\" | sed \"s/^.*label=.\\(.*\\). icon=.*$/\\1/g\")\\|$0\\|$1'",
                 "fieldSeparator": "|"
             }
         }
