@@ -34,7 +34,6 @@ const Filter = {
         if (trace.includes('at com.unity3d.services.core.configuration.PrivacyConfigurationLoader')) return false;
 
         return true;
-        // return trace.includes('isWrapperFor') || trace.includes('zc.zc.a.a$a.');
     },
     prefs: (_: any, ...args: any[]) => {
         const trace = stacktrace();
@@ -53,7 +52,6 @@ const Filter = {
             }
         }
         return true;
-        // return trace.includes('isWrapperFor') || trace.includes('zc.zc.a.a$a.');
     },
     url: () => {
         const trace = stacktrace();
