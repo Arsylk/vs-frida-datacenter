@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import { Inject, dumpFile } from '@clockwork/native';
+import { Inject, dumpFile, gPtr } from '@clockwork/native';
 import { Text } from '@clockwork/common';
 import { Color, subLogger } from '@clockwork/logging';
 const { red, dim, blue } = Color.use();
@@ -82,28 +82,115 @@ function dump(...targets: Cocos2dxOffset[]) {
             hookTemp && evalStringAddresses.push(hookTemp);
         }
         evalStringAddresses.forEach((address) => {
-            logger.info(`evalString ${module.name} ${DebugSymbol.fromAddress(address)}`);
+            logger.info(`evalString: ${module.name} ${DebugSymbol.fromAddress(address)}`);
             Interceptor.attach(address, hookEvalString);
         });
 
         // luad load buffer
         const lual = module.findExportByName('luaL_loadbuffer');
         if (lual) {
-            logger.info(`luaL_loadbuffer ${module.name} ${DebugSymbol.fromAddress(lual)}`);
+            logger.info(`luaL_loadbuffer: ${module.name} ${DebugSymbol.fromAddress(lual)}`);
             Interceptor.attach(lual, hookLuaLLoadbuffer);
         }
 
         // xxtea decrypt
+        // Lua key+sig pair
+        let realKeySize = 0,
+            signSize = 0;
+
+        const xxteaCryptDecrypt = module.findExportByName('_ZNK10XXTeaCrypt7decryptERKN7cocos2d4DataEPS1_');
+        if (xxteaCryptDecrypt) {
+            logger.info(`xxtea_crypt_decrypt: ${module.name} ${DebugSymbol.fromAddress(xxteaCryptDecrypt)}`);
+            Interceptor.attach(xxteaCryptDecrypt, {
+                onEnter(args) {
+                    const key = args[0].add(Process.pointerSize === 4 ? 0x4 : 0x8).readCString();
+                    const sign = args[0].add(Process.pointerSize === 4 ? 0x10 : 0x20).readCString();
+                    logger.info({ id: 'xxtea_crypt_decrypt' }, `key -> ${key} sign -> ${sign}`);
+                    realKeySize = `${key}`.length - 1;
+                    signSize = `${sign}`.length - 1;
+                },
+            });
+        }
+
+        const xxteaKeyAndSign = module.findExportByName('_ZN7cocos2d8LuaStack18setXXTEAKeyAndSignEPKciS2_i');
+        if (xxteaKeyAndSign) {
+            logger.info(`xxtea_key_and_sign: ${module.name} ${DebugSymbol.fromAddress(xxteaKeyAndSign)}`);
+            Interceptor.attach(xxteaKeyAndSign, {
+                onEnter(args) {
+                    const keylen = Math.min(args[2].toUInt32(), 16);
+                    const siglen = args[4].toUInt32();
+                    logger.info(
+                        { id: 'xxtea_key_and_sign' },
+                        `key -> ${args[1].readCString(keylen)} sign -> ${args[3].readCString(siglen)}`,
+                    );
+                    signSize = siglen;
+                },
+            });
+        }
+
+        const xxteaKeyAndSign1 = module.findExportByName('_ZN7cocos2d5extra6Crypto12decryptXXTEAEPhiS2_iPi');
+        if (xxteaKeyAndSign1) {
+            logger.info(`xxtea_key_and_sign1: ${module.name} ${DebugSymbol.fromAddress(xxteaKeyAndSign1)}`);
+            Interceptor.attach(xxteaKeyAndSign1, {
+                onEnter(args) {
+                    const key = args[1].readCString();
+                    const sign = args[2].readCString();
+                    logger.info({ id: 'xxtea_key_and_sign1' }, `key -> ${key} sign -> ${sign}`);
+                    signSize = `${sign}`.length - 1;
+                },
+            });
+        }
+        const xxteaKeyAndSign2 = module.findExportByName('_ZN7cocos2d8LuaStack18setXXTEAKeyAndSignEPKcS2_');
+        if (xxteaKeyAndSign2) {
+            logger.info(`xxtea_key_and_sign2: ${module.name} ${DebugSymbol.fromAddress(xxteaKeyAndSign2)}`);
+            Interceptor.attach(xxteaKeyAndSign2, {
+                onEnter(args) {
+                    const key = args[0].readCString();
+                    const sign = args[1].readCString();
+                    logger.info({ id: 'xxtea_key_and_sign2' }, `key -> ${key} sign -> ${sign}`);
+                    signSize = `${sign}`.length - 1;
+                },
+            });
+        }
+        const xxteaKeyAndSign3 = module.findExportByName('_ZN7cocos2d5extra6Crypto15decryptXXTEALuaEPKciS3_i');
+        if (xxteaKeyAndSign3) {
+            logger.info(`xxtea_key_and_sign3: ${module.name} ${DebugSymbol.fromAddress(xxteaKeyAndSign3)}`);
+            Interceptor.attach(xxteaKeyAndSign3, {
+                onEnter(args) {
+                    const key = args[0].readCString();
+                    const sign = args[1].readCString();
+                    logger.info({ id: 'xxtea_key_and_sign3' }, `key -> ${key} sign -> ${sign}`);
+                    signSize = `${sign}`.length - 1;
+                },
+            });
+        }
+
+        const xxteaResourcesDecode = module.findExportByName('_ZN15ResourcesDecode11setXXTeaKeyEPKciS1_i');
+        if (xxteaResourcesDecode) {
+            logger.info(`xxtea_resources_decode: ${module.name} ${DebugSymbol.fromAddress(xxteaResourcesDecode)}`);
+            Interceptor.attach(xxteaResourcesDecode, {
+                onEnter(args) {
+                    const keylen = Math.min(args[2].toUInt32(), 16);
+                    const siglen = Math.min(args[4].toUInt32(), 16);
+                    logger.info(
+                        { id: 'xxtea_resources_decode' },
+                        `key -> ${args[1].readCString(keylen)} sign -> ${args[3].readCString(siglen)}`,
+                    );
+                },
+                onLeave(retval) {},
+            });
+        }
+
         const xxtea_decrypt = module.findExportByName('_Z13xxtea_decryptPhjS_jPj');
         xxtea_decrypt && xxteaAddresses.push(xxtea_decrypt);
         xxteaAddresses.forEach((address) => {
-            logger.info(`xxtea_decrypt ${module.name} ${DebugSymbol.fromAddress(address)}`);
+            logger.info(`xxtea_decrypt: ${module.name} ${DebugSymbol.fromAddress(address)}`);
 
             // no idea why this often crashes
             try {
                 Interceptor.attach(address, {
                     onEnter: function (args) {
-                        logger.info('key -> ' + args[2].readCString(Math.min(args[3].toUInt32(), 16)));
+                        logger.info({ id: 'xxtea_decrypt' }, 'key -> ' + args[2].readCString(Math.min(args[3].toUInt32(), 16)));
                     },
                     onLeave: function (retval) {},
                 });
@@ -111,6 +198,66 @@ function dump(...targets: Cocos2dxOffset[]) {
                 logger.warn(`could not attach to xxtea_decrypt at ${address}`);
             }
         });
+
+        // New methods for hooking
+        const getLuaStack = module.findExportByName('_ZN7cocos2d9LuaEngine11getLuaStackEv');
+        if (getLuaStack) {
+            logger.info(`get_lua_stack: ${module.name} ${DebugSymbol.fromAddress(getLuaStack)}`);
+
+            let isHooked = false;
+            Interceptor.attach(getLuaStack, {
+                onLeave: function (retval) {
+                    if (!isHooked) {
+                        isHooked = true
+                        const nextAddr = retval.readPointer().add(0xe8).readPointer();
+                        Interceptor.attach(nextAddr, {
+                            onEnter: function (args) {
+                                const key = args[1].readCString(Math.min(args[2].toUInt32(), 16));
+                                const sign = args[3].readCString(args[4].toUInt32());
+                                logger.info({ id: 'get_lua_stack' }, `key -> ${key} sign -> ${sign}`);
+                            },
+                        });
+                    }
+                },
+            });
+        }
+
+        const getLuaEngine = module.findExportByName('_ZN7cocos2d9LuaEngine11getInstanceEv');
+        if (getLuaEngine) {
+            logger.info(`get_lua_engine: ${module.name} ${DebugSymbol.fromAddress(getLuaEngine)}`);
+
+            let isHooked = false;
+            Interceptor.attach(getLuaEngine, {
+                onLeave: function (retval) {
+                    if (!isHooked) {
+                        isHooked = true
+                        logger.info({ id: 'get_lua_engine' }, `return -> ${retval}`);
+                        // const nextAddr = retval.add(0x4).readPointer().readPointer().add(0x74).readPointer();
+                        // Interceptor.attach(nextAddr, {
+                        //     onEnter: function (args) {
+                        //         logger.info({ id: 'get_lua_engine' }, `key -> ${args[1].readCString()} sign -> ${args[2].readCString()}`);
+                        //     },
+                        // });
+                    }
+                },
+            });
+        }
+
+        // AES  encryption
+        const setEncryption = module.findExportByName(
+            '_ZN14EncryptManager17setEncryptEnabledEbN5cxx1717basic_string_viewIcNSt6__ndk111char_traitsIcEEEES5_i',
+        );
+        setEncryption &&
+            Interceptor.attach(setEncryption, {
+                onEnter: function (args) {
+                    logger.info('AES Encryption');
+                    logger.info('Key:');
+                    logger.info(hexdump(args[0].add(Process.pointerSize === 4 ? 0x10 : 0x20), { length: 32, ansi: true }));
+                    logger.info('IV:');
+                    logger.info(hexdump(args[4], { length: 16, ansi: true }));
+                    logger.info('Flags -> ' + args[5]);
+                },
+            });
 
         if (evalStringAddresses.length > 0 || lual || xxteaAddresses.length > 0) {
             clearTimeout(notFoundId);

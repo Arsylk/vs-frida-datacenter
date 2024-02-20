@@ -14,6 +14,8 @@ function attachStrings() {
                     !m.name.includes('get_Chars') &&
                     !m.name.includes('FastAllocateString') &&
                     !m.name.includes('FillStringChecked') &&
+                    m.name != 'Ctor' &&
+                    m.name != 'CreateString' &&
                     m.name != 'wstrcpy',
             )
             .and()

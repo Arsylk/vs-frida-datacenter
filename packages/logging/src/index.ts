@@ -8,11 +8,12 @@ const logger = pino({
         write: (o: any) => {
             const msg = o['msg'],
                 level = o['level'],
-                tag = o['tag'];
+                tag = o['tag'],
+                id = o['id'];
             let print: string | null = `${msg}`;
             if (tag) {
                 const color = getColor(tag);
-                const ctag = `[${color(`${tag}`)}] `;
+                const ctag = `[${color(`${tag}`)}${id ? ':'+id : ''}] `;
                 print = `${msg}`.replaceAll(/^/g, ctag)
             }
             if (print) console.log(print);

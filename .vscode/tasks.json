@@ -45,6 +45,7 @@
                 "-l",
                 "script.js"
                 // "agent/dist/justdump.js"
+                // "agent/dist/justcocos.js"
             ],
             "type": "shell",
             "group": "test",

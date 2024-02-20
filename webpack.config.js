@@ -44,7 +44,8 @@ const base = {
             fs: 'frida-fs',
         },
     },
-    mode: 'production',
+    mode: 'development',
+    devtool: 'inline-source-map',
 };
 export default [
     Object.assign(Object.assign({}, base), {
@@ -64,10 +65,10 @@ export default [
         },
     }),
     Object.assign(Object.assign({}, base), {
-        name: 'skillup7',
-        entry: './agent/skillup7.ts',
+        name: 'justcocos',
+        entry: './agent/justcocos.ts',
         output: {
-            filename: 'skillup7.js',
+            filename: 'justcocos.js',
             path: resolve('./agent/dist'),
         },
     }),

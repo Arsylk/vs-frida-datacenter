@@ -29,9 +29,14 @@ const ClassesString = {
     Math: 'java.lang.Math',
     DexPathList: 'dalvik.system.DexPathList',
     PendingIntent: 'android.app.PendingIntent',
+    ZonedDateTime: 'java.time.ZonedDateTime',
+    ZoneId: 'java.time.ZoneId',
+    Instant: 'java.time.Instant',
+    Calendar: 'java.util.Calendar',
 
     Application: 'android.app.Application',
     Settings$Secure: 'android.provider.Settings$Secure',
+    Settings$Global: 'android.provider.Settings$Global',
     WebView: 'android.webkit.WebView',
     ContentResolver: 'android.content.ContentResolver',
     WebChromeClient: 'android.webkit.WebChromeClient',
@@ -49,6 +54,9 @@ const ClassesString = {
     InstallReferrerClient: 'com.android.installreferrer.api.InstallReferrerClient',
     InstallReferrerStateListener: 'com.android.installreferrer.api.InstallReferrerStateListener',
     ReferrerDetails: 'com.android.installreferrer.api.ReferrerDetails',
+    ApplicationPackageManager: 'android.app.ApplicationPackageManager',
+    LocationManager: 'android.location.LocationManager',
+    Sensor: 'android.hardware.Sensor',
 };
 
 type ClassesType = PropertyJavaUseMapper<typeof ClassesString>;
