@@ -1,7 +1,6 @@
 import { Jigau } from '@clockwork/anticloak';
 import * as Dump from '@clockwork/dump';
 import * as Native from '@clockwork/native';
-import * as Unity from '@clockwork/unity';
 
 Jigau.memoryPatch();
 Dump.scheduleDexDump(10_000);
@@ -24,5 +23,3 @@ Native.attachSystemPropertyGet(function (key) {
 
     if (Native.Inject.isWithinOwnRange(this.returnAddress)) return 'nya';
 });
-
-Unity.attachStrings();

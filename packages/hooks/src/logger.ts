@@ -155,9 +155,9 @@ const HOOK_LOGGER = {
         if (logId) {
             sb = sb.replaceAll(/$/gm, `${this.mapLogId(logId)}`);
         }
-
+        
         logger.info(sb);
-    },
+    }
 };
 
 const HOOK_LOGGER_JSON = {
