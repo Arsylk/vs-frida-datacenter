@@ -45,10 +45,7 @@
                 "-l",
                 "script.js"
                 // "agent/dist/justdump.js"
-<<<<<<< HEAD
                 // "agent/dist/justcocos.js"
-=======
->>>>>>> origin/main
             ],
             "type": "shell",
             "group": "test",

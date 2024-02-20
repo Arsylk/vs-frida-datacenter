@@ -64,17 +64,10 @@ export default [
         },
     }),
     Object.assign(Object.assign({}, base), {
-<<<<<<< HEAD
         name: 'justcocos',
         entry: './agent/justcocos.ts',
         output: {
             filename: 'justcocos.js',
-=======
-        name: 'skillup7',
-        entry: './agent/skillup7.ts',
-        output: {
-            filename: 'skillup7.js',
->>>>>>> origin/main
             path: resolve('./agent/dist'),
         },
     }),
