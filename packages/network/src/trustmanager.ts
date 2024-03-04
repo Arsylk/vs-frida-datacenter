@@ -1,5 +1,5 @@
 import { getHookUnique } from '@clockwork/hooks';
-import { findClass, getClass } from '@clockwork/common';
+import { findClass } from '@clockwork/common';
 import { always } from '@clockwork/hooks/dist/addons.js';
 
 const className = 'com.google.in.MemoryTrustManager';
@@ -64,7 +64,7 @@ function useTrustManager(loader?: Java.Wrapper): Java.Wrapper | null {
 
     const inMemory = InMemoryDexClassLoader.$new(ByteBuffer.wrap(Java.array('B', dexBytes)), loader);
 
-    return getClass(className, inMemory);
+    return findClass(className, inMemory);
 }
 
 function injectSsl() {

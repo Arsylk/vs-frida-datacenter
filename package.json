@@ -30,11 +30,11 @@
         "frida-compile": "^16.4.1"
     },
     "devDependencies": {
-        "@tsconfig/node21": "^21.0.0",
-        "@types/frida-gum": "^18.5.1",
+        "@tsconfig/node21": "^21.0.1",
+        "@types/frida-gum": "^18.6.0",
         "frida-il2cpp-bridge": "^0.9.0",
         "ts-loader": "^9.5.1",
-        "webpack": "^5.89.0",
+        "webpack": "^5.90.3",
         "webpack-cli": "^5.1.4"
     },
     "workspaces": [

@@ -70,12 +70,6 @@ function findClass(className: string, ...loaders: Java.Wrapper[]): Java.Wrapper 
     return null;
 }
 
-function getClass(className: string, ...loaders: Java.Wrapper[]): Java.Wrapper {
-    const result = findClass(className, ...loaders);
-    if (result) return result;
-    throw Error(`class not found: ${className}`)
-}
-
 function getFindUnique() {
     const found = new Set<string>();
 
@@ -94,4 +88,4 @@ function getFindUnique() {
     };
 }
 
-export { getClass, findClass, getFindUnique, enumerateMembers };
+export { findClass, getFindUnique, enumerateMembers };

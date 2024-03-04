@@ -1,8 +1,9 @@
 class StdString {
     static #STD_STRING_SIZE = 3 * Process.pointerSize;
     handle: NativePointer;
-    constructor() {
-        this.handle = Memory.alloc(StdString.#STD_STRING_SIZE);
+
+    constructor(ptr: NativePointer = Memory.alloc(StdString.#STD_STRING_SIZE)) {
+        this.handle = ptr;
     }
 
     dispose() {
@@ -13,7 +14,7 @@ class StdString {
         }
     }
 
-    disposeToString() {
+    disposeToString(): string {
         const result = this.toString();
         this.dispose();
         return result;

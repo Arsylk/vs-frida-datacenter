@@ -2,7 +2,6 @@ import { ClassLoader, findHook, getHookUnique } from '@clockwork/hooks';
 import * as Anticloak from '@clockwork/anticloak';
 import * as Network from '@clockwork/network';
 import * as Native from '@clockwork/native';
-import * as JniTrace from '@clockwork/jnitrace';
 import * as Cocos2dx from '@clockwork/cocos2dx';
 import * as Unity from '@clockwork/unity';
 import { hook } from '@clockwork/hooks';
@@ -22,6 +21,7 @@ import { always, ifKey, ifReturn } from '@clockwork/hooks';
 import { dumpFile, gPtr } from '@clockwork/native';
 import { createHash } from 'crypto';
 import * as Dump from '@clockwork/dump';
+import * as JniTrace from '@clockwork/jnitrace';
 const uniqHook = getHookUnique();
 const uniqFind = getFindUnique();
 const { blue, blueBright, redBright, magentaBright: pink, yellow, dim } = Color.use();
@@ -48,10 +48,16 @@ function hookActivity() {
     hook(Classes.Activity, 'startActivities');
 }
 
-function hookWebview() {
+function hookWebview(trace?: boolean) {
     hook(Classes.WebView, 'evaluateJavascript');
     hook(Classes.WebView, 'loadDataWithBaseURL');
-    hook(Classes.WebView, 'loadUrl');
+    hook(Classes.WebView, 'loadUrl', {
+        after(method, returnValue, ...args) {
+            if (trace) {
+                logger.info(pink(stacktrace()));
+            }
+        },
+    });
 }
 
 function hookNetwork() {
@@ -182,14 +188,46 @@ function bypassIntentFlags() {
     });
 }
 
+function propertyMapper(key: string): string | undefined {
+    // common
+    if (key.includes('qemu')) return ''
+
+    // native 
+    switch (key) {
+        case 'ro.secure':
+            return '1';
+        case 'ro.debuggable':
+            return '0';
+        case 'ro.build.display.id':
+            return 'SQ1D.220205.003';
+        case 'ro.build.tags':
+            return 'release-keys';
+        case 'ro.build.flavor':
+            return 'raven-release';
+        case 'ro.product.model':
+            return 'Raven';
+        case 'ro.product.manufacturer':
+        case 'ro.product.brand':
+            return 'Xiaomi';
+        case 'ro.hardware':
+        case 'ro.product.board':
+        case 'ro.board.platform':
+            return 'sdm720';
+        case 'gsm.version.baseband':
+            return 's';
+        // case 'ro.boot.qemu.gltransport.name':
+        //     return 'n';
+        case 'persist.sys.timezone':
+            return '';
+    }
+} 
+
 Java.performNow(() => {
     hookActivity();
     hookWebview();
     hookNetwork();
     hookJson(function (key, method) {
         switch (key) {
-            case 'isInstalled':
-                return true;
             case 'referrer':
             case 'applink_url':
                 return 'utm_amazon';
@@ -202,18 +240,11 @@ Java.performNow(() => {
     });
     hookPrefs(function (key, method) {
         switch (key) {
-            case 'UpdateVersionPatch_1.64.14':
+            case 'oskdoskdue':
+                return 0;
             case 'isAudit':
             case 'IS_AUDIT':
                 return false;
-            case 'IS_LOGINED':
-            case 'AdShow':
-            case 'AdMobAdShow':
-            case 'AdxAdShow':
-            case 'FacebookAdShow':
-            case 'AppLovinAdShow':
-            case 'NativeToBannerAdShow':
-                return true;
             case 'invld_id':
             case 'key_umeng_sp_oaid':
             case 'UTDID2':
@@ -240,36 +271,57 @@ Java.performNow(() => {
             case 'tenjinGoogleInstallReferrer':
             case 'install_referrer':
             case 'referrer':
-            case 'amuseville_data':
             case 'AFConversionData':
             case 'conversionData':
             case 'dataScore':
-                return 'utm_medium=Non-organic';
+                return 'utm_medium=Non-organic&utm_source=facebook_ads';
             case 'country':
             case 'userCountry':
             case 'key_real_country':
             case 'KEY_LOCALE':
+            case 'watermelonRP':
                 return 'BR';
-            case 'PrivacyPolicyURL':
-                return 'https://google.pl/search?q=hi'
+            case 'watermelonexchangeSwitch':
+                return 1;
         }
     });
     hookCrypto();
     hook(Classes.Runtime, 'exec', {
         replace(method, ...args) {
-            // if (`${args[0]}`.includes('nya') === false) return Classes.Runtime.exec.call(this, 'echo nya');
+            if (`${args[0]}`.includes('nya') === false) return Classes.Runtime.exec.call(this, 'echo nya');
             return method.call(this, ...args);
         },
     });
+    hook(Classes.Process, 'killProcess', { replace: () => {}, logging: { multiline: false, return: false } });
 
+    hook(Classes.Activity, 'finish', { replace: () => {}, logging: { multiline: false, return: false } });
+    hook(Classes.Activity, 'finishAffinity', { replace: () => {}, logging: { multiline: false, return: false } });
+
+    hook(Classes.ApplicationPackageManager, 'getPackageInfo', {
+        logging: { multiline: false, short: true },
+        after(method, returnValue, ...args) {
+            const mPackage = this.mContext.value.getPackageName();
+            if (mPackage === returnValue?.packageName?.value) {
+            }
+        },
+    });
+
+    Anticloak.generic();
     Anticloak.hookDevice();
     Anticloak.hookSettings();
     Anticloak.Country.mock('BR');
-    Anticloak.InstallReferrer.replace({ install_referrer: 'utm_medium=Non-nyarganic&utm_source=facebook_ads' });
+    Anticloak.InstallReferrer.replace({ install_referrer: 'utm_medium=Non-organic&utm_source=facebook_ads' });
+
+    hook(Classes.SystemProperties, 'get', {
+        logging: { multiline: false, short: true },
+        replace: ifKey(function (key) {
+            const value = propertyMapper(key)
+            return value;
+        }),
+    });
 
     hook(Classes.DexPathList, '$init');
-    ClassLoader.perform((cl) => {
-    });
+    ClassLoader.perform((cl) => {});
 });
 
 Network.attachGetAddrInfo();
@@ -279,48 +331,27 @@ Network.attachInteAton();
 // Native.attachRegisterNatives();
 Native.attachSystemPropertyGet(function (key) {
     // console.log(DebugSymbol.fromAddress(this.returnAddress));
-    switch (key) {
-        case 'ro.bootloader':
-            return 'locked'
-        case 'ro.debuggable':
-            return '0';
-        case 'ro.product.model':
-            return 'Raven';
-        case 'ro.product.manufacturer':
-        case 'ro.product.brand':
-            return 'Xiaomi';
-        case 'ro.build.flavor':
-            return 'raven-release';
-        case 'ro.product.board':
-            return 'sdm720';
-        case 'ro.hardware':
-            return 'china';
-        case 'gsm.version.baseband':
-            return 's';
-        case 'ro.boot.qemu.gltransport.name':
-            return 'n';
-    }
-    if (Native.Inject.isWithinOwnRange(this.returnAddress)) return 'nya';
+    const value = propertyMapper(key)
+    return value;
+    // if (Native.Inject.isWithinOwnRange(this.returnAddress)) return 'nya';
 });
 
 // Anticloak.Jigau.memoryPatch();
-// [INFO] {"name": "libcocos.so", "fn_dump": "0x002ad2a0","fn_key": "0 x00293468"}
-// Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x007e1564), fn_key: ptr(0x006ddd60) });
-// Cocos2dx.hookLocalStorage(function(key) {
+// [INFO] {"name": "libcocos.so", "fn_dump": "0x002ad2a0"cklc"fn_key": "0 x00293468"}
+// Cocos2dx.dump({ name: 'libcocos.so', fn_dump: ptr(0x0027de6c), fn_key: ptr(0x00262dc4) });
+// Cocos2dx.hookLocalStorage(function (key) {
 //     switch (key) {
 //         case 'force_update':
 //             return 'true';
 //     }
-// })
+// });
 // Unity.setVersion('2023.2.5f1');
-// Unity.attachStrings();
+Unity.attachStrings();
 
-let x = true;
-
-// // setTimeout(() => (x = false), 5000);\
-const predicate = (r) => x && Native.Inject.isWithinOwnRange(r);
+let isNativeEnabled = false;
+const predicate = (r) => isNativeEnabled && Native.Inject.isWithinOwnRange(r);
 JniTrace.attach(({ returnAddress }) => {
-    return predicate(returnAddress);
+    return false && predicate(returnAddress);
 });
 
 // ['strlen', 'strstr', 'strncmp', 'strcmp', 'strcpy', 'strcat'].forEach((ex) => {
@@ -336,9 +367,10 @@ JniTrace.attach(({ returnAddress }) => {
 // });
 [
     'fopen',
-    // 'fwrite',
+    'fwrite',
     'stat',
     'access',
+    'faccessat',
     'vprintf',
     '__android_log_print',
     'sprintf',
@@ -364,7 +396,6 @@ JniTrace.attach(({ returnAddress }) => {
                 }
                 case 'sprintf': {
                     logger.info({ tag: ex }, `"${args[0].readCString()}" "${args[1].readCString()}"`);
-
                     return;
                 }
                 default: {
@@ -376,7 +407,6 @@ JniTrace.attach(({ returnAddress }) => {
     });
 });
 
-
 ['kill'].forEach((ex) => {
     const kill = Module.getExportByName(null, ex);
     Native.Inject.attachInModule(predicate, kill, {
@@ -387,12 +417,17 @@ JniTrace.attach(({ returnAddress }) => {
     });
 });
 
-// Interceptor.replace(Module.getExportByName(null, 'exit'), new NativeCallback(function (code) {
-//     if (null == this) {
-//         return 0;
-//     }
-//     return 0;
-// }, 'int', ['int', 'int']));
+Interceptor.replace(
+    Module.getExportByName(null, 'exit'),
+    new NativeCallback(
+        function (code) {
+            logger.info({ tag: 'exit' }, `exit(${code}) called !`);
+            return 0;
+        },
+        'int',
+        ['int', 'int'],
+    ),
+);
 
 // const fork_ptr = Module.getExportByName('libc.so', 'fork');
 // const fork = new NativeFunction(fork_ptr, 'int', []);
@@ -423,65 +458,65 @@ JniTrace.attach(({ returnAddress }) => {
 //     ),
 // );
 
-// // var p_pthread_create = Module.getExportByName('libc.so', 'pthread_create');
-// // var pthread_create = new NativeFunction(p_pthread_create, 'int', ['pointer', 'pointer', 'pointer', 'pointer']);
-// // Interceptor.replace(
-// //     p_pthread_create,
-// //     new NativeCallback(
-// //         function (ptr0, ptr1, ptr2, ptr3) {
-// //             const ret = pthread_create(ptr0, ptr1, ptr2, ptr3);
-// //             logger.info({ tag: 'pthread_create', replace: true }, `${ptr0}, ${ptr1}, ${ptr2}, ${ptr3} -> ${ret}`);
-// //             return ret;
-// //         },
-// //         'int',
-// //         ['pointer', 'pointer', 'pointer', 'pointer'],
-// //     ),
-// // );
-// // var fgetsPtr = Module.getExportByName('libc.so', 'fgets');
-// // var fgets = new NativeFunction(fgetsPtr, 'pointer', ['pointer', 'int', 'pointer']);
-// // Interceptor.replace(
-// //     fgetsPtr,
-// //     new NativeCallback(
-// //         function (buffer, size, fp) {
-// //             var retval = fgets(buffer, size, fp);
-// //             var bufstr = buffer.readCString();
+// var p_pthread_create = Module.getExportByName('libc.so', 'pthread_create');
+// var pthread_create = new NativeFunction(p_pthread_create, 'int', ['pointer', 'pointer', 'pointer', 'pointer']);
+// Interceptor.replace(
+//     p_pthread_create,
+//     new NativeCallback(
+//         function (ptr0, ptr1, ptr2, ptr3) {
+//             const ret = pthread_create(ptr0, ptr1, ptr2, ptr3);
+//             logger.info({ tag: 'pthread_create', replace: true }, `${ptr0}, ${ptr1}, ${ptr2}, ${ptr3} -> ${ret}`);
+//             return ret;
+//         },
+//         'int',
+//         ['pointer', 'pointer', 'pointer', 'pointer'],
+//     ),
+// );
+// var fgetsPtr = Module.getExportByName('libc.so', 'fgets');
+// var fgets = new NativeFunction(fgetsPtr, 'pointer', ['pointer', 'int', 'pointer']);
+// Interceptor.replace(
+//     fgetsPtr,
+//     new NativeCallback(
+//         function (buffer, size, fp) {
+//             var retval = fgets(buffer, size, fp);
+//             var bufstr = buffer.readCString();
 
-// //             if (bufstr?.includes('TracerPid:')) {
-// //                 buffer.writeUtf8String('TracerPid:\t0');
-// //                 console.log('Bypassing TracerPID Check');
-// //             }
+//             if (bufstr?.includes('TracerPid:')) {
+//                 buffer.writeUtf8String('TracerPid:\t0');
+//                 console.log('Bypassing TracerPID Check');
+//             }
 
-// //             if (bufstr?.includes('frida') || bufstr?.includes('hluda')) {
-// //                 console.log('Keywords in Buffer', retval);
-// //                 var newstr = bufstr.replace("frida", "libcc");
-// //                 buffer.writeUtf8String(newstr);
-// //                 console.error(bufstr);
-// //                 return retval;
-// //             }
-// //             return retval;
-// //         },
-// //         'pointer',
-// //         ['pointer', 'int', 'pointer'],
-// //     ),
-// // );
-// // var fopenPtr = Module.getExportByName('libc.so', 'fopen');
-// // var fopen = new NativeFunction(fopenPtr, 'pointer', ['pointer', 'pointer']);
-// // Interceptor.replace(
-// //     fopenPtr,
-// //     new NativeCallback(
-// //         function (path, mode) {
-// //             var ch = path.readCString();
-// //             if (ch?.includes('/proc/') && ch?.includes('/')) {
-// //                 Memory.protect(path, (ch.length / Process.pageSize + (ch.length % Process.pageSize)), 'rwx');
-// //                 path.writeUtf8String('/proc/12/cmdline');
-// //                 logger.info({ tag: 'fopen', replace: true }, `${path.readCString()}`);
-// //                 return fopen(path, mode);
-// //             }
-// //             var retval = fopen(path, mode);
-// //             logger.info({ tag: 'fopen' }, `${path.readCString()}`);
-// //             return retval;
-// //         },
-// //         'pointer',
-// //         ['pointer', 'pointer'],
-// //     ),
-// // );
+//             if (bufstr?.includes('frida') || bufstr?.includes('hluda')) {
+//                 console.log('Keywords in Buffer', retval);
+//                 var newstr = bufstr.replace("frida", "libcc");
+//                 buffer.writeUtf8String(newstr);
+//                 console.error(bufstr);
+//                 return retval;
+//             }
+//             return retval;
+//         },
+//         'pointer',
+//         ['pointer', 'int', 'pointer'],
+//     ),
+// );
+// var fopenPtr = Module.getExportByName('libc.so', 'fopen');
+// var fopen = new NativeFunction(fopenPtr, 'pointer', ['pointer', 'pointer']);
+// Interceptor.replace(
+//     fopenPtr,
+//     new NativeCallback(
+//         function (path, mode) {
+//             var ch = path.readCString();
+//             if (ch?.includes('/proc/') && ch?.includes('/')) {
+//                 Memory.protect(path, (ch.length / Process.pageSize + (ch.length % Process.pageSize)), 'rwx');
+//                 path.writeUtf8String('/proc/12/cmdline');
+//                 logger.info({ tag: 'fopen', replace: true }, `${path.readCString()}`);
+//                 return fopen(path, mode);
+//             }
+//             var retval = fopen(path, mode);
+//             logger.info({ tag: 'fopen' }, `${path.readCString()}`);
+//             return retval;
+//         },
+//         'pointer',
+//         ['pointer', 'pointer'],
+//     ),
+// );
