@@ -1,11 +1,11 @@
 import { createHash } from 'crypto';
 import { Inject, dumpFile, gPtr } from '@clockwork/native';
-import { Text } from '@clockwork/common';
+import { Std, Text } from '@clockwork/common';
 import { Color, subLogger } from '@clockwork/logging';
 const { red, dim, blue } = Color.use();
 const logger = subLogger('cocos2dx');
 
-type Cocos2dxOffset = { name: string; fn_dump?: NativePointer; fn_key?: NativePointer };
+type Cocos2dxOffset = { name: string; fn_dump?: NativePointer; fn_key?: NativePointer; fn_set?: NativePointer };
 
 function hookLegacy(): NativePointer[] {
     //@ts-ignore
@@ -64,12 +64,12 @@ function dump(...targets: Cocos2dxOffset[]) {
     Inject.afterInitArrayModule((module: Module) => {
         const evalStringAddresses: NativePointer[] = [];
         const xxteaAddresses: NativePointer[] = [];
-        targets.forEach(({ name, fn_dump, fn_key }) => {
-            if (fn_dump && name === module.name) {
-                evalStringAddresses.push(module.base.add(fn_dump));
-            }
-            if (fn_key && name === module.name) {
-                xxteaAddresses.push(module.base.add(fn_key));
+        const setXxteaAdresses: NativePointer[] = [];
+        targets.forEach(({ name, fn_dump, fn_key, fn_set }) => {
+            if (name === module.name) {
+                if (fn_dump) evalStringAddresses.push(module.base.add(fn_dump));
+                if (fn_key) xxteaAddresses.push(module.base.add(fn_key));
+                if (fn_set) setXxteaAdresses.push(module.base.add(fn_set));
             }
         });
 
@@ -181,7 +181,9 @@ function dump(...targets: Cocos2dxOffset[]) {
             });
         }
 
-        const xxtea_decrypt = module.findExportByName('_Z13xxtea_decryptPhjS_jPj');
+        let xxtea_decrypt = module.findExportByName('_Z13xxtea_decryptPhjS_jPj');
+        xxtea_decrypt && xxteaAddresses.push(xxtea_decrypt);
+        xxtea_decrypt = module.findExportByName('xxtea_decrypt')
         xxtea_decrypt && xxteaAddresses.push(xxtea_decrypt);
         xxteaAddresses.forEach((address) => {
             logger.info(`xxtea_decrypt: ${module.name} ${DebugSymbol.fromAddress(address)}`);
@@ -208,7 +210,7 @@ function dump(...targets: Cocos2dxOffset[]) {
             Interceptor.attach(getLuaStack, {
                 onLeave: function (retval) {
                     if (!isHooked) {
-                        isHooked = true
+                        isHooked = true;
                         const nextAddr = retval.readPointer().add(0xe8).readPointer();
                         Interceptor.attach(nextAddr, {
                             onEnter: function (args) {
@@ -230,7 +232,7 @@ function dump(...targets: Cocos2dxOffset[]) {
             Interceptor.attach(getLuaEngine, {
                 onLeave: function (retval) {
                     if (!isHooked) {
-                        isHooked = true
+                        isHooked = true;
                         logger.info({ id: 'get_lua_engine' }, `return -> ${retval}`);
                         // const nextAddr = retval.add(0x4).readPointer().readPointer().add(0x74).readPointer();
                         // Interceptor.attach(nextAddr, {
@@ -258,6 +260,23 @@ function dump(...targets: Cocos2dxOffset[]) {
                     logger.info('Flags -> ' + args[5]);
                 },
             });
+
+        // TODO refactor this
+        setXxteaAdresses.forEach(offset => {
+            let ptr: NativePointer | null = null, addr: NativePointer | null = null;
+            try {
+                ptr = module.base.add(offset);
+                addr = ptr.readPointer();
+                logger.info(`set_xxtea_key: ${module.name} ${DebugSymbol.fromAddress(addr)}`);
+                Interceptor.attach(addr, {
+                    onEnter(args) {
+                        logger.info({ id: 'set_xxtea_key' }, new Std.String(args[1]).disposeToString());
+                    },
+                });
+            } catch (e) {
+                logger.warn(`could not attach to set_xxtea_key at ${ptr} -> ${addr}`);
+            }
+        })
 
         if (evalStringAddresses.length > 0 || lual || xxteaAddresses.length > 0) {
             clearTimeout(notFoundId);

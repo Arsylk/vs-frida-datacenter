@@ -103,14 +103,12 @@
             }
         },
         {
-            "isBackground": true,
+            "isBackground": false,
             "type": "shell",
-            "command": "npx nodemon ~/Projects/Typescript/work-watcher/dist/index.js",
-            "problemMatcher": [
-                // TODO
-            ],
-            "label": "workspace: nodemon",
-            "detail": "npx nodemon",
+            "command": "pm2 kill && pm2 start ~/Projects/Typescript/work-watcher/dist/index.js -f --name work-watcher -o ~/Projects/Typescript/work-watcher/log.txt",
+            "problemMatcher": [],
+            "label": "workspace: pm2",
+            "detail": "pm2 kill && pm2 start work-watcher",
             "presentation": {
                 "reveal": "silent"
             },

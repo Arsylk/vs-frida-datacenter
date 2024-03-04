@@ -1,4 +1,4 @@
-import { Classes, Std, enumerateMembers, findClass, getClass } from '@clockwork/common';
+import { Classes, Std, enumerateMembers, findClass } from '@clockwork/common';
 import { JavaMethod } from './javaMethod.js';
 import { JNI, asFunction, jMethodID } from './jni.js';
 import { logger } from '@clockwork/logging';

@@ -10,18 +10,18 @@ export * as Country from './country.js';
 function hookDevice(override?: { [key: string]: string | undefined }) {
     /* device Settings*/
     const Build: { [key: string]: string } = {
-        MODEL: 'Secret SC-1224',
-        DEVICE: 'Device Value',
-        BOARD: 'Device Board',
-        // PRODUCT: 'Device Product',
-        // HARDWARE: 'Device Hardware',
-        FINGERPRINT: 'foo/bar/Device:11/11/2022:user/sig-keys',
-        MANUFACTURER: 'Company Co',
+        MODEL: 'Xiaomi 6 Pro',
+        DEVICE: 'raven',
+        BOARD: 'sdm720',
+        PRODUCT: 'raven',
+        HARDWARE: 'Device Hardware',
+        FINGERPRINT: 'xiaomi/raven/raven:12/SQ1D.220205.003/8069835:user/release-keys',
+        MANUFACTURER: 'Xiaomi',
         BOOTLOADER: 'Boot-JJ129-ac',
-        BRAND: 'China Telecom',
+        BRAND: 'Xiaomi',
         HOST: 'HOST Co',
         DISPLAY: 'Foo procuctions and bar 1-0-111',
-        TAGS: 'Production Build',
+        TAGS: 'release-keys',
         SERIAL: 'Seriously ?',
         TYPE: 'Production build',
         USER: 'LINUX General',
@@ -61,7 +61,13 @@ function hookSettings(fn?: (key: string) => number | undefined) {
 }
 
 function hookInstallerPackage() {
-    hook(Classes.ApplicationPackageManager, 'getInstallerPackageName', { replace: always('com.android.vending') });
+    hook(Classes.ApplicationPackageManager, 'getInstallerPackageName', { 
+        replace: always('com.android.vending'),
+        logging: {
+            short: true,
+            multiline: false,
+        }
+    });
 }
 
 function hookLocationHardware() {

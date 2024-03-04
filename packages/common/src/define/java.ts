@@ -57,6 +57,9 @@ const ClassesString = {
     ApplicationPackageManager: 'android.app.ApplicationPackageManager',
     LocationManager: 'android.location.LocationManager',
     Sensor: 'android.hardware.Sensor',
+    SystemProperties: 'android.os.SystemProperties',
+    Process: 'android.os.Process',
+    File: 'java.io.File',
 };
 
 type ClassesType = PropertyJavaUseMapper<typeof ClassesString>;

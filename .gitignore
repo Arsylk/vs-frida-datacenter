@@ -3,3 +3,5 @@ node_modules/
 dist
 *.tsbuildinfo
 session.txt
+report.md
+report.json
