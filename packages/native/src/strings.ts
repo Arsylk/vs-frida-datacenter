@@ -1,0 +1,102 @@
+import { Libc } from '@clockwork/common';
+import { Color, logger } from '@clockwork/logging';
+import { throws } from 'assert';
+const { dim, green, red, italic, gray } = Color.use();
+
+function strOneLine(ptr: NativePointer): string {
+    return `${ptr.readCString()}`.replace(/\n/g, '\\n')
+}
+
+function hookStrstr(predicate: (ptr: NativePointer) => boolean) {
+    const array: ('strstr' | 'strcasestr')[] = ['strstr', 'strcasestr'];
+    array.forEach((key) => {
+        const func = Libc[key]
+        Interceptor.replace(
+            func,
+            new NativeCallback(
+                function (haystack, needle) {
+                    const ret = func(haystack, needle);
+
+                    if (predicate(this.returnAddress)) {
+                        const isFound = ret && !ret.isNull();
+                        const strhay = gray(`"${strOneLine(haystack)}"`);
+                        const strned = isFound ? `"${strOneLine(needle)}"` : gray(`"${strOneLine(needle)}"`);
+                        logger.info({ tag: key }, `${strhay} ? ${strned}`);
+                    }
+
+                    return ret;
+                },
+                'pointer',
+                ['pointer', 'pointer'],
+            ),
+        );
+    });
+}
+
+function hookStrlen(predicate: (ptr: NativePointer) => boolean) {
+    Interceptor.replace(
+        Libc.strlen,
+        new NativeCallback(function(s) {
+            const ret = Libc.strlen(s)
+
+            if (predicate(this.returnAddress)) {
+                const strs = gray(`"${strOneLine(s)}"`)
+                logger.info({tag: 'strlen'}, `${strs} # ${Color.number(ret)}`)
+            }
+
+            return ret;
+        }, 'int', ['pointer'])
+    )
+}
+
+function hookStrcpy(predicate: (ptr: NativePointer) => boolean) {
+    const array: ('stpcpy' | 'strcpy' )[] = ['stpcpy', 'strcpy'];
+    array.forEach((key) => {
+        const func = Libc[key]
+        Interceptor.replace(
+            func,
+            new NativeCallback(
+                function (dst, src) {
+                    if (predicate(this.returnAddress)) {
+                        const strdst = dim(`"${strOneLine(dst)}"`);
+                        const strsrc = dim(`"${strOneLine(src)}"`);
+                        logger.info({ tag: key }, `${strdst} | ${strsrc}`);
+                    }
+
+                    const ret = func(dst, src);
+                    return ret;
+                },
+                'pointer',
+                ['pointer', 'pointer'],
+            ),
+        );
+    });
+}
+
+// hooking strcmp appears to kill the app regardless of what app it is ?
+function hookStrcmp(predicate: (ptr: NativePointer) => boolean) {
+    const array: ('strcmp' | 'strncmp')[] = ['strcmp', 'strncmp'];
+    array.forEach((key) => {
+        const func = Libc[key]
+        Interceptor.replace(
+            func,
+            new NativeCallback(
+                function (s1, s2) {
+                    const ret = func(s1, s2);
+
+                    if (predicate(this.returnAddress)) {
+                        const strs1 = ret === 0 ? `"${strOneLine(s1)}"` : gray(`"${strOneLine(s1)}"`);
+                        const strs2 = ret >= 0 ? `"${strOneLine(s2)}"` :  gray(`"${strOneLine(s2)}"`);
+                        logger.info({ tag: key }, `${strs1} = ${strs2}`);
+                    }
+
+                    return ret;
+                },
+                'int',
+                ['pointer', 'pointer'],
+            ),
+        );
+    });
+}
+
+export { hookStrstr, hookStrlen, hookStrcmp, hookStrcpy }

@@ -73,4 +73,12 @@ export default [
             path: resolve('./agent/dist'),
         },
     }),
+    Object.assign(Object.assign({}, base), {
+        name: 'caller',
+        entry: './agent/caller.ts',
+        output: {
+            filename: 'caller.js',
+            path: resolve('./agent/dist'),
+        },
+    }),
 ];

@@ -45,4 +45,26 @@ function toPrettyType(type: string): string {
     return (PRIMITIVE_TYPE[type] ?? type) + '[]'.repeat(depth);
 }
 
-export { maxLengh, noLines, toHex, toByteSize, toPrettyType, stringNumber };
+
+function base64(input: string) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    let output = '';
+    let i = 0;
+
+    while (i < input.length) {
+        const a = input.charCodeAt(i++);
+        const b = input.charCodeAt(i++);
+        const c = input.charCodeAt(i++);
+        const index1 = a >> 2;
+        const index2 = ((a & 3) << 4) | (b >> 4);
+        const index3 = isNaN(b) ? 64 : ((b & 15) << 2) | (c >> 6);
+        const index4 = isNaN(c) ? 64 : c & 63;
+
+        output += chars.charAt(index1) + chars.charAt(index2) + chars.charAt(index3) + chars.charAt(index4);
+    }
+
+    return output;
+}
+
+
+export { maxLengh, noLines, toHex, toByteSize, toPrettyType, stringNumber, base64 };

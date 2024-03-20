@@ -5,6 +5,8 @@ const array = [colors.red, colors.green, colors.yellow, colors.blue, colors.mage
 const colormap = new Map<string, (text: string | number) => string>();
 colormap.set('encrypt', colors.blueBright)
 colormap.set('decrypt', colors.redBright)
+colormap.set('strstr', colors.blueBright)
+colormap.set('strcasestr', colors.blueBright)
 
 function getColor(tag: string): (text: string | number) => string {
     let roll = colormap.get(tag);
