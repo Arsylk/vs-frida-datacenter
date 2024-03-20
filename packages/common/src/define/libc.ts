@@ -1,9 +1,20 @@
 import { PropertyCallbackMapper, proxyCallback } from '../internal/proxy.js';
 
 const LibcFinder = {
+    // int open(const char *pathname, int flags, mode_t mode);
     open: () => {
         const ptr = Module.getExportByName('libc.so', 'open');
         return new NativeFunction(ptr, 'int', ['pointer', 'int']);
+    },
+    // int creat(const char *pathname, mode_t mode);
+    creat: () => {
+        const ptr = Module.getExportByName('libc.so', 'creat');
+        return new NativeFunction(ptr, 'int', ['pointer', 'int']);
+    },
+    // int openat(int dirfd, const char *pathname, int flags);
+    openat: () => {
+        const ptr = Module.getExportByName('libc.so', 'openat');
+        return new NativeFunction(ptr, 'int', ['int', 'pointer', 'int']);
     },
     // int close(int fd);
     close: () => {
@@ -31,13 +42,34 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'read');
         return new NativeFunction(ptr, 'int', ['int', 'pointer', 'int']);
     },
+    // FILE *fopen(const char *restrict pathname, const char *restrict mode);
+    fopen: () => {
+        const ptr = Module.getExportByName('libc.so', 'fopen');
+        return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer']);
+    },
+    // FILE *fdopen(int fd, const char *mode);
+    fdopen: () => {
+        const ptr = Module.getExportByName('libc.so', 'fdopen');
+        return new NativeFunction(ptr, 'pointer', ['int', 'pointer']);
+    },
+    // FILE *freopen(const char *restrict pathname, const char *restrict mode, FILE *restrict stream);
+    freopen: () => {
+        const ptr = Module.getExportByName('libc.so', 'freopen');
+        return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer', 'pointer']);
+    },
     chmod: () => {
         const ptr = Module.getExportByName('libc.so', 'chmod');
         return new NativeFunction(ptr, 'int', ['pointer', 'int']);
     },
+    // int access(const char *pathname, int mode);
     access: () => {
         const ptr = Module.getExportByName('libc.so', 'access');
         return new NativeFunction(ptr, 'int', ['pointer', 'int']);
+    },
+    // int faccessat(int fd, const char *path, int amode, int flag);
+    faccessat: () => {
+        const ptr = Module.getExportByName('libc.so', 'faccessat');
+        return new NativeFunction(ptr, 'int', ['int', 'pointer', 'int', 'int']);
     },
     pthread_create: () => {
         const ptr = Module.getExportByName('libc.so', 'pthread_create');
@@ -109,7 +141,97 @@ const LibcFinder = {
     pthread_detach: () => {
         const ptr = Module.getExportByName('libc.so', 'pthread_detach');
         return new NativeFunction(ptr, 'int', ['pointer']);
-    }
+    },
+    // char *strstr(const char *haystack, const char *needle);
+    strstr: () => {
+        const ptr = Module.getExportByName('libc.so', 'strstr');
+        return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer']);
+    },
+    // char *strcasestr(const char *haystack, const char *needle);
+    strcasestr: () => {
+        const ptr = Module.getExportByName('libc.so', 'strcasestr');
+        return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer']);
+    },
+    // size_t *strlen(const char *str);
+    strlen: () => {
+        const ptr = Module.getExportByName('libc.so', 'strlen');
+        return new NativeFunction(ptr, 'int', ['pointer']);
+    },
+    // int strcmp(const char *s1, const char *s2);
+    strcmp: () => {
+        const ptr = Module.getExportByName('libc.so', 'strcmp');
+        return new NativeFunction(ptr, 'int', ['pointer', 'pointer']);
+    },
+    // int strncmp(const char *s1, const char *s2);
+    strncmp: () => {
+        const ptr = Module.getExportByName('libc.so', 'strncmp');
+        return new NativeFunction(ptr, 'int', ['pointer', 'pointer']);
+    },
+    // char *stpcpy(char *restrict dst, const char *restrict src);
+    stpcpy: () => {
+        const ptr = Module.getExportByName('libc.so', 'stpcpy');
+        return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer']);
+    },
+    // char *strcpy(char *restrict dst, const char *restrict src);
+    strcpy: () => {
+        const ptr = Module.getExportByName('libc.so', 'strcpy');
+        return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer']);
+    },
+    // char *strcat(char *restrict dst, const char *restrict src);
+    strcat: () => {
+        const ptr = Module.getExportByName('libc.so', 'strcat');
+        return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer']);
+    },
+    //  char *fgets(char *restrict s, int n, FILE *restrict stream);
+    fgets: () => {
+        const ptr = Module.getExportByName('libc.so', 'fgets');
+        return new NativeFunction(ptr, 'pointer', ['pointer', 'int', 'pointer']);
+    },
+    //  int fstat(int fd, struct stat *statbuf);
+    stat: () => {
+        const ptr = Module.getExportByName('libc.so', 'stat');
+        return new NativeFunction(ptr, 'int', ['pointer', 'pointer']);
+    },
+    //  int fstat(int fd, struct stat *statbuf);
+    fstat: () => {
+        const ptr = Module.getExportByName('libc.so', 'fstat');
+        return new NativeFunction(ptr, 'int', ['int', 'pointer']);
+    },
+    //  int fstat(int fd, struct stat *statbuf);
+    lstat: () => {
+        const ptr = Module.getExportByName('libc.so', 'lstat');
+        return new NativeFunction(ptr, 'int', ['pointer', 'pointer']);
+    },
+    // time_t time(time_t *t);
+    time: () => {
+        const ptr = Module.getExportByName('libc.so', 'time');
+        return new NativeFunction(ptr, 'pointer', ['pointer']);
+    },
+    // struct tm *localtime(const time_t *timep);
+    localtime: () => {
+        const ptr = Module.getExportByName('libc.so', 'localtime');
+        return new NativeFunction(ptr, 'pointer', ['pointer']);
+    },
+    // int sscanf(const char *restrict str, const char *restrict format, ...);
+    sscanf: () => {
+        const ptr = Module.getExportByName('libc.so', 'sscanf');
+        return new NativeFunction(ptr, 'int', ['pointer', 'pointer', '...']);
+    },
+    // pid_t getpid(void);
+    getpid: () => {
+        const ptr = Module.getExportByName('libc.so', 'getpid');
+        return new NativeFunction(ptr, 'pointer', []);
+    },
+    // int remove(const char *pathname);
+    remove: () => {
+        const ptr = Module.getExportByName('libc.so', 'remove');
+        return new NativeFunction(ptr, 'int', ['pointer']);
+    },
+    // int unlink(const char *pathname);
+    unlink: () => {
+        const ptr = Module.getExportByName('libc.so', 'unlink');
+        return new NativeFunction(ptr, 'int', ['pointer']);
+    },
 };
 
 type LibcType = PropertyCallbackMapper<typeof LibcFinder>;

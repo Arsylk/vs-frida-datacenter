@@ -9,7 +9,7 @@ type NatveFunctionCallbacks = {
 // using namespace for singleton with all callbacks
 namespace Inject {
     export const modules = new ModuleMap();
-    const initArrayCallbacks: ((name: string) => void)[] = [];
+    const initArrayCallbacks: ((this: InvocationContext, name: string) => void)[] = [];
 
     let do_dlopen: NativePointer;
     let call_ctor: NativePointer;
@@ -35,6 +35,10 @@ namespace Inject {
             const libName = (this.libName = libPath.split('/').pop()!!);
             logger.info(`[${pink('dlopen')}] ${libPath}`);
 
+            if (libPath.includes('libjiagu')) {
+                // args[0].writeUtf8String('libc.so\0')
+            }
+
             modules.update();
             return;
             // TODO investigate
@@ -44,7 +48,7 @@ namespace Inject {
         },
         onLeave: function (retval) {
             if (!this.libPath) return;
-            onAfterInitArray(this.libName);
+            onAfterInitArray(this.libName, this);
         },
     });
 
@@ -62,20 +66,20 @@ namespace Inject {
         },
     });
 
-    function onAfterInitArray(libName: string) {
+    function onAfterInitArray(libName: string, ctx: InvocationContext) {
         for (const cb of initArrayCallbacks) {
-            cb(libName);
+            cb.call(ctx, libName);
         }
     }
 
-    export function afterInitArray(fn: (name: string) => void) {
+    export function afterInitArray(fn: (this: InvocationContext, name: string) => void) {
         initArrayCallbacks.push(fn);
     }
 
-    export function afterInitArrayModule(fn: (module: Module) => void) {
-        initArrayCallbacks.push((name) => {
+    export function afterInitArrayModule(fn: (this: InvocationContext, module: Module) => void) {
+        initArrayCallbacks.push(function(name){
             const module = Process.findModuleByName(name);
-            if (module) fn(module);
+            if (module) fn.call(this, module);
         });
     }
 
@@ -109,7 +113,7 @@ namespace Inject {
     /** very useful for not hooking hardware, chrome, and other things you that cause crashes */
     export function isWithinOwnRange(ptr: NativePointer): boolean {
         const path = modules.findPath(ptr);
-        return path?.includes('/data') === true;
+        return path?.includes('/data') === true && !path.includes('/com.google.android.trichromelibrary');
     }
 }
 

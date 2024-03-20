@@ -33,7 +33,7 @@ const ClassesString = {
     ZoneId: 'java.time.ZoneId',
     Instant: 'java.time.Instant',
     Calendar: 'java.util.Calendar',
-
+    Thread$UncaughtExceptionHandler: 'java.lang.Thread$UncaughtExceptionHandler',
     Application: 'android.app.Application',
     Settings$Secure: 'android.provider.Settings$Secure',
     Settings$Global: 'android.provider.Settings$Global',
@@ -60,6 +60,8 @@ const ClassesString = {
     SystemProperties: 'android.os.SystemProperties',
     Process: 'android.os.Process',
     File: 'java.io.File',
+    InetSocketAddress: 'java.net.InetSocketAddress',
+    Throwable: 'java.lang.Throwable',
 };
 
 type ClassesType = PropertyJavaUseMapper<typeof ClassesString>;

@@ -1,4 +1,4 @@
-export class SyscallCallback {
+class SyscallCallback {
     frida: NativePointer;
     native: NativePointer;
 
@@ -90,3 +90,5 @@ function createCallback(callback: NativeCallback<any, any>, instructions: ArrayB
     // Return pointer to the instructions.
     return callbacks[callbacks.length - 1].frida;
 }
+
+export { hookSyscall, SyscallCallback }

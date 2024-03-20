@@ -44,6 +44,7 @@ const Filter = {
         if (trace.includes('at org.json.JSONObject.opt')) return false;
         if (trace.includes('at com.facebook.internal.')) return false;
         if (trace.includes('at com.google.android.gms.internal.ads.')) return false;
+        if (trace.includes('at com.google.android.gms.ads.internal.config.')) return false;
         if (trace.includes('at com.google.firebase.installations.local.PersistedInstallation')) return false;
         if (trace.includes('at com.unity3d.services.core.configuration.PrivacyConfigurationLoader')) return false;
 
@@ -57,6 +58,7 @@ const Filter = {
         if (trace.includes('at com.appsflyer.internal.')) return false;
         if (trace.includes('at com.onesignal.OneSignalPrefs.')) return false;
         if (trace.includes('at com.google.android.gms.internal.ads.')) return false;
+        if (trace.includes('at com.google.android.gms.ads.internal.config.')) return false;
         if (trace.includes('at com.google.android.gms.internal.appset')) return false;
         if (trace.includes('at com.google.android.gms.measurement.internal.')) {
             if (args[0] && prefsMeasurementInternalIgnored.includes(args[0])) {
