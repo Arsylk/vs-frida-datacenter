@@ -15,6 +15,7 @@ import {
     getFindUnique,
     ClassesString,
     stacktrace,
+    emitter,
 } from '@clockwork/common';
 import { log, Filter, Color, logger } from '@clockwork/logging';
 import { always, ifKey, ifReturn } from '@clockwork/hooks';
@@ -25,6 +26,8 @@ import * as JniTrace from '@clockwork/jnitrace';
 import { DefaultDeserializer } from 'v8';
 import { method } from '@clockwork/logging/dist/color';
 import { isTypeAliasDeclaration } from 'frida-compile/ext/typescript';
+import { dexBytesVerify } from '@clockwork/dump/dist/dexDump';
+import { KaitaiStream }from 'kaitai-struct/KaitaiStream';
 const uniqHook = getHookUnique();
 const uniqFind = getFindUnique();
 const { blue, blueBright, redBright, magentaBright: pink, yellow, dim } = Color.use();
@@ -66,7 +69,6 @@ function hookNetwork() {
     hook(Classes.URL, 'openConnection', {
         loggingPredicate: Filter.url,
     });
-
     let RealCall: Java.Wrapper | null = null;
     ClassLoader.perform(() => {
         !RealCall &&
@@ -275,7 +277,7 @@ Java.performNow(() => {
     hookCrypto();
     hook(Classes.Runtime, 'exec', {
         replace(method, ...args) {
-            // if (`${args[0]}`.includes('nya') === false) return Classes.Runtime.exec.call(this, 'echo nya');
+            // if (`${args[0]}`.includes('nya') === false) return Classes.Runtime.exec.call(this, 'xxecho nya');
             return method.call(this, ...args);
         },
     });
@@ -317,11 +319,16 @@ Java.performNow(() => {
         }),
     });
 
-    // hook('android.app.Dialog', 'show', { replace() {this.dismiss()} });
+    // hook('android.app.Dialog', 'show', {
+    //     replace() {
+    //         this.dismiss();
+    //     },
+    // });
 
-    //     Java.use(() => {
-    // const ClockworkHandler = Java.registerClass({
-    //         name: 'DefaultUncaughtExceptionHandler',
+    // Java.performNow(() => {
+    //     //@ts-ignore
+    //     const ClockworkHandler = Java.registerClass({
+    //         name: '/data/local/tmp/himehime',
     //         implements: [Classes.Thread$UncaughtExceptionHandler],
     //         methods: {
     //             uncaughtException: {
@@ -333,8 +340,8 @@ Java.performNow(() => {
     //             },
     //         },
     //     });
-    // Classes.Thread.setDefaultUncaughtExceptionHandler(ClockworkHandler.$new());
-    // })
+    //     Classes.Thread.setDefaultUncaughtExceptionHandler(ClockworkHandler.$new());
+    // });
 
     hook(Classes.DexPathList, '$init', { logging: { short: true, multiline: false } });
     ClassLoader.perform((cl) => {});
@@ -351,7 +358,7 @@ Native.attachSystemPropertyGet(function (key) {
     // if (Native.Inject.isWithinOwnRange(this.returnAddress)) return 'nya';
 });
 
-// Anticloak.Jigau.memoryPatch()
+// Anticloak.Jigau.memoryPatch();
 // [INFO] {"name": "libcocos.so", "fn_dump": "0x002ad2a0"cklc"fn_key": "0 x00293468"}
 // Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x007b6a1c), fn_key: ptr(0x006a7da0) });
 // Cocos2dx.hookLocalStorage(function (key) {
@@ -371,110 +378,92 @@ JniTrace.attach(({ returnAddress }) => {
 
 Native.Files.hookAccess(predicate);
 Native.Files.hookOpen(predicate);
-Native.Files.hookFopen(predicate);
+Native.Files.hookFopen(predicate, undefined, true);
 Native.Files.hookStat(predicate);
+Native.Files.hookReadlink(predicate);
 Native.Files.hookRemove(predicate);
-Native.Strings.hookStrlen(predicate);
-Native.Strings.hookStrstr(predicate);
-Native.Strings.hookStrcpy(predicate);
+// Native.Strings.hookStrlen(predicate);
+// Native.Strings.hookStrstr(predicate);
+// Native.Strings.hookStrcpy(predicate);
+Native.TheEnd.hook(predicate);
 
-// Native.Strings.hookStrcmp(predicate);
-// function doonce(dec: (string) => string) {
-//     const store: {[key: string]: string} = {};
-//     //@ts-ignore
-//     const file = new File("/data/local/tmp/allargs.txt", "r")
-//     let line;
-//     //@ts-ignore
-//     while (line = file.readLine()) {
-//         const decoded = dec(line);
-//         store[line] = decoded
-//         //@ts-ignore
-//         // outfile.write(msg)
-//     }
-//     const ser = JSON.stringify(store);
-//     const ptr = Memory.allocUtf8String(ser)
-//     Native.dumpFile(ptr, ser.length, "jsondu.json", "cracked")
-// }
-[
-    'fwrite',
-    'faccessat',
-    'vprintf',
-    '__android_log_print',
-    'sprintf',
-    'statvfs',
-    'pthread_kill',
-    'kill',
-    '_exit',
-    'killpg',
-    'signal',
-    'abort',
+const trigger = () => {
+    logger.info({tag: 'hihi'}, 'entering the abyss !')
+    Process.enumerateRanges('r--').forEach(function (range) {
+        const result: any[] = [];
+        try {
+            Memory.scanSync(range.base, range.size, '64 65 78 0a 30 ?? ?? 00').forEach(function (match) {
+                // range.file.path.startsWith("/data/app/") ||
+                if (range?.file?.path?.startsWith('/data/dalvik-cache/') || range?.file?.path?.startsWith('/system/')) {
+                    return;
+                }
 
-    'execl',
-    'execlp',
-    'execle',
-    'execv',
-    'execvp',
-    'execvpe',
-].forEach((ex) => {
-    const exp = Module.getExportByName(null, ex);
-    Native.Inject.attachInModule(predicate, exp, {
-        onEnter(args) {
-            const arg = ex === '__android_log_print' ? args[2] : args[0];
-            switch (ex) {
-                case '__android_log_print': {
-                    logger.info({ tag: ex }, `"${args[2].readCString()}"`);
-                    return;
+                if (dexBytesVerify(match.address, range, false)) {
+                    const dex_size = match.address.add(0x20).readUInt();
+                    result.push({ addr: match.address, size: dex_size });
+                    
                 }
-                case 'sprintf': {
-                    logger.info({ tag: ex }, `"${args[0].readCString()}" "${args[1].readCString()}"`);
-                    return;
-                }
-                default: {
-                    logger.info({ tag: ex }, `"${arg.readCString()}" -> ${DebugSymbol.fromAddress(this.returnAddress)}`);
-                    return;
-                }
-            }
-        },
+            });
+        } catch (e) {}
+
+        logger.info(`${result.map(x => JSON.stringify(x)).join(", ")}`)
     });
-});
-
-['kill'].forEach((ex) => {
-    const kill = Module.getExportByName(null, ex);
-    Native.Inject.attachInModule(predicate, kill, {
-        onEnter(args) {
-            logger.info({ tag: ex }, `kill called !`);
-        },
-        onLeave(retval) {},
-    });
-});
-
-Interceptor.replace(
-    Module.getExportByName(null, 'exit'),
-    new NativeCallback(
-        function (code) {
-            logger.info({ tag: 'exit' }, `exit(${code}) called !`);
-            return 0;
-        },
-        'int',
-        ['int', 'int'],
-    ),
-);
-
-const fork_ptr = Module.getExportByName('libc.so', 'fork');
-const fork = new NativeFunction(fork_ptr, 'int', []);
-Interceptor.replace(
-    fork_ptr,
-    new NativeCallback(
-        function () {
-            logger.info({ tag: 'fork' }, `${-1}`);
-            // return -1;
-            return fork();
-        },
-        'int',
-        [],
-    ),
-);
-
+};
+emitter.on('trigger', trigger);
+// [
+//     'fwrite',
+//     'faccessat',
+//     'vprintf',
+//     '__android_log_print',
+//     'sprintf',
+//     'statvfs',
+//     'pthread_kill',
+//     'killpg',
+//     'signal',
+//     'abort',
+//     'execl',
+//     'execlp',
+//     'execle',
+//     'execv',
+//     'execvp',
+//     'execvpe',
+// ].forEach((ex) => {
+//     const exp = Module.getExportByName(null, ex);
+//     Native.Inject.attachInModule(predicate, exp, {
+//         onEnter(args) {
+//             const arg = ex === '__android_log_print' ? args[2] : args[0];
+//             switch (ex) {
+//                 case '__android_log_print': {
+//                     logger.info({ tag: ex }, `"${args[2].readCString()}"`);
+//                     return;
+//                 }
+//                 case 'sprintf': {
+//                     logger.info({ tag: ex }, `"${args[0].readCString()}" "${args[1].readCString()}"`);
+//                     return;
+//                 }
+//                 default: {
+//                     logger.info({ tag: ex }, `"${arg.readCString()}" -> ${DebugSymbol.fromAddress(this.returnAddress)}`);
+//                     return;
+//                 }
+//             }
+//         },
+//     });
+// });
+// const fork_ptr = Module.getExportByName('libc.so', 'fork');
+// const fork = new NativeFunction(fork_ptr, 'int', []);
+// Interceptor.replace(
+//     fork_ptr,
+//     new NativeCallback(
+//         function () {
+//             logger.info({ tag: 'fork' }, `${-1}`);
+//             // return -1;
+//             return fork();
+//         },
+//         'int',
+//         [],
+//     ),
+// );
+//
 // Interceptor.replace(
 //     Libc.pthread_create,
 //     new NativeCallback(
@@ -495,12 +484,12 @@ Interceptor.replace(
 //         function (buffer, size, fp) {
 //             var retval = fgets(buffer, size, fp);
 //             var bufstr = buffer.readCString();
-
+//
 //             if (bufstr?.includes('TracerPid:')) {
 //                 buffer.writeUtf8String('TracerPid:\t0');
 //                 console.log('Bypassing TracerPID Check');
 //             }
-
+//
 //             if (bufstr?.includes('frida') || bufstr?.includes('hluda')) {
 //                 console.log('Keywords in Buffer', retval);
 //                 var newstr = bufstr.replace("frida", "libcc");
@@ -535,3 +524,4 @@ Interceptor.replace(
 //         ['pointer', 'pointer'],
 //     ),
 // );
+//

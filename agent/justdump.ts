@@ -4,10 +4,9 @@ import * as Anticloak from '@clockwork/anticloak';
 import { logger } from '@clockwork/logging';
 import * as Dump from '@clockwork/dump';
 import * as JniTrace from '@clockwork/jnitrace';
-import { Libc, Struct, Text } from '@clockwork/common';
-import target from '@reversense/interruptor/index.linux.arm64.js';
+import { Classes, Libc, Struct, Text } from '@clockwork/common';
+import { hook } from '@clockwork/hooks'
 
-const Interruptor = target.LinuxArm64({})
 
 logger.info({ tag: 'pid' }, `xx ${Process.id}`);
 
@@ -16,43 +15,48 @@ Native.attachSystemPropertyGet(function (key) {
     if (mapped) return mapped;
 });
 
+Java.performNow(() => {
+    hook(Classes.DexPathList, '$init', { logging: { short: true, multiline: false } });
+});
+
 Anticloak.generic();
 Anticloak.hookDevice();
 Anticloak.hookSettings();
+Anticloak.hookInstallerPackage();
 
-Dump.initSoDump()
 let isNativeEnabled = true;
 const predicate = (r) => isNativeEnabled && Native.Inject.isWithinOwnRange(r);
 JniTrace.attach(({ returnAddress }) => {
     return predicate(returnAddress);
 });
 
-// Native.Strings.hookStrstr(predicate);
+Native.Strings.hookStrstr(predicate);
 Native.Strings.hookStrlen(predicate);
 Native.Strings.hookStrcpy(predicate);
 Native.Files.hookAccess(predicate);
 Native.Files.hookOpen(predicate);
-Native.Files.hookFopen(predicate);
+Native.Files.hookFopen(predicate, undefined, true);
 Native.Files.hookRemove(predicate);
 Native.Files.hookStat(predicate);
-Native.Strings.hookStrstr(predicate);
+Native.Files.hookReadlink(predicate);
+Native.TheEnd.hook(predicate);
 hookFgets();
 hookPthreadCreate();
 hookLocaltime();
 hookSscanf();
 
-// Native.Inject.afterInitArrayModule(function ({ name, base, size }) {
-//     function dump(addr: NativePointer, limit: number) {
-//         let i = 0;
-//         while (i < limit) {
-//             let insn = Instruction.parse(addr.add(i));
-//             i += insn.size;
-//             logger.info({ tag: 'insn', id: addr.add(i) }, `${insn}`);
-//         }
-//         hexdump(addr, { length: limit });
-//     }
-
-//     if (name.includes('libnative-lib') || name.includes('libhello-jni')) {
+Native.Inject.afterInitArrayModule((module: Module) => {
+    function dump(addr: NativePointer, limit: number) {
+        let i = 0;
+        while (i < limit) {
+            let insn = Instruction.parse(addr.add(i));
+            hexdump(addr.add(i), { length: insn.size });
+            i += insn.size;
+        }
+    }
+    Memory.protect(module.base, module.size, 'rwx');
+    dump(module.base, module.size);
+});
 //         // onModule(base, this.threadId);
 //         // addSyscall(base, gPtr(0x105aa4 + 0x4));
 
@@ -76,10 +80,9 @@ hookSscanf();
 //                 // writer.flush();
 //             });
 
-//             return freemem;
-//         };
+//            return freemem;
+
 //         const syscalls: NativePointer[] = [];
-//         Memory.protect(base, size, 'rwx');
 //         Memory.scan(base, size, '01 00 00 d4', {
 //             onMatch(address) {
 //                 logger.info({tag: 'found', id: address}, `${DebugSymbol.fromAddress(address)}`)
@@ -246,7 +249,9 @@ function onModule(base: NativePointer, id: number) {
 }
 
 function addSyscall(base: NativePointer, offset: NativePointer) {
-    logger.info({ tag: 'syscall' }, `${hexdump(base.add(offset).sub(12), { length: 20 })}`);
+    // logger.info({ tag: 'sysc all' }, `${hexdump(base.add(offset).sub(12), { length: 20 })}`);
+    logger.info({ tag: 'memdump' }, `${base} ${offset} )}`);
+
     Native.Syscall.hookSyscall(
         base.add(offset),
         new NativeCallback(

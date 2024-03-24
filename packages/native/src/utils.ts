@@ -1,4 +1,5 @@
 import { Libc } from '@clockwork/common';
+import { logger } from '@clockwork/logging';
 
 function dellocate(ptr: NativePointer) {
     try {
@@ -79,4 +80,15 @@ function dumpFile(stringPtr: NativePointer, size: number, relativePath: string, 
     return true;
 }
 
-export { dellocate, getSelfProcessName, getSelfFiles, dumpFile };
+function readFdPath(fd: number, bufsize: number = Process.pageSize): string | null {
+    const buf = Memory.alloc(bufsize);
+    const path = Memory.allocUtf8String(`/proc/self/fd/${fd}`);
+    
+    const _ = Libc.readlink(path, buf, bufsize)
+    const str = buf.readCString();
+    dellocate(buf);
+    dellocate(path)
+    return str;
+}
+
+export { dellocate, getSelfProcessName, getSelfFiles, dumpFile, readFdPath };
