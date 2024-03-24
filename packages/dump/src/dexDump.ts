@@ -1,30 +1,30 @@
-import { subLogger } from "@clockwork/logging";
-const logger = subLogger('dexdump')
+import { subLogger } from '@clockwork/logging';
+const logger = subLogger('dexdump');
 
 const FLAG_ENABLE_DEEP_SEARCH = false;
 
 function dump() {
-    var enable_deep_search = FLAG_ENABLE_DEEP_SEARCH;
-    var know_paths = ['.js', '.html', '.xml'];
-    var AppClassLoader = Java.use('android.app.ActivityThread').currentApplication().getApplicationContext().getClassLoader();
-    var currentApplication = Java.use('android.app.ActivityThread').currentApplication();
-    var context = currentApplication.getApplicationContext();
+    let enable_deep_search = FLAG_ENABLE_DEEP_SEARCH;
+    const know_paths = ['.js', '.html', '.xml'];
+    const AppClassLoader = Java.use('android.app.ActivityThread').currentApplication().getApplicationContext().getClassLoader();
+    const currentApplication = Java.use('android.app.ActivityThread').currentApplication();
+    const context = currentApplication.getApplicationContext();
 
-    var file = Java.use('java.io.File');
-    var string = Java.use('java.lang.String');
-    var BufferedInputStream = Java.use('java.io.BufferedInputStream');
-    var FileOutputStream = Java.use('java.io.FileOutputStream');
-    var OutputStreamWriter = Java.use('java.io.BufferedOutputStream');
-    var files_path = 'widget';
-    var listFile = context.getAssets().list(files_path);
-    var strClass = Java.use('java.lang.String');
+    const file = Java.use('java.io.File');
+    const string = Java.use('java.lang.String');
+    const BufferedInputStream = Java.use('java.io.BufferedInputStream');
+    const FileOutputStream = Java.use('java.io.FileOutputStream');
+    const OutputStreamWriter = Java.use('java.io.BufferedOutputStream');
+    const files_path = 'widget';
+    const listFile = context.getAssets().list(files_path);
+    const strClass = Java.use('java.lang.String');
     logger.trace(listFile);
 
     // For Device
-    var dir_to_write = file.$new(context.getFilesDir() + "/frida_dumped_files/");
+    const dir_to_write = file.$new(context.getFilesDir() + '/frida_dumped_files/');
     dir_to_write.mkdirs();
-    var scandexVar = scandex();
-    // logger.trace(JSON.stringify(scandexVar))
+    const scandexVar = scandex();
+    // logger.trace(JSON.stringify(scandexconst))
 
     // missing cleanup
 
@@ -34,23 +34,24 @@ function dump() {
 
             logger.trace(typeof buf);
 
+            let buffer;
             if (buf?.slice(0, 4) != getBytesFromString('dex\n')) {
-                // var buffer =
+                // const buffer =
                 // getConcatByteArrays(getBytesFromString("dex\n035\x00"),buf.slice(8,buf.byteLength))
-                // var concatenated = await new Blob([
+                // const concatenated = await new Blob([
                 // getBytesFromString("dex\n035\x00"), buf.slice(8,buf.length)
                 // ]).arrayBuffer();
 
                 // buffer.set( getBytesFromString("dex\n035\x00"), 0)
                 // buffer.set( buf.slice(8,buf.length), 8)
-                var buffer = buf;
+                buffer = buf;
             } else {
-                var buffer = buf;
+                buffer = buf;
             }
 
             // For Device
             //@ts-ignore
-            var file: any = new File(context.getFilesDir() + `/frida_dumped_files/${scandex.addr}.dex`, 'wb');
+            const file: any = new File(context.getFilesDir() + `/frida_dumped_files/${scandex.addr}.dex`, 'wb');
             file.write(buffer);
             file.flush();
             file.close();
@@ -98,7 +99,7 @@ function dump() {
     }
 
     function scandex() {
-        const result: any[]  = [];
+        const result: any[] = [];
         Process.enumerateRanges('r--').forEach(function (range) {
             try {
                 Memory.scanSync(range.base, range.size, '64 65 78 0a 30 ?? ?? 00').forEach(function (match) {
@@ -136,60 +137,62 @@ function dump() {
         return result;
     }
 
-    function verify_by_maps(dexptr: NativePointer, mapsptr: NativePointer) {
-        var maps_offset = dexptr.add(0x34).readUInt();
-        var maps_size = mapsptr.readUInt();
-        for (var i = 0; i < maps_size; i++) {
-            var item_type = mapsptr.add(4 + i * 0xc).readU16();
-            if (item_type === 4096) {
-                var map_offset = mapsptr.add(4 + i * 0xc + 8).readUInt();
-                if (maps_offset === map_offset) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
+    
+}
 
-    function verify(dexptr: NativePointer, range: RangeDetails | null, enable_verify_maps: boolean) {
-        if (range != null) {
-            var range_end = range.base.add(range.size);
-            // verify header_size
-            if (dexptr.add(0x70) > range_end) {
+function verify(dexptr: NativePointer, range: RangeDetails | null, enable_verify_maps: boolean) {
+    if (range != null) {
+        const range_end = range.base.add(range.size);
+        // verify header_size
+        if (dexptr.add(0x70) > range_end) {
+            return false;
+        }
+
+        // verify file_size
+        const dex_size = dexptr.add(0x20).readUInt();
+        if (dexptr.add(dex_size) > range_end) {
+            return false;
+        }
+
+        if (enable_verify_maps) {
+            const maps_offset = dexptr.add(0x34).readUInt();
+            if (maps_offset === 0) {
                 return false;
             }
 
-            // verify file_size
-            var dex_size = dexptr.add(0x20).readUInt();
-            if (dexptr.add(dex_size) > range_end) {
+            const maps_address = dexptr.add(maps_offset);
+            if (maps_address > range_end) {
                 return false;
             }
 
-            if (enable_verify_maps) {
-                var maps_offset = dexptr.add(0x34).readUInt();
-                if (maps_offset === 0) {
-                    return false;
-                }
+            const maps_size = maps_address.readUInt();
+            if (maps_size < 2 || maps_size > 50) {
+                return false;
+            }
+            const maps_end = maps_address.add(maps_size * 0xc + 4);
+            if (maps_end < range.base || maps_end > range_end) {
+                return false;
+            }
+            return verifyByMaps(dexptr, maps_address);
+        } else {
+            return dexptr.add(0x3c).readUInt() === 0x70;
+        }
+    }
+}
 
-                var maps_address = dexptr.add(maps_offset);
-                if (maps_address > range_end) {
-                    return false;
-                }
-
-                var maps_size = maps_address.readUInt();
-                if (maps_size < 2 || maps_size > 50) {
-                    return false;
-                }
-                var maps_end = maps_address.add(maps_size * 0xc + 4);
-                if (maps_end < range.base || maps_end > range_end) {
-                    return false;
-                }
-                return verify_by_maps(dexptr, maps_address);
-            } else {
-                return dexptr.add(0x3c).readUInt() === 0x70;
+function verifyByMaps(dexptr: NativePointer, mapsptr: NativePointer) {
+    const maps_offset = dexptr.add(0x34).readUInt();
+    const maps_size = mapsptr.readUInt();
+    for (let i = 0; i < maps_size; i++) {
+        const item_type = mapsptr.add(4 + i * 0xc).readU16();
+        if (item_type === 4096) {
+            const map_offset = mapsptr.add(4 + i * 0xc + 8).readUInt();
+            if (maps_offset === map_offset) {
+                return true;
             }
         }
     }
+    return false;
 }
 
 /**
@@ -210,5 +213,4 @@ function scheduleDexDump(delay: number = 10_000) {
     }, delay);
 }
 
-
-export { scheduleDexDump }
+export { scheduleDexDump, verify as dexBytesVerify };

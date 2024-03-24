@@ -38,9 +38,19 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'closedir');
         return new NativeFunction(ptr, 'int', ['pointer']);
     },
+    // ssize_t readlink(const char *path, char *buf, size_t bufsiz);
+    readlink: () => {
+        const ptr = Module.getExportByName('libc.so', 'readlink');
+        return new NativeFunction(ptr, 'int', ['pointer', 'pointer', 'int']);
+    },
     read: () => {
         const ptr = Module.getExportByName('libc.so', 'read');
         return new NativeFunction(ptr, 'int', ['int', 'pointer', 'int']);
+    },
+    // off_t lseek(int fd, off_t offset, int whence);
+    lseek: () => {
+        const ptr = Module.getExportByName('libc.so', 'lseek');
+        return new NativeFunction(ptr, 'pointer', ['int', 'pointer', 'int']);
     },
     // FILE *fopen(const char *restrict pathname, const char *restrict mode);
     fopen: () => {
@@ -216,7 +226,7 @@ const LibcFinder = {
     sscanf: () => {
         const ptr = Module.getExportByName('libc.so', 'sscanf');
         return new NativeFunction(ptr, 'int', ['pointer', 'pointer', '...']);
-    },
+    }, 
     // pid_t getpid(void);
     getpid: () => {
         const ptr = Module.getExportByName('libc.so', 'getpid');
@@ -227,11 +237,26 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'remove');
         return new NativeFunction(ptr, 'int', ['pointer']);
     },
-    // int unlink(const char *pathname);
+    // int remove(const char *pathname);
     unlink: () => {
         const ptr = Module.getExportByName('libc.so', 'unlink');
         return new NativeFunction(ptr, 'int', ['pointer']);
     },
+    // [[noretunr]] void exit(int status);
+    exit: () => {
+        const ptr = Module.getExportByName('libc.so', 'exit');
+        return new NativeFunction(ptr, 'void', ['int']);
+    },
+    // [[noretunr]] void exit(int status);
+    _exit: () => {
+        const ptr = Module.getExportByName('libc.so', '_exit');
+        return new NativeFunction(ptr, 'void', ['int']);
+    },
+    // int kill(pid_t pid, int sig); 
+    kill: () => {
+        const ptr = Module.getExportByName('libc.so', 'kill');
+        return new NativeFunction(ptr, 'int', ['pointer', 'int']);
+    }
 };
 
 type LibcType = PropertyCallbackMapper<typeof LibcFinder>;

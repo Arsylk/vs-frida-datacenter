@@ -1,3 +1,4 @@
+import { EventEmitter } from 'events';
 import { ClassesProxy as Classes, ClassesString } from './define/java.js';
 import { LibcFinderProxy } from './define/libc.js';
 export * as Struct from './define/struct.js';
@@ -20,7 +21,7 @@ function stacktraceList(): string[] {
     return `${stack}`.split('\n').slice(1).map((s: string) => s.substring(s.indexOf('at ') + 3).trim());
 }
 
-
+const emitter = new EventEmitter();
 declare global {
     function findClass(className: string, ...loaders: Java.Wrapper[]): Java.Wrapper | null
 }
@@ -28,7 +29,10 @@ Object.defineProperties(global, {
     findClass: {
         value: findClass
     },
+    emitter: {
+        value: emitter,
+    }
 })
 
 
-export { Classes, ClassesString, LibcFinderProxy as Libc, isJWrapper, stacktrace, stacktraceList, findClass, enumerateMembers, getFindUnique };
+export { Classes, ClassesString, LibcFinderProxy as Libc, isJWrapper, stacktrace, stacktraceList, findClass, enumerateMembers, getFindUnique, emitter };

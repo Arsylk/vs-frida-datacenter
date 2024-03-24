@@ -2,6 +2,7 @@ import { Libc, Struct } from '@clockwork/common';
 import { Color, logger } from '@clockwork/logging';
 import { Inject } from './inject.js';
 import { number } from '@clockwork/logging/dist/color.js';
+import { readFdPath } from './utils.js';
 const { bold, dim, green, red, italic, gray } = Color.use();
 
 enum Mode {
@@ -110,7 +111,11 @@ function hookOpen(predicate: (ptr: NativePointer) => boolean) {
     );
 }
 
-function hookFopen(predicate: (ptr: NativePointer) => boolean, fn?: (path: string, mode: Mode, isOk: boolean) => void) {
+function hookFopen(
+    predicate: (ptr: NativePointer) => boolean,
+    fn?: (path: string, mode: Mode, isOk: boolean) => void,
+    statfd: boolean = false,
+) {
     function log(
         this: InvocationContext | CallbackContext,
         uri: string | number | null,
@@ -119,8 +124,14 @@ function hookFopen(predicate: (ptr: NativePointer) => boolean, fn?: (path: strin
         ret: NativePointer,
         key: string,
     ) {
-        const strpath = typeof uri === 'number' ? `<fd:${uri}>` : `${uri}`;
+        const isFd = typeof uri === 'number';
+        let strpath = isFd ? `<fd:${uri}>` : `${uri}`;
         const isOk = ret && !ret.isNull();
+
+        if (isFd && statfd) {
+            const infs = readFdPath(uri);
+            strpath += `-> "${infs}"`;
+        }
 
         const struri = isOk ? dim(`${strpath}`) : dim(red(`${strpath}`));
         const strmod = `${mode}`.padEnd(2);
@@ -173,13 +184,20 @@ function hookFopen(predicate: (ptr: NativePointer) => boolean, fn?: (path: strin
 
 function hookStat(predicate: (ptr: NativePointer) => boolean) {
     function log(this: InvocationContext | CallbackContext, uri: string | number | null, statbuf: NativePointer, ret: number, tag: string) {
-        const strpath = typeof uri === 'number' ? `<fd:${uri}>` : `${uri}`;
+        const isFd = typeof uri === 'number';
+        const strpath = isFd ? `<fd:${uri}>` : `${uri}`;
         const isOk = ret === 0;
 
-        const struri = isOk ? dim(`${strpath}`) : dim(red(`${strpath}`));
+        let strmsg = isOk ? dim(`${strpath}`) : dim(red(`${strpath}`));
+        if (isFd) {
+            const target = readFdPath(uri);
+            strmsg += ` -> "${gray(`${target}`)}"`;
+        }
+
+        strmsg += `@${statbuf})`;
         // const stat = Struct.Stat.stat(statbuf);
 
-        logger.info({ tag: tag }, `${struri} @${statbuf}`);
+        logger.info({ tag: tag }, strmsg);
     }
 
     const array: ('stat' | 'lstat')[] = ['stat', 'lstat'];
@@ -218,15 +236,15 @@ function hookStat(predicate: (ptr: NativePointer) => boolean) {
 
 function hookRemove(predicate: (ptr: NativePointer) => boolean) {
     const array: ('remove' | 'unlink')[] = ['remove', 'unlink'];
-    array.forEach(key => {
-        const func = Libc[key]
+    array.forEach((key) => {
+        const func = Libc[key];
         Interceptor.replace(
             func,
             new NativeCallback(
                 function (pathname) {
-                    const ret = func(pathname)
+                    const ret = func(pathname);
                     if (predicate(this.returnAddress)) {
-                        const strpath = pathname.readCString()
+                        const strpath = pathname.readCString();
                         // const isOk = ret !== -1;
 
                         logger.info({ tag: key }, `${bold(gray(`${strpath}`))}`);
@@ -237,7 +255,26 @@ function hookRemove(predicate: (ptr: NativePointer) => boolean) {
                 ['pointer'],
             ),
         );
-    }) 
+    });
 }
 
-export { hookAccess, hookOpen, hookFopen, hookStat, hookRemove };
+function hookReadlink(predicate: (ptr: NativePointer) => boolean) {
+    Interceptor.replace(
+        Libc.readlink,
+        new NativeCallback(
+            function (pathname, buf, bufsize) {
+                const ret = Libc.readlink(pathname, buf, bufsize);
+                if (predicate(this.returnAddress)) {
+                    const lnstring = pathname.readCString();
+                    const rlstring = buf.readCString(bufsize);
+                    logger.info({ tag: 'readlink' }, `"${lnstring}" -> "${rlstring}"`);
+                }
+                return 0;
+            },
+            'int',
+            ['pointer', 'pointer', 'int'],
+        ),
+    );
+}
+
+export { hookAccess, hookOpen, hookFopen, hookStat, hookRemove, hookReadlink };
