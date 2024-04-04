@@ -1,7 +1,5 @@
-import { hook } from '@clockwork/hooks';
 import { Text, Classes } from '@clockwork/common';
-import { always, ifKey, ifReturn } from '@clockwork/hooks';
-import { Filter } from '@clockwork/logging';
+import { hook, always, Filter } from '@clockwork/hooks';
 
 type Config = {
     timezoneId: string;
