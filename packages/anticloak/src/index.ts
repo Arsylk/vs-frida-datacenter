@@ -1,6 +1,6 @@
 import { Classes, enumerateMembers } from '@clockwork/common';
-import { Filter, logger } from '@clockwork/logging';
-import { always, hook, ifKey } from '@clockwork/hooks';
+import { logger } from '@clockwork/logging';
+import { Filter, always, hook, ifKey } from '@clockwork/hooks';
 import { HookParameters } from '@clockwork/hooks/dist/types.js';
 import { buildMapper } from './buildprop.js';
 
