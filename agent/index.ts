@@ -1,33 +1,16 @@
-import { ClassLoader, findHook, getHookUnique } from '@clockwork/hooks';
+import { ClassLoader, getHookUnique } from '@clockwork/hooks';
 import * as Anticloak from '@clockwork/anticloak';
 import * as Network from '@clockwork/network';
 import * as Native from '@clockwork/native';
-import * as Cocos2dx from '@clockwork/cocos2dx';
-import * as Unity from '@clockwork/unity';
-import { hook } from '@clockwork/hooks';
+import { hook, Filter } from '@clockwork/hooks';
 import {
-    Text,
-    Classes,
-    Libc,
-    enumerateMembers,
-    findClass,
-    stacktraceList,
-    getFindUnique,
-    ClassesString,
-    stacktrace,
-    emitter,
+    Classes, findClass, getFindUnique, stacktrace,
+    emitter
 } from '@clockwork/common';
-import { log, Filter, Color, logger } from '@clockwork/logging';
-import { always, ifKey, ifReturn } from '@clockwork/hooks';
-import { dumpFile, gPtr } from '@clockwork/native';
-import { createHash } from 'crypto';
-import * as Dump from '@clockwork/dump';
+import { Color, logger } from '@clockwork/logging';
+import { ifKey } from '@clockwork/hooks';
 import * as JniTrace from '@clockwork/jnitrace';
-import { DefaultDeserializer } from 'v8';
-import { method } from '@clockwork/logging/dist/color';
-import { isTypeAliasDeclaration } from 'frida-compile/ext/typescript';
 import { dexBytesVerify } from '@clockwork/dump/dist/dexDump';
-import { KaitaiStream }from 'kaitai-struct/KaitaiStream';
 const uniqHook = getHookUnique();
 const uniqFind = getFindUnique();
 const { blue, blueBright, redBright, magentaBright: pink, yellow, dim } = Color.use();

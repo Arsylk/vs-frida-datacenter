@@ -1,4 +1,5 @@
-import { stacktrace } from '@clockwork/common';
+import { stacktrace } from "@clockwork/common";
+
 
 const prefsMeasurementInternalIgnored = [
     'consent_settings',
@@ -50,7 +51,7 @@ const Filter = {
 
         return true;
     },
-    prefs: (method: Java.Method, ...args: any[]) => {
+    prefs: (method: any, ...args: any[]) => {
         const trace = stacktrace();
         if (trace.includes('at com.yandex.mobile.ads.core.initializer.MobileAdsInitializeProvider.')) return false;
         if (trace.includes('at com.facebook.FacebookSdk.getLimitEventAndDataUsage')) return false;

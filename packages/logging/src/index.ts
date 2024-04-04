@@ -1,7 +1,6 @@
 import { pino } from 'pino';
 import { getColor } from './autocolor.js';
 import * as Color from './color.js';
-import { Filter } from './filter.js';
 
 const logger = pino({
     browser: {
@@ -33,4 +32,4 @@ function subLogger(tag: string) {
     return logger.child({ tag: tag });
 }
 
-export { log, error, subLogger, logger, Color, Filter };
+export { log, error, subLogger, logger, Color };

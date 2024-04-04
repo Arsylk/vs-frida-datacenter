@@ -1,7 +1,8 @@
 import { Libc } from '@clockwork/common';
 import { subLogger } from '@clockwork/logging';
-import { ProcessID } from 'frida';
 const logger = subLogger('socket');
+
+type ProcessID = number;
 
 type SocketOpenMessage = {
     socketFd: number;
