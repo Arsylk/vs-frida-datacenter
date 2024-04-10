@@ -23,7 +23,7 @@ function attachSystemPropertyGet(fn?: (this: InvocationContext, key: string, val
             const value: string = this.value.readCString();
             const fValue = value && value.length >= 0 ? value : null;
             const result = fn?.call(this, key, fValue);
-            if (result) {
+            if (result !== undefined) {
                 this.value.writeUtf8String(result);
                 logger.info(`${gray(key)}: ${red(value ?? retval)} -> ${green(result)}`);
             } else {

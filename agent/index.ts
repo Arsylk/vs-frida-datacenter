@@ -4,8 +4,16 @@ import * as Network from '@clockwork/network';
 import * as Native from '@clockwork/native';
 import { hook, Filter } from '@clockwork/hooks';
 import {
-    Classes, findClass, getFindUnique, stacktrace,
-    emitter
+    Text,
+    Classes,
+    Libc,
+    enumerateMembers,
+    findClass,
+    stacktraceList,
+    getFindUnique,
+    ClassesString,
+    stacktrace,
+    emitter,
 } from '@clockwork/common';
 import { Color, logger } from '@clockwork/logging';
 import { ifKey } from '@clockwork/hooks';
@@ -72,6 +80,39 @@ function hookNetwork() {
     hook(Classes.InetSocketAddress, '$init', { logging: { multiline: false, short: true } });
 }
 
+function hookRuntimeExec() {
+    const wrapReplace = (arg0: any, replace: (str: string) => string) => {
+        if (typeof arg0 === 'string') {
+            arg0 = replace(arg0);
+        } else {
+            for (const i in arg0) {
+                if (!Number.isNaN(Number(i))) {
+                    arg0[i] = replace(arg0[i]);
+                }
+            }
+        }
+        return arg0;
+    };
+    hook(Classes.Runtime, 'exec', {
+        replace(method, ...args) {
+            if (`${args[0]}`.includes('getprop ro.board.platform')) {
+                args[0] = wrapReplace(args[0], (str) => str.replace('getprop ro.board.platform', 'echo sdm720'));
+            }
+            if (`${args[0]}`.includes('su@object')) {
+                args[0] = wrapReplace(args[0], (str) => str.replace('su', 'sh'));
+            }
+            if (`${args[0]}` === 'su') {
+                args[0] = 'sh';
+            }
+            if (`${args[0]}`.startsWith('rm ')) {
+                args[0] = wrapReplace(args[0], (str) => str.replace(/^rm -r/, 'file '));
+            }
+            // if (`${args[0]}`.includes('nya') === false) return Classes.Runtime.exec.call(this, 'xxecho nya');
+            return method.call(this, ...args);
+        },
+    });
+}
+
 function hookCrypto() {
     //  hook(Classes.SecretKeySpec, '$init', {
     //     logging: { multiline: false },
@@ -87,6 +128,9 @@ function hookCrypto() {
                 try {
                     const str = Classes.String.$new(r);
                     logger.info({ tag: 'decrypt' }, `${str}`);
+                    if (`${str}`.includes('error occured while') || `${str}`.includes('version')) {
+                        logger.info({ tag: 'findme' }, pink(stacktrace()));
+                    }
                 } catch (e) {
                     logger.info({ tag: 'decrypt' }, `${r}`);
                 }
@@ -206,8 +250,6 @@ Java.performNow(() => {
             case 'android_meid':
             case 'android_device_id':
                 return '4102978102398';
-            case 'status':
-                return 1;
         }
     });
     hookPrefs(function (key, method) {
@@ -252,22 +294,17 @@ Java.performNow(() => {
             case 'key_real_country':
             case 'KEY_LOCALE':
                 return 'BR';
-                return true;
-            case 'card':
-                return 'https://google.pl/search?q=hi';
         }
     });
     hookCrypto();
-    hook(Classes.Runtime, 'exec', {
-        replace(method, ...args) {
-            // if (`${args[0]}`.includes('nya') === false) return Classes.Runtime.exec.call(this, 'xxecho nya');
-            return method.call(this, ...args);
-        },
-    });
+    hookRuntimeExec()
+
     hook(Classes.Process, 'killProcess', {
         replace: () => logger.info({ tag: 'killProcess' }, redBright(stacktrace())),
         logging: { multiline: false, return: false },
     });
+    hook(Classes.ActivityManager, 'getRunningAppProcesses');
+    hook(Classes.ActivityManager$RunningAppProcessInfo, '$init');
 
     hook(Classes.Activity, 'finish', { replace: () => {}, logging: { multiline: false, return: false } });
     hook(Classes.Activity, 'finishAffinity', { replace: () => {}, logging: { multiline: false, return: false } });
@@ -282,7 +319,7 @@ Java.performNow(() => {
     });
 
     Anticloak.generic();
-    Anticloak.hookDevice();
+    Anticloak.hookDevice(); 
     Anticloak.hookSettings();
     Anticloak.Country.mock('BR');
     Anticloak.InstallReferrer.replace({ install_referrer: INSTALL_REFERRER });
@@ -295,6 +332,7 @@ Java.performNow(() => {
         }),
     });
     hook(Classes.System, 'getProperty', {
+        loggingPredicate: (method, ...args: any[]) => `${args[0]}` !== 'line.separator',
         logging: { multiline: false, short: true },
         replace: ifKey(function (key) {
             const value = Anticloak.BuildProp.systemMapper(key);
@@ -327,22 +365,47 @@ Java.performNow(() => {
     // });
 
     hook(Classes.DexPathList, '$init', { logging: { short: true, multiline: false } });
-    ClassLoader.perform((cl) => {});
+    ClassLoader.perform((cl) => {
+        uniqFind('androidx.startup.InitializationProvider', (clazz) => {
+            logger.info({ tag: 'initprovider' }, `found: ${clazz}`);
+        });
+        // uniqFind('ˆ.ʿ.ʿ.ˋ.ˎ', (clazz) =>
+        //     enumerateMembers(
+        //         clazz,
+        //         {
+        //             onMatchMethod(clazz, member, depth) {
+        //                 if (member.endsWith('uncaughtException')) {
+        //                     hook(clazz, member, {
+        //                         replace: (method, thread, exception) => {
+        //                             logger.info({ tag: 'uncaught' }, `${thread.getName()}: ${thread.getId()} <- ${stacktrace(exception)}`);
+        //                         },
+        //                     });
+        //                 } else {
+        //                     hook(clazz, member);
+        //                 }
+        //             },
+        //         },
+        //         1,
+        //     ),
+        // );
+        // uniqHook('cn.beingyi.sub.apps.SubApp.SubApplication$ʿ', '$init');
+        // uniqHook('cn.beingyi.sub.apps.SubApp.SubApplication$ʿ', 'run');
+        // uniqHook('ˆ.ʿ.ʿ.ˈ.ˆ', 'ˆ');
+    });
 });
 
 Network.attachGetAddrInfo();
 Network.attachGetHostByName();
 Network.attachNativeSocket();
 Network.attachInteAton();
-// Native.attachRegisterNatives();
+Native.attachRegisterNatives();
 Native.attachSystemPropertyGet(function (key) {
     const value = Anticloak.BuildProp.propMapper(key);
-    if (value) return value;
+    return value;
     // if (Native.Inject.isWithinOwnRange(this.returnAddress)) return 'nya';
 });
 
-// Anticloak.Jigau.memoryPatch();
-// [INFO] {"name": "libcocos.so", "fn_dump": "0x002ad2a0"cklc"fn_key": "0 x00293468"}
+// // [INFO] {"name": "libcocos.so", "fn_dump": "0x002ad2a0"cklc"fn_key": "0 x00293468"}
 // Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x007b6a1c), fn_key: ptr(0x006a7da0) });
 // Cocos2dx.hookLocalStorage(function (key) {
 //     switch (key) {
@@ -356,7 +419,7 @@ Native.attachSystemPropertyGet(function (key) {
 let isNativeEnabled = true;
 const predicate = (r) => isNativeEnabled && Native.Inject.isWithinOwnRange(r);
 JniTrace.attach(({ returnAddress }) => {
-    return true && predicate(returnAddress);
+    return false && predicate(returnAddress);
 });
 
 Native.Files.hookAccess(predicate);
@@ -366,33 +429,8 @@ Native.Files.hookStat(predicate);
 Native.Files.hookReadlink(predicate);
 Native.Files.hookRemove(predicate);
 // Native.Strings.hookStrlen(predicate);
-// Native.Strings.hookStrstr(predicate);
-// Native.Strings.hookStrcpy(predicate);
 Native.TheEnd.hook(predicate);
 
-const trigger = () => {
-    logger.info({tag: 'hihi'}, 'entering the abyss !')
-    Process.enumerateRanges('r--').forEach(function (range) {
-        const result: any[] = [];
-        try {
-            Memory.scanSync(range.base, range.size, '64 65 78 0a 30 ?? ?? 00').forEach(function (match) {
-                // range.file.path.startsWith("/data/app/") ||
-                if (range?.file?.path?.startsWith('/data/dalvik-cache/') || range?.file?.path?.startsWith('/system/')) {
-                    return;
-                }
-
-                if (dexBytesVerify(match.address, range, false)) {
-                    const dex_size = match.address.add(0x20).readUInt();
-                    result.push({ addr: match.address, size: dex_size });
-                    
-                }
-            });
-        } catch (e) {}
-
-        logger.info(`${result.map(x => JSON.stringify(x)).join(", ")}`)
-    });
-};
-emitter.on('trigger', trigger);
 // [
 //     'fwrite',
 //     'faccessat',
@@ -404,12 +442,6 @@ emitter.on('trigger', trigger);
 //     'killpg',
 //     'signal',
 //     'abort',
-//     'execl',
-//     'execlp',
-//     'execle',
-//     'execv',
-//     'execvp',
-//     'execvpe',
 // ].forEach((ex) => {
 //     const exp = Module.getExportByName(null, ex);
 //     Native.Inject.attachInModule(predicate, exp, {
@@ -508,3 +540,7 @@ emitter.on('trigger', trigger);
 //     ),
 // );
 //
+
+rpc.exports = {
+    dexDump: Dump.scheduleDexDump.bind(Dump),
+};

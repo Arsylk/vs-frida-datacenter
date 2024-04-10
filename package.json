@@ -27,8 +27,9 @@
     "homepage": "https://github.com/Arsylk/frida-clockwork#readme",
     "dependencies": {
         "@reversense/interruptor": "^1.0.12",
+        "fflate": "^0.8.2",
         "frida-compile": "^16.4.1",
-        "kaitai-struct": "^0.10.0"
+        "pako": "^2.1.0"
     },
     "devDependencies": {
         "@tsconfig/node21": "^21.0.1",

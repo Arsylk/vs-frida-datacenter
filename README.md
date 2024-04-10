@@ -1,11 +1,30 @@
-# frida-clockwork
+## Summary
 
- -pkg:com.applovin -pkg:com.google  -pkg:com.facebook -pkg:com.ironsource -pkg:androidx -pkg:com.onesignal -pkg:com.startapp -pkg:com.iab -pkg:kotlin -pkg:com.flurry -pkg:com.yandex -pkg:io.reactive -pkg:com.bytedance -pkg:com.mbridge -pkg:com.inmobi -pkg:com.fyber -pkg:com.tapjoy -pkg:com.adcolony -pkg:com.chartboost -pkg:com.safedk -pkg:com.smaato -pkg:com.vungle -pkg:com.adjust.sdk -pkg:com.anythink -pkg:com.my.target -pkg:com.ogury regex:yes src:"([A-Za-z]+://)([-\w]+(?:\.\w[-\w]*)+)(:\d+)?(/[^.!,?"<>\[\]{}\s\x7F-\xFF]*(?:[.!,?]+[^.!,?"<>\[\]{}\s\x7F1-\xFF]+)*)?"
+Since these applications are TP for XXXX, the targeted code is malicious, and was possible to do # NSR this cluster should be considered **Interesting**. 
 
- -pkg:com.applovin -pkg:com.google  -pkg:com.facebook -pkg:com.ironsource -pkg:androidx -pkg:com.onesignal -pkg:com.startapp -pkg:com.iab -pkg:kotlin -pkg:com.flurry -pkg:com.yandex -pkg:io.reactive -pkg:com.bytedance -pkg:com.mbridge -pkg:com.inmobi -pkg:com.fyber -pkg:com.tapjoy -pkg:com.adcolony -pkg:com.chartboost -pkg:com.safedk -pkg:com.smaato -pkg:com.vungle -pkg:com.adjust.sdk -pkg:com.anythink -pkg:com.my.target -pkg:com.ogury regex:yes src:"\.loadUrl\("
+## Analysis
 
-src:"getcookie|csrf|c_user|mnemonic|seed phrase|sec ret phrase" regex:yes
+### Cluster 233705d45ac56b874fc5mgm
 
-set CMD bat --paging=never session.txt;  bat --style=numbers --paging=never --lines session.txt | fzf --ansi --keep-right  --layout=reverse --preview-window :follow --prompt '> ' --header 'Session logs' --bind "start:reload:$CMD" --bind "change:reload:speed 0.1; $CMD || true" -e -i
 
-bat --style=grid,header-filename,header-filesize session.txt | nl -v -4 -s (set_color black; echo ' │ ') | fzf --ansi -i --track --no-sort --layout=reverse --scrollbar=':' --preview 'printf %s {2} | bat -pp --color=always' --delimiter ' │ ' --preview-window 'hidden' --bind 'f2:change-preview-window(right,40%,border-left,wrap|hidden)' --nth 2.
+#### TP Digests
+
+
+
+
+
+#### FP Digests, all TP. (IF NOT ADD THE VERDICT IN FRONT)
+
+
+
+#### Unreviewed Digests, all TP. (IF NOT ADD THE VERDICT IN FRONT)  
+[ce2da9d06a31d8fa7471e23da55e200e8cffcfe4948d214b8a2c9403baf392fe](https://quokka.corp.google.com/q/#/app/overview/8c9ef5c2cc6c495c0c338368cfc229ddaf82fdb600a9450e26cb06e4a48d5a8e/1711036867442734)
+ - app drops known metaspolit binry [ss](https://screenshot.googleplex.com/9btPFaL6dfoxx35)
+ - registers metasploit packages at runtime [ss](https://screenshot.googleplex.com/B8gqQ37sJSDBSwh)
+
+
+## Conclusion
+
+
+
+Since it was possible to create/update an NSR this cluster should be considered as Interesting.&&
