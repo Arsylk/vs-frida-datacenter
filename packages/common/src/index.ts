@@ -10,13 +10,13 @@ function isJWrapper(clazzOrName: Java.Wrapper | string): clazzOrName is Java.Wra
     return clazzOrName?.hasOwnProperty('$className');
 }
 
-function stacktrace(): string {
-    const e = Classes.Exception.$new();
+function stacktrace(e?: Java.Wrapper): string {
+    e ??= Classes.Exception.$new();
     return Classes.Log.getStackTraceString(e).split('\n').slice(1).join('\n');
 }
 
-function stacktraceList(): string[] {
-    const e = Classes.Exception.$new();
+function stacktraceList(e?: Java.Wrapper): string[] {
+    e ??= Classes.Exception.$new();
     const stack = Classes.Log.getStackTraceString(e);
     return `${stack}`.split('\n').slice(1).map((s: string) => s.substring(s.indexOf('at ') + 3).trim());
 }

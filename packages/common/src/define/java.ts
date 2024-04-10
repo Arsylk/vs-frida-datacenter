@@ -62,6 +62,8 @@ const ClassesString = {
     File: 'java.io.File',
     InetSocketAddress: 'java.net.InetSocketAddress',
     Throwable: 'java.lang.Throwable',
+    ActivityManager: 'android.app.ActivityManager',
+    ActivityManager$RunningAppProcessInfo: 'android.app.ActivityManager$RunningAppProcessInfo',
 };
 
 type ClassesType = PropertyJavaUseMapper<typeof ClassesString>;
