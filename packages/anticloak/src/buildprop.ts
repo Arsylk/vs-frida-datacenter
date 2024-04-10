@@ -23,8 +23,6 @@ function propMapper(key: string): string | undefined {
             return 'sdm720';
         case 'gsm.version.baseband':
             return '4.0.2.c8-00047-0722+1520_40cbe21,4.0.2.c8-00047-0722_1520_40cbe21';
-        // case 'ro.boot.qemu.gltransport.name':
-        //     return 'n';
         case 'persist.sys.timezone':
             return '';
     }
@@ -39,7 +37,7 @@ function buildMapper(key: string): string | undefined {
         case 'SOC_MANUFACTURER':
             return 'Xiaomi';
         case 'DEVICE':
-        case 'PRODUCT':
+        // case 'PRODUCT': // this can be problematic for EGLConfig
             return 'raven';
         case 'HARDWARE':
             return 'qcom'

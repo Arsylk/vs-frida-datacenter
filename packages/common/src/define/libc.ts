@@ -4,7 +4,7 @@ const LibcFinder = {
     // int open(const char *pathname, int flags, mode_t mode);
     open: () => {
         const ptr = Module.getExportByName('libc.so', 'open');
-        return new NativeFunction(ptr, 'int', ['pointer', 'int']);
+        return new NativeFunction(ptr, 'int', ['pointer', 'int', '...']);
     },
     // int creat(const char *pathname, mode_t mode);
     creat: () => {
@@ -14,7 +14,7 @@ const LibcFinder = {
     // int openat(int dirfd, const char *pathname, int flags);
     openat: () => {
         const ptr = Module.getExportByName('libc.so', 'openat');
-        return new NativeFunction(ptr, 'int', ['int', 'pointer', 'int']);
+        return new NativeFunction(ptr, 'int', ['int', 'pointer', 'int', '...']);
     },
     // int close(int fd);
     close: () => {
@@ -211,6 +211,11 @@ const LibcFinder = {
     lstat: () => {
         const ptr = Module.getExportByName('libc.so', 'lstat');
         return new NativeFunction(ptr, 'int', ['pointer', 'pointer']);
+    },
+    // int __statfs64(const char *, size_t, struct statfs *);
+    __statfs64: () => {
+        const ptr = Module.getExportByName('libc.so', '__statfs64');
+        return new NativeFunction(ptr, 'int', ['pointer', 'int', 'pointer']);
     },
     // time_t time(time_t *t);
     time: () => {

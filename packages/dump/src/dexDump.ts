@@ -1,3 +1,4 @@
+import { getApplicationContext } from '@clockwork/common';
 import { subLogger } from '@clockwork/logging';
 const logger = subLogger('dexdump');
 
@@ -8,7 +9,7 @@ function dump() {
     const know_paths = ['.js', '.html', '.xml'];
     const AppClassLoader = Java.use('android.app.ActivityThread').currentApplication().getApplicationContext().getClassLoader();
     const currentApplication = Java.use('android.app.ActivityThread').currentApplication();
-    const context = currentApplication.getApplicationContext();
+    const context = getApplicationContext();
 
     const file = Java.use('java.io.File');
     const string = Java.use('java.lang.String');

@@ -65,13 +65,13 @@ function hookOpen(predicate: (ptr: NativePointer) => boolean) {
         const isOk = ret !== -1;
         const struri = !isOk ? red(gray(`${uri}`)) : gray(`${uri}`);
 
-        logger.info({ tag: key }, `${struri} flags: ${flags}, mode: ${mode}`);
+        logger.info({ tag: key }, `${struri} flags: ${flags}, ${mode ?  'mode: ' + mode : ''}`);
     }
     Interceptor.replace(
         Libc.open,
         new NativeCallback(
-            function (pathname, flags) {
-                const ret = Libc.open(pathname, flags);
+            function (pathname, flags, ...any) {
+                const ret = Libc.open(pathname, flags, ...any);
                 if (predicate(this.returnAddress)) {
                     log.call(this, pathname.readCString(), flags, null, ret, 'open');
                 }
@@ -98,8 +98,8 @@ function hookOpen(predicate: (ptr: NativePointer) => boolean) {
     Interceptor.replace(
         Libc.openat,
         new NativeCallback(
-            function (dirfd, pathname, flags) {
-                const ret = Libc.openat(dirfd, pathname, flags);
+            function (dirfd, pathname, flags, ...any) {
+                const ret = Libc.openat(dirfd, pathname, flags, ...any);
                 if (predicate(this.returnAddress)) {
                     log.call(this, pathname.readCString(), flags, null, ret, 'openat');
                 }
@@ -194,8 +194,9 @@ function hookStat(predicate: (ptr: NativePointer) => boolean) {
             strmsg += ` -> "${gray(`${target}`)}"`;
         }
 
-        strmsg += `@${statbuf})`;
+        strmsg += `@${statbuf}`;
         // const stat = Struct.Stat.stat(statbuf);
+        // strmsg += ` ${JSON.stringify(Struct.toObject(stat))}`
 
         logger.info({ tag: tag }, strmsg);
     }
@@ -267,7 +268,8 @@ function hookReadlink(predicate: (ptr: NativePointer) => boolean) {
                 if (predicate(this.returnAddress)) {
                     const lnstring = pathname.readCString();
                     const rlstring = buf.readCString(bufsize);
-                    logger.info({ tag: 'readlink' }, `"${lnstring}" -> "${rlstring}"`);
+                    const frlstring = rlstring?.replace(/�.*$/g, '')
+                    logger.info({ tag: 'readlink' }, `"${lnstring}" -> "${frlstring}"`);
                 }
                 return 0;
             },
