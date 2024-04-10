@@ -64,6 +64,7 @@ const ClassesString = {
     Throwable: 'java.lang.Throwable',
     ActivityManager: 'android.app.ActivityManager',
     ActivityManager$RunningAppProcessInfo: 'android.app.ActivityManager$RunningAppProcessInfo',
+    ActivityThread: 'android.app.ActivityThread'
 };
 
 type ClassesType = PropertyJavaUseMapper<typeof ClassesString>;

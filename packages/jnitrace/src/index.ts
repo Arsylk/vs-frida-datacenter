@@ -239,19 +239,20 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
             onEnter: hookIfTag('NewStringUTF', (args) => yellow(`"${args[1].readCString()}"`)),
         });
 
-    // addrsDefineClass.forEach((addres) => {
-    //     Interceptor.attach(addres, {
-    //         // jclass & 	DefineClass (JNIEnv &env, const char *name, jobject &loader, const jbyte *buf, jsize size)
-    //         // auto 	DefineClass (JNIEnv &env, const char *name, jobject &loader, const Array &buf) -> std::enable_if_t< IsArraylike< Array >::value, jclass & >
-    //         onEnter: hookIfTag('DefineClass', (args) => args[1].readCString()),
-    //     });
-    // });
+    addrsDefineClass.forEach((addres) => {
+        Interceptor.attach(addres, {
+            // jclass & 	DefineClass (JNIEnv &env, const char *name, jobject &loader, const jbyte *buf, jsize size)
+            // auto 	DefineClass (JNIEnv &env, const char *name, jobject &loader, const Array &buf) -> std::enable_if_t< IsArraylike< Array >::value, jclass & >
+            onEnter: hookIfTag('DefineClass', (args) => args[1].readCString()),
+        });
+    });
 
     addrFindClass &&
         Interceptor.attach(addrFindClass, {
             // jclass & 	FindClass (JNIEnv &env, const char *name)
             onEnter: hookIfTag('FindClass', (args) => args[1].readCString()),
         });
+
 
     const getMethodId = function (isStatic: boolean = false) {
         // jmethodID       GetMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig);

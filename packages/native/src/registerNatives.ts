@@ -19,12 +19,15 @@ function find(offset: number, returnType: NativeFunctionReturnType, args: Native
     return func ?? null;
 }
 
-function attachRegisterNatives() {
+function attachRegisterNatives(fn?: ((this: InvocationContext, retval: InvocationReturnValue) => void)) {
     const found = find(215, 'int32', ['pointer', 'pointer', 'pointer', 'int32']);
     if (found) {
         Interceptor.attach(found, {
             onEnter(args) {
                 logOnEnterRegisterNatives.call(this, args);
+            },
+            onLeave(retval) {
+                fn?.call(this, retval);
             },
         });
         return;

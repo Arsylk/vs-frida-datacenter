@@ -21,6 +21,10 @@ function stacktraceList(e?: Java.Wrapper): string[] {
     return `${stack}`.split('\n').slice(1).map((s: string) => s.substring(s.indexOf('at ') + 3).trim());
 }
 
+function getApplicationContext(): Java.Wrapper {
+    return Classes.ActivityThread.currentApplication().getApplicationContext();
+}
+
 const emitter = new EventEmitter();
 declare global {
     function findClass(className: string, ...loaders: Java.Wrapper[]): Java.Wrapper | null
@@ -35,4 +39,4 @@ Object.defineProperties(global, {
 })
 
 
-export { Classes, ClassesString, LibcFinderProxy as Libc, isJWrapper, stacktrace, stacktraceList, findClass, enumerateMembers, getFindUnique, emitter };
+export { Classes, ClassesString, LibcFinderProxy as Libc, isJWrapper, stacktrace, stacktraceList, getApplicationContext, findClass, enumerateMembers, getFindUnique, emitter };

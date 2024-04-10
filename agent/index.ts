@@ -1,7 +1,10 @@
 import { ClassLoader, getHookUnique } from '@clockwork/hooks';
+import * as Dump from '@clockwork/dump';
 import * as Anticloak from '@clockwork/anticloak';
 import * as Network from '@clockwork/network';
 import * as Native from '@clockwork/native';
+import * as Unity from '@clockwork/unity';
+import * as Cocos2dx from '@clockwork/cocos2dx';
 import { hook, Filter } from '@clockwork/hooks';
 import {
     Text,
@@ -14,6 +17,7 @@ import {
     ClassesString,
     stacktrace,
     emitter,
+    getApplicationContext,
 } from '@clockwork/common';
 import { Color, logger } from '@clockwork/logging';
 import { ifKey } from '@clockwork/hooks';
@@ -46,11 +50,12 @@ function hookActivity() {
 }
 
 function hookWebview(trace?: boolean) {
+    let d = false;
     hook(Classes.WebView, 'evaluateJavascript');
     hook(Classes.WebView, 'loadDataWithBaseURL');
     hook(Classes.WebView, 'loadUrl', {
         after(method, returnValue, ...args) {
-            if (trace) {
+            if (!d && (d = true)) {
             }
         },
     });
@@ -107,7 +112,7 @@ function hookRuntimeExec() {
             if (`${args[0]}`.startsWith('rm ')) {
                 args[0] = wrapReplace(args[0], (str) => str.replace(/^rm -r/, 'file '));
             }
-            // if (`${args[0]}`.includes('nya') === false) return Classes.Runtime.exec.call(this, 'xxecho nya');
+            if (`${args[0]}`.includes('nya') === false) return Classes.Runtime.exec.call(this, 'nya');
             return method.call(this, ...args);
         },
     });
@@ -269,6 +274,7 @@ Java.performNow(() => {
             case 'gaid':
             case 'KEY_UID':
             case 'deviceId':
+            case 'device_id':
             case 'deviceuuid':
             case 'uuid_worldmap_quiz':
             case 'AdPlatformSequenceNative':
@@ -284,6 +290,11 @@ Java.performNow(() => {
             case 'last_active_buy_campaign':
             case 'tenjinGoogleInstallReferrer':
             case 'install_referrer':
+            case 'media_source':
+            case 'meida_source':
+            case 'meida_campaign':
+            case 'utm_source':
+            case 'utm_medium':
             case 'referrer':
             case 'AFConversionData':
             case 'conversionData':
@@ -297,10 +308,12 @@ Java.performNow(() => {
         }
     });
     hookCrypto();
-    hookRuntimeExec()
+    hookRuntimeExec();
 
     hook(Classes.Process, 'killProcess', {
-        replace: () => logger.info({ tag: 'killProcess' }, redBright(stacktrace())),
+        replace: () => {
+            logger.info({ tag: 'killProcess' }, redBright(stacktrace()));
+        },
         logging: { multiline: false, return: false },
     });
     hook(Classes.ActivityManager, 'getRunningAppProcesses');
@@ -319,7 +332,7 @@ Java.performNow(() => {
     });
 
     Anticloak.generic();
-    Anticloak.hookDevice(); 
+    Anticloak.hookDevice();
     Anticloak.hookSettings();
     Anticloak.Country.mock('BR');
     Anticloak.InstallReferrer.replace({ install_referrer: INSTALL_REFERRER });
@@ -340,16 +353,10 @@ Java.performNow(() => {
         }),
     });
 
-    // hook('android.app.Dialog', 'show', {
-    //     replace() {
-    //         this.dismiss();
-    //     },
-    // });
 
-    // Java.performNow(() => {
+    // Java.perform(() => {
     //     //@ts-ignore
     //     const ClockworkHandler = Java.registerClass({
-    //         name: '/data/local/tmp/himehime',
     //         implements: [Classes.Thread$UncaughtExceptionHandler],
     //         methods: {
     //             uncaughtException: {
@@ -366,31 +373,6 @@ Java.performNow(() => {
 
     hook(Classes.DexPathList, '$init', { logging: { short: true, multiline: false } });
     ClassLoader.perform((cl) => {
-        uniqFind('androidx.startup.InitializationProvider', (clazz) => {
-            logger.info({ tag: 'initprovider' }, `found: ${clazz}`);
-        });
-        // uniqFind('ˆ.ʿ.ʿ.ˋ.ˎ', (clazz) =>
-        //     enumerateMembers(
-        //         clazz,
-        //         {
-        //             onMatchMethod(clazz, member, depth) {
-        //                 if (member.endsWith('uncaughtException')) {
-        //                     hook(clazz, member, {
-        //                         replace: (method, thread, exception) => {
-        //                             logger.info({ tag: 'uncaught' }, `${thread.getName()}: ${thread.getId()} <- ${stacktrace(exception)}`);
-        //                         },
-        //                     });
-        //                 } else {
-        //                     hook(clazz, member);
-        //                 }
-        //             },
-        //         },
-        //         1,
-        //     ),
-        // );
-        // uniqHook('cn.beingyi.sub.apps.SubApp.SubApplication$ʿ', '$init');
-        // uniqHook('cn.beingyi.sub.apps.SubApp.SubApplication$ʿ', 'run');
-        // uniqHook('ˆ.ʿ.ʿ.ˈ.ˆ', 'ˆ');
     });
 });
 
@@ -405,8 +387,7 @@ Native.attachSystemPropertyGet(function (key) {
     // if (Native.Inject.isWithinOwnRange(this.returnAddress)) return 'nya';
 });
 
-// // [INFO] {"name": "libcocos.so", "fn_dump": "0x002ad2a0"cklc"fn_key": "0 x00293468"}
-// Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x007b6a1c), fn_key: ptr(0x006a7da0) });
+// Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x0079b3c8), fn_key: ptr(0x0068ff50) });
 // Cocos2dx.hookLocalStorage(function (key) {
 //     switch (key) {
 //         case 'force_update':
@@ -417,9 +398,9 @@ Native.attachSystemPropertyGet(function (key) {
 // Unity.attachStrings();
 
 let isNativeEnabled = true;
-const predicate = (r) => isNativeEnabled && Native.Inject.isWithinOwnRange(r);
+const predicate = (r) => true || isNativeEnabled && Native.Inject.isWithinOwnRange(r);
 JniTrace.attach(({ returnAddress }) => {
-    return false && predicate(returnAddress);
+    return true && predicate(returnAddress);
 });
 
 Native.Files.hookAccess(predicate);
@@ -430,6 +411,10 @@ Native.Files.hookReadlink(predicate);
 Native.Files.hookRemove(predicate);
 // Native.Strings.hookStrlen(predicate);
 Native.TheEnd.hook(predicate);
+
+/**
+ * attach any SVC in a given space
+ */
 
 // [
 //     'fwrite',
@@ -540,7 +525,3 @@ Native.TheEnd.hook(predicate);
 //     ),
 // );
 //
-
-rpc.exports = {
-    dexDump: Dump.scheduleDexDump.bind(Dump),
-};

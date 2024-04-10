@@ -4,59 +4,65 @@ import * as Anticloak from '@clockwork/anticloak';
 import { logger } from '@clockwork/logging';
 import * as Dump from '@clockwork/dump';
 import * as JniTrace from '@clockwork/jnitrace';
-import { Classes, Libc, Struct, Text } from '@clockwork/common';
-import { hook } from '@clockwork/hooks'
+import { Classes, getFindUnique, Libc, Struct, Text } from '@clockwork/common';
+import { ClassLoader, hook } from '@clockwork/hooks'
+const uniqFind = getFindUnique();
 
 
 logger.info({ tag: 'pid' }, `xx ${Process.id}`);
 
-Native.attachSystemPropertyGet(function (key) {
-    const mapped = Anticloak.BuildProp.propMapper(key);
-    if (mapped) return mapped;
-});
+// Native.attachSystemPropertyGet(function (key) {
+//     const mapped = Anticloak.BuildProp.propMapper(key);
+//     if (mapped) return mapped;
+// });
 
 Java.performNow(() => {
     hook(Classes.DexPathList, '$init', { logging: { short: true, multiline: false } });
+    ClassLoader.perform((cl) => {
+        uniqFind('androidx.startup.InitializationProvider', (clazz) => {
+            logger.info({ tag: 'initprovider' }, `found: ${clazz}`);
+        });
+    });
 });
 
-Anticloak.generic();
-Anticloak.hookDevice();
-Anticloak.hookSettings();
-Anticloak.hookInstallerPackage();
+// Anticloak.generic();
+// Anticloak.hookDevice();
+// Anticloak.hookSettings();
+// Anticloak.hookInstallerPackage();
 
-let isNativeEnabled = true;
-const predicate = (r) => isNativeEnabled && Native.Inject.isWithinOwnRange(r);
-JniTrace.attach(({ returnAddress }) => {
-    return predicate(returnAddress);
-});
+// let isNativeEnabled = true;
+// const predicate = (r) => isNativeEnabled && Native.Inject.isWithinOwnRange(r);
+// JniTrace.attach(({ returnAddress }) => {
+//     return predicate(returnAddress);
+// });
 
-Native.Strings.hookStrstr(predicate);
-Native.Strings.hookStrlen(predicate);
-Native.Strings.hookStrcpy(predicate);
-Native.Files.hookAccess(predicate);
-Native.Files.hookOpen(predicate);
-Native.Files.hookFopen(predicate, undefined, true);
-Native.Files.hookRemove(predicate);
-Native.Files.hookStat(predicate);
-Native.Files.hookReadlink(predicate);
-Native.TheEnd.hook(predicate);
-hookFgets();
-hookPthreadCreate();
-hookLocaltime();
-hookSscanf();
+// Native.Strings.hookStrstr(predicate);
+// Native.Strings.hookStrlen(predicate);
+// Native.Strings.hookStrcpy(predicate);
+// Native.Files.hookAccess(predicate);
+// Native.Files.hookOpen(predicate);
+// Native.Files.hookFopen(predicate, undefined, true);
+// Native.Files.hookRemove(predicate);
+// Native.Files.hookStat(predicate);
+// Native.Files.hookReadlink(predicate);
+// Native.TheEnd.hook(predicate);
+// hookFgets();
+// hookPthreadCreate();
+// hookLocaltime();
+// hookSscanf();
 
-Native.Inject.afterInitArrayModule((module: Module) => {
-    function dump(addr: NativePointer, limit: number) {
-        let i = 0;
-        while (i < limit) {
-            let insn = Instruction.parse(addr.add(i));
-            hexdump(addr.add(i), { length: insn.size });
-            i += insn.size;
-        }
-    }
-    Memory.protect(module.base, module.size, 'rwx');
-    dump(module.base, module.size);
-});
+// Native.Inject.afterInitArrayModule((module: Module) => {
+//     function dump(addr: NativePointer, limit: number) {
+//         let i = 0;
+//         while (i < limit) {
+//             let insn = Instruction.parse(addr.add(i));
+//             hexdump(addr.add(i), { length: insn.size });
+//             i += insn.size;
+//         }
+//     }
+//     Memory.protect(module.base, module.size, 'rwx');
+//     dump(module.base, module.size);
+// });
 //         // onModule(base, this.threadId);
 //         // addSyscall(base, gPtr(0x105aa4 + 0x4));
 
