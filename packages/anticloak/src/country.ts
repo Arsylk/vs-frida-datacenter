@@ -53,6 +53,36 @@ const Configurations: { [key: string]: Config } = {
         country: 'vn',
         operator: 'MobiFone',
     },
+    RU: {
+        timezoneId: 'Europe/Moscow',
+        mcc: '255',
+        mnc: '999',
+        code: '79',
+        mccmnc: `${255}${999}`,
+        locale: ['RU', 'ru'],
+        country: 'ru',
+        operator: 'Fix Line',
+    },
+    ID: {
+        timezoneId: 'Asia/Jakarta',
+        mcc: '510',
+        mnc: '11',
+        code: '62',
+        mccmnc: `${510}${11}`,
+        locale: ['ID', 'id'],
+        country: 'id',
+        operator: 'XL',
+    },
+    PH: {
+        timezoneId: 'Asia/Manila',
+        mcc: '515',
+        mnc: '03',
+        code: '63',
+        mccmnc: `${515}${3}`,
+        locale: ['PH', 'fil'],
+        country: 'ph',
+        operator: 'Smart',
+    },
 };
 
 
@@ -80,6 +110,15 @@ function mock(keyOrConfig: Config | keyof typeof Configurations) {
     // hook(Classes.Locale, 'getLanguage', { replace: always('pt'), logging: { call: false, return: false } });
     // hook(Classes.Locale, 'getDisplayCountry', { replace: always('Brazil'), logging: { call: false, return: false } });
     // hook(Classes.Locale, 'toString', { replace: always('pt_BR'), logging: { call: false, return: false } });
+
+    hook(Classes.Resources, `getConfiguration`, {
+        after(method, returnValue, ...args) {
+            returnValue.mcc.value = Number(config.mcc) 
+            returnValue.mnc.value = Number(config.mnc) 
+            returnValue.setLocale(Classes.Locale.$new(config.locale[1], config.locale[0]))
+        },
+        logging: { call: false, return: false },
+    })
 
     hook(Classes.Date, 'getTime', {
         loggingPredicate: Filter.date,

@@ -55,17 +55,17 @@ const LibcFinder = {
     // FILE *fopen(const char *restrict pathname, const char *restrict mode);
     fopen: () => {
         const ptr = Module.getExportByName('libc.so', 'fopen');
-        return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer']);
+        return new SystemFunction(ptr, 'pointer', ['pointer', 'pointer']);
     },
     // FILE *fdopen(int fd, const char *mode);
     fdopen: () => {
         const ptr = Module.getExportByName('libc.so', 'fdopen');
-        return new NativeFunction(ptr, 'pointer', ['int', 'pointer']);
+        return new SystemFunction(ptr, 'pointer', ['int', 'pointer']);
     },
     // FILE *freopen(const char *restrict pathname, const char *restrict mode, FILE *restrict stream);
     freopen: () => {
         const ptr = Module.getExportByName('libc.so', 'freopen');
-        return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer', 'pointer']);
+        return new SystemFunction(ptr, 'pointer', ['pointer', 'pointer', 'pointer']);
     },
     chmod: () => {
         const ptr = Module.getExportByName('libc.so', 'chmod');
@@ -85,9 +85,10 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'pthread_create');
         return new NativeFunction(ptr, 'int', ['pointer', 'pointer', 'pointer', 'pointer']);
     },
+    // double difftime(time_t __time1, time_t __time0)
     difftime: () => {
         const ptr = Module.getExportByName('libc.so', 'difftime');
-        return new NativeFunction(ptr, 'void', ['pointer', 'pointer']);
+        return new NativeFunction(ptr, 'double', ['pointer', 'pointer']);
     },
     // int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
     connect: () => {
@@ -261,6 +262,26 @@ const LibcFinder = {
     kill: () => {
         const ptr = Module.getExportByName('libc.so', 'kill');
         return new NativeFunction(ptr, 'int', ['pointer', 'int']);
+    },
+    // long ptrace(enum __ptrace_request request, pid_t pid, void *addr, void *data);
+    ptrace: () => {
+        const ptr = Module.getExportByName('libc.so', 'ptrace')
+        return new NativeFunction(ptr, 'long', ['int', 'int', 'pointer', 'pointer']);
+    },
+    // int system(const char *command);
+    system: () => {
+        const ptr = Module.getExportByName('libc.so', 'system')
+        return new NativeFunction(ptr, 'int', ['pointer']);
+    },
+    // int system(const char *command);
+    strerror: () => {
+        const ptr = Module.getExportByName('libc.so', 'strerror')
+        return new NativeFunction(ptr, 'pointer', ['int']);
+    },
+    // char * __cxa_demangle (const char *mangled_name, char *output_buffer, size_t *length, int *status)
+    __cxa_demangle: () => {
+        const ptr = Module.getExportByName('libunwindstack.so', '__cxa_demangle')
+        return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer', 'pointer', 'pointer']);
     }
 };
 

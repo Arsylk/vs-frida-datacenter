@@ -3,12 +3,12 @@ import { logger } from '@clockwork/logging';
 
 function hookExit(predicate: (ptr: NativePointer) => boolean) {
     const array: ('exit' | '_exit')[] = ['exit', '_exit'];
-    array.forEach((key) => {
+    for(const key of array) {
         const func = Libc[key];
         Interceptor.replace(
             func,
             new NativeCallback(
-                function (code) {
+                (code) => {
                     logger.info({ tag: key }, `code: ${code}`);
                     return 0;
                 },
@@ -16,14 +16,14 @@ function hookExit(predicate: (ptr: NativePointer) => boolean) {
                 ['pointer'],
             ),
         );
-    });
+    };
 }
 
 function hookKill(predicate: (ptr: NativePointer) => boolean) {
     Interceptor.replace(
         Libc.kill,
         new NativeCallback(
-            function (pid, code) {
+            (pid, code) => {
                 logger.info({ tag: 'kill' }, `kill(${pid}, ${code}) called !`);
                 return 0;
             },
@@ -38,4 +38,5 @@ function hook(predicate: (ptr: NativePointer) => boolean) {
     hookExit(predicate)
 }
 
-export { hookExit, hookKill, hook }
+export { hook, hookExit, hookKill };
+

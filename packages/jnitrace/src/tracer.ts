@@ -1,7 +1,6 @@
-import { Classes, Std, enumerateMembers, findClass } from '@clockwork/common';
+import { Classes, ClassesString, Std, enumerateMembers, findClass } from '@clockwork/common';
 import { JavaMethod } from './javaMethod.js';
-import { JNI, asFunction, jMethodID } from './jni.js';
-import { logger } from '@clockwork/logging';
+import { JNI, asFunction, type jMethodID } from './jni.js';
 
 const Cache = {
     storage: new Map<string, JavaMethod>(),
@@ -19,7 +18,7 @@ const Cache = {
 
 let cachedBase: NativePointer | null = null;
 let FindClass: NativeFunction<any, any> | null = null;
-let ToReflectedMethod: NativeFunction<any, any> | null = null;
+let ToReflectedMethod: any = null;
 let getDeclaringClassDesc: NativeFunction<any, any> | null = null;
 const PrimitiveTypes: { [key: string]: string } = {
     Z: 'boolean',
@@ -40,19 +39,59 @@ function prettyMethod(methodId: NativePointer, withSignature: boolean) {
     return result.disposeToString();
 }
 
-function resolveMethod(methodId: jMethodID, isStatic: boolean): JavaMethod | null {
+function resolveMethod(env: NativePointer, jClass: NativePointer, methodId: jMethodID, isStatic: boolean): JavaMethod | null {
     let method = Cache.get(methodId, isStatic);
     if (method) return method;
 
-    const env = Java.vm.tryGetEnv();
+    // fallback to frida getEnv()
+    env ??= Java.vm.tryGetEnv()?.handle;
     if (!env) return null;
-    if (cachedBase === null) cachedBase = env.handle.readPointer();
-    if (FindClass === null && cachedBase) FindClass = asFunction(cachedBase, JNI.FindClass);
-    if (ToReflectedMethod === null && cachedBase) ToReflectedMethod = asFunction(cachedBase, JNI.ToReflectedMethod);
+
+
+    if (FindClass === null && env) FindClass = asFunction(env, JNI.FindClass);
+    if (ToReflectedMethod === null && env) ToReflectedMethod = asFunction(env, JNI.ToReflectedMethod);
+    
+    if (ToReflectedMethod) { 
+        const jniMethod = ToReflectedMethod(env, jClass, methodId, isStatic ? 1 : 0)
+        const javaExecutable = Java.cast(jniMethod, Classes.Executable);
+        
+        const name: string = javaExecutable.getName();
+        const declaringClass: Java.Wrapper = javaExecutable.getDeclaringClass(); 
+        const parameterTypes: Java.Wrapper[] = javaExecutable.getParameterTypes();
+        const declaringClassType: string = declaringClass.getTypeName(); 
+
+        let returnTypeName: string = declaringClassType;
+        if (javaExecutable.$className === ClassesString.Method) {
+            const javaMethod = Java.cast(javaExecutable, Classes.Method);
+            const returnType = javaMethod.getReturnType();
+            returnTypeName = returnType.getTypeName();
+            returnType.$dispose();
+        }
+
+        const method = new JavaMethod(
+            declaringClassType,
+            name,
+            parameterTypes.map(x => x.getTypeName()),
+            returnTypeName,
+            isStatic,
+        );
+
+        declaringClass.$dispose();
+        for(const parameterType of parameterTypes) {
+            parameterType.$dispose()
+        }        
+
+        return Cache.set(methodId, method);
+    }
+
+
+
     if (getDeclaringClassDesc === null) {
-        const getDeclaringClassDescSym = Process.getModuleByName('libart.so')
-            .enumerateSymbols()
-            .filter((x) => x.name.includes('DeclaringClassDesc'))[0];
+        // const getDeclaringClassDescSym = Process.getModuleByName('libart.so')
+        //     .enumerateSymbols()
+        //     .filter((x) => x.name.includes('DeclaringClassDesc'))[0];
+        const getDeclaringClassDescSym = new ApiResolver('module')?.enumerateMatches('exports:libart.so!*DeclaringClassDesc*')?.[0];
+        if (!getDeclaringClassDescSym) return null;
         getDeclaringClassDesc = new NativeFunction(getDeclaringClassDescSym.address, 'pointer', ['pointer'], { exceptions: 'propagate' });
     }
 
@@ -67,7 +106,7 @@ function resolveMethod(methodId: jMethodID, isStatic: boolean): JavaMethod | nul
     enumerateMembers(cls, {
         onMatchMethod(clazz, member) {
             for (const overload of clazz[member]._o) {
-                if (`${overload.handle}` == `${methodId}`) {
+                if (`${overload.handle}` === `${methodId}`) {
                     matched = overload;
                     method = new JavaMethod(
                         thisSig ?? '',
@@ -82,16 +121,10 @@ function resolveMethod(methodId: jMethodID, isStatic: boolean): JavaMethod | nul
         },
     });
     return null;
-
-    // const ptr = Memory.allocUtf8String(thisSig);
-    // const jniClassHandle = FindClass?.(env, ptr);
-    // const jniMethodReflect = ToReflectedMethod?.(env, jniClassHandle, methodId, isStatic ? 1 : 0);
-    // const method = Java.cast(jniMethodReflect, Classes.Method);
-    // return new JavaMethod('', '', '', false);
 }
 
 function fastpathMethod(methodId: jMethodID, className: string, name: string, sig: string, isStatic: boolean) {
-    let txt = sig;
+    const txt = sig;
 
     let isArray = false;
     let isOpen: number | null = null;
@@ -124,17 +157,17 @@ function fastpathMethod(methodId: jMethodID, className: string, name: string, si
         }
         if (!isOpen && c in PrimitiveTypes) {
             adder(c);
-            continue;
         }
     }
 
-    const ret = arr.pop() as any;
+    const ret = arr.pop() ?? 'void';
     const method = new JavaMethod(className, name, arr, ret, isStatic);
     return Cache.set(methodId, method);
 }
 
-var thunkPage: any, thunkOffset: any;
-function makeThunk(size: number, write: any) {
+let thunkPage: NativePointer | null = null;
+let thunkOffset: NativePointer;
+function makeThunk(size: number, write: (writer: Arm64Writer) => void) {
     if (!thunkPage) {
         thunkPage = Memory.alloc(Process.pageSize);
     }
@@ -153,13 +186,13 @@ function makeThunk(size: number, write: any) {
         }
     });
 
-    thunkOffset += size;
+    thunkOffset.add(size);
 
     return arch === 'arm' ? thunk.or(1) : thunk;
 }
 
 function makeCxxMethodWrapperReturningStdStringByValue(impl: any, argTypes: any) {
-    let thunk = makeThunk(32, (writer: Arm64Writer) => {
+    const thunk = makeThunk(32, (writer: Arm64Writer) => {
         writer.putMovRegReg('x8', 'x0');
         argTypes.forEach((t: any, i: number) => {
             writer.putMovRegReg(`x${i}` as any, `x${i + 1}` as any);
@@ -168,9 +201,12 @@ function makeCxxMethodWrapperReturningStdStringByValue(impl: any, argTypes: any)
         writer.putBrReg('x7');
     });
 
-    const invokeThunk = new NativeFunction(thunk, 'void', ['pointer'].concat(argTypes) as any, { exceptions: 'propagate' });
-    const wrapper = function (...args: any[]) {
-        (invokeThunk as any)(...args);
+    const invokeThunk = new NativeFunction(thunk, 'void', ['pointer'].concat(argTypes) as NativeFunctionArgumentType[], {
+        exceptions: 'propagate',
+    });
+    const wrapper = (...args: NativeFunctionArgumentValue[]) => {
+        //@ts-ignore
+        invokeThunk(...args);
     };
     wrapper.handle = thunk;
     wrapper.impl = impl;
@@ -178,11 +214,13 @@ function makeCxxMethodWrapperReturningStdStringByValue(impl: any, argTypes: any)
 }
 
 function makeCxxMethodWrapperReturningPointerByValueGeneric(address: NativePointer, argTypes: NativeFunctionArgumentType[]) {
-    return new NativeFunction(address, 'pointer', argTypes, { exceptions: 'propagate' });
+    return new NativeFunction(address, 'pointer', argTypes, {
+        exceptions: 'propagate',
+    });
 }
 
 function atleasttry() {
-    resolveMethod(Classes.String.concat.handle, false);
+    // resolveMethod(Classes.String.concat.handle, false);
     // const base = Java.vm.getEnv().handle.readPointer();
     // const GetMethodID = asFunction(base, 'GetMethodID');
     // console.warn('GetMethodID', GetMethodID);
@@ -225,7 +263,6 @@ function atleasttry() {
     // (rpc as any).prettyMethod = prettyMethod;
     // (rpc as any).sigToStr = sigToStr;
 
-    let w: any, h: any;
     const cleanup = (str: string) => {
         str = str.startsWith('L') && str.endsWith(';') ? str.substring(1, str.length - 1) : str;
         return str.replaceAll('/', '.');
@@ -244,4 +281,4 @@ function atleasttry() {
     // console.warn('begin:', w = (getSignature as any)(h))
     // console.warn('begin:', w = (sigToStr as any)(w))
 }
-export { resolveMethod, fastpathMethod };
+export { fastpathMethod, resolveMethod };

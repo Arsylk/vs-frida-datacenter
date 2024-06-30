@@ -54,7 +54,7 @@ function enumerateMembers(clazz: Java.Wrapper, callback: EnumerateMembersCallbac
 
 function findClass(className: string, ...loaders: Java.Wrapper[]): Java.Wrapper | null {
     try {
-        const mLoaders = [...loaders, ...Java.enumerateClassLoadersSync()];
+        const mLoaders = [...(loaders ??= []), ...Java.enumerateClassLoadersSync()];
         for (const loader of mLoaders) {
             try {
                 if (loader.loadClass(className)) {

@@ -1,5 +1,5 @@
 import { Libc } from '@clockwork/common';
-import { logger, Color } from '@clockwork/logging';
+import { Color, logger } from '@clockwork/logging';
 
 function attachGetHostByName() {
     Interceptor.attach(Libc.gethostbyname, {
@@ -12,7 +12,7 @@ function attachGetHostByName() {
     });
 }
 
-function attachGetAddrInfo(detailed: boolean = false) {
+function attachGetAddrInfo(detailed = false) {
     Interceptor.attach(Libc.getaddrinfo, {
         onEnter(args) {
             this.host = args[0].readCString();
@@ -24,7 +24,7 @@ function attachGetAddrInfo(detailed: boolean = false) {
             const text = !this.port || this.port === 'null' ? `${this.host}` : `${this.host}:${this.port}`;
             const result = resInt === 0x0 ? 'success' : 'failure';
             logger.info({ tag: 'getaddrinfo' }, `${Color.url(text)} -> ${result}`);
-            if (resInt == 0x0) {
+            if (resInt === 0x0) {
                 let ptr: NativePointer = this.result;
                 if (!detailed) return;
 

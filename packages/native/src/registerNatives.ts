@@ -1,6 +1,7 @@
-import { Color } from '@clockwork/logging';
+import { Color, logger } from '@clockwork/logging';
 const { green, redBright, bold, dim, black } = Color.use();
 
+// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 let cachedVtable: any = null;
 function vtable(instance: Java.Env) {
     if (cachedVtable === null) {
@@ -36,7 +37,7 @@ function attachRegisterNatives(fn?: ((this: InvocationContext, retval: Invocatio
     // fallback previous method
     const libart = Process.getModuleByName('libart.so');
     const symbols = libart.enumerateSymbols();
-    symbols.forEach(({ name, address }) => {
+    for(const { name, address } of symbols) {
         if (name.includes('art') && name.includes('JNI') && name.includes('RegisterNatives') && !name.includes('CheckJNI')) {
             console.log('RegisterNatives is at ', address, name);
             Interceptor.attach(address, {
@@ -46,7 +47,7 @@ function attachRegisterNatives(fn?: ((this: InvocationContext, retval: Invocatio
                 },
             });
         }
-    });
+    };
 }
 
 /*
@@ -65,7 +66,7 @@ function logOnEnterRegisterNatives(this: InvocationContext, args: InvocationArgu
     const nMethods = args[3].toInt32();
     const className = Java.vm.tryGetEnv()?.getClassName(clazz) ?? '<unknown>';
 
-    console.log('[RegisterNatives]', redBright(className), 'methods:', bold(nMethods));
+    logger.info({tag: 'RegisterNatives'}, `${redBright(className)} methods: ${bold(nMethods)}`);
     addToExport({
         module: module?.name,
         name: className,
@@ -115,7 +116,7 @@ function badConvert(symbol: DebugSymbol): NativePointer {
 }
 
 function addToExport(item: object) {
-    const native: object[] = ((rpc as any)['RegisterNatives'] ??= []);
+    const native: object[] = ((rpc as (typeof rpc & {RegisterNatives: object[]})).RegisterNatives ??= []);
     native.push(item);
 }
 

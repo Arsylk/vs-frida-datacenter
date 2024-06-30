@@ -58,13 +58,13 @@ function findHook(clazzName: string, methodName: string, params: HookParameters)
     hook(clazz, methodName, params);
 }
 
-function getHookUnique() {
+function getHookUnique(logging: boolean = true) {
     const found = new Set<string>();
 
     return (clazzName: string, methodName: string, params: HookParameters = {}) => {
         const clazz = findClass(clazzName);
         if (!clazz) {
-            logger.info({ tag: 'hookUnique' }, `class ${clazzName} not found !`);
+            logging && logger.info({ tag: 'hookUnique' }, `class ${clazzName} not found !`);
             return;
         }
 

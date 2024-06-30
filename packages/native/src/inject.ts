@@ -13,6 +13,7 @@ namespace Inject {
 
     let do_dlopen: NativePointer;
     let call_ctor: NativePointer;
+    let prelink_image: NativePointer;
 
     const linker = Process.getModuleByName(Process.pointerSize === 4 ? 'linker' : 'linker64');
     for (const { name, address } of linker.enumerateSymbols()) {
@@ -22,6 +23,10 @@ namespace Inject {
         }
         if (name.includes('call_constructor')) {
             call_ctor = address;
+            continue;
+        }
+        if (name.includes('phdr_table_get_dynamic_section')) {
+            prelink_image = address;
             continue;
         }
     }
@@ -34,12 +39,8 @@ namespace Inject {
             if (!libPath) return;
             const libName = (this.libName = libPath.split('/').pop()!!);
             logger.info(`[${pink('dlopen')}] ${libPath}`);
-
-            if (libPath.includes('libjiagu')) {
-                // args[0].writeUtf8String('libc.so\0')
-            }
-
             modules.update();
+
             return;
             // TODO investigate
             let handle: InvocationListener | null = null;
@@ -47,6 +48,7 @@ namespace Inject {
             handle = Interceptor.attach(call_ctor, ctorListenerCallback(libName, unhook));
         },
         onLeave: function (retval) {
+            modules.update();
             if (!this.libPath) return;
             onAfterInitArray(this.libName, this);
         },
@@ -77,7 +79,7 @@ namespace Inject {
     }
 
     export function afterInitArrayModule(fn: (this: InvocationContext, module: Module) => void) {
-        initArrayCallbacks.push(function(name){
+        initArrayCallbacks.push(function (name) {
             const module = Process.findModuleByName(name);
             if (module) fn.call(this, module);
         });
@@ -108,6 +110,20 @@ namespace Inject {
                 }
             },
         });
+    }
+
+    export function attachRelativeTo(
+        module: string, 
+        offset: NativePointer, 
+        callback: NatveFunctionCallbacks,
+    ) {
+        afterInitArrayModule(({name, base}: Module) => {
+            if (name === module) {
+                const ptr = base.add(offset)
+                console.log('attach to: ', ptr)
+                Interceptor.attach(ptr, callback);
+            }
+        })
     }
 
     /** very useful for not hooking hardware, chrome, and other things you that cause crashes */

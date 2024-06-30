@@ -33,6 +33,9 @@ function proxyCallback<T extends { [key: string]: Returnable }>(data: T): Proper
         {},
         {
             get: (_: any, name: string) => {
+                if (name === 'toJSON') {
+                    return data;
+                }
                 const init = data[name];
                 return cache[name] || (cache[name] ??= init());
             },

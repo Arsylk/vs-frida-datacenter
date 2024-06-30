@@ -29,6 +29,10 @@ class JavaMethod {
     public get javaRet(): string {
         return this.#javaRet ??= Text.toPrettyType(this.returnType);
     }
+
+    public get isVoid(): boolean {
+        return this.returnType === 'void';
+    }
 }
 
 export { JavaMethod };
