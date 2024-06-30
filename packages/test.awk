@@ -3,6 +3,7 @@ match($0, /([A-f0-9]{2})([A-f0-9]{2})([A-f0-9]{2})/, c) {
     r = strtonum("0x"c[1])
     g = strtonum("0x"c[2])
     b = strtonum("0x"c[3])
+
     hex = "#"$1$2$3
     printf "\x1b[38;2;%d;%d;%dm#%02x02x%02x -> %3d %3d %3d\x1b[0m\n", r, g, b, r, g, b, r, g, b
 }

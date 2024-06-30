@@ -1,19 +1,16 @@
-import { JavaMethod } from './javaMethod.js';
+import type { JavaMethod } from './javaMethod.js';
 import { JNIEnvInterceptor } from './jniEnvInterceptor.js';
 
 class JNIEnvInterceptorARM64 extends JNIEnvInterceptor {
     private stack: NativePointer = NULL;
-    private stackIndex: number = 0;
+    private stackIndex = 0;
     private grTop: NativePointer = NULL;
     private vrTop: NativePointer = NULL;
-    private grOffs: number = 0;
-    private grOffsIndex: number = 0;
-    private vrOffs: number = 0;
-    private vrOffsIndex: number = 0;
+    private grOffs = 0;
+    private grOffsIndex = 0;
+    private vrOffs = 0;
+    private vrOffsIndex = 0;
 
-    public constructor() {
-        super();
-    }
 
     protected setUpVaListArgExtract(vaList: NativePointer): void {
         const vrStart = 2;
@@ -37,20 +34,28 @@ class JNIEnvInterceptorARM64 extends JNIEnvInterceptor {
 
         if (method.javaParams[paramId] === 'float' || method.javaParams[paramId] === 'double') {
             if (this.vrOffsIndex < MAX_VR_REG_NUM) {
-                currentPtr = this.vrTop.add(this.vrOffs).add(this.vrOffsIndex * Process.pointerSize * VR_REG_SIZE);
+                currentPtr = this.vrTop
+                    .add(this.vrOffs)
+                    .add(this.vrOffsIndex * Process.pointerSize * VR_REG_SIZE);
 
                 this.vrOffsIndex++;
             } else {
-                currentPtr = this.stack.add(this.stackIndex * Process.pointerSize);
+                currentPtr = this.stack.add(
+                    this.stackIndex * Process.pointerSize
+                );
                 this.stackIndex++;
             }
         } else {
             if (this.grOffsIndex < MAX_GR_REG_NUM) {
-                currentPtr = this.grTop.add(this.grOffs).add(this.grOffsIndex * Process.pointerSize);
+                currentPtr = this.grTop
+                    .add(this.grOffs)
+                    .add(this.grOffsIndex * Process.pointerSize);
 
                 this.grOffsIndex++;
             } else {
-                currentPtr = this.stack.add(this.stackIndex * Process.pointerSize);
+                currentPtr = this.stack.add(
+                    this.stackIndex * Process.pointerSize
+                );
                 this.stackIndex++;
             }
         }

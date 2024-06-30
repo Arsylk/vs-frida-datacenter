@@ -8,18 +8,19 @@ export * as Jigau from './jigau.js';
 export * as InstallReferrer from './installReferrer.js';
 export * as Country from './country.js';
 export * as BuildProp from './buildprop.js';
+export * as Debug from './debug.js';
 
 function hookDevice(fn?: (key: string) => number | undefined) {
     enumerateMembers(Classes.Build, {
         onMatchField(clazz, member) {
-            const field = clazz[member]
+            const field = clazz[member];
             const mapped = fn?.(member) ?? buildMapper(member);
             if (field && mapped) {
                 let casted: any = mapped;
                 if (field.fieldReturnType.className === 'boolean') {
                     casted = Boolean(mapped);
                 }
-                field.value = casted
+                field.value = casted;
             }
         },
     });
@@ -57,14 +58,19 @@ function hookInstallerPackage() {
 }
 
 function hookLocationHardware() {
-    hook(Classes.LocationManager, 'getGnssHardwareModelName', { replace: always('Model Name Unknown') });
+    hook(Classes.LocationManager, 'getGnssHardwareModelName', {
+        replace: always('Model Name Unknown'),
+    });
 }
 
 function hookSensor() {
     const params: HookParameters = {
         replace(method, ...args) {
             const value = `${method.call(this, ...args)}`;
-            return value.replace(/open|source|emulator|google|aosp|ranchu|goldfish|cuttlefish/gi, 'nya');
+            return value.replace(
+                /open|source|emulator|google|aosp|ranchu|goldfish|cuttlefish/gi,
+                'nya',
+            );
         },
         logging: {
             short: true,

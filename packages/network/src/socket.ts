@@ -27,8 +27,8 @@ type SocketCloseMessage = {
 };
 
 function attachNativeSocket() {
-    const stacktrace: boolean = false,
-        backtrace: boolean = false;
+    const stacktrace = false;
+    const backtrace = false;
     const tcpSocketFDs = new Map<number, TcpEndpointAddress>();
 
     Interceptor.attach(Libc.connect, {
@@ -63,7 +63,7 @@ function attachNativeSocket() {
             if (stacktrace && Java.available && Java.vm !== null && Java.vm.tryGetEnv()) {
                 // checks if Thread is JVM attached (JNI env available)
                 const exception = Java.use('java.lang.Exception').$new();
-                const trace: any[] = exception.getStackTrace();
+                const trace = exception.getStackTrace();
                 // msg.stacktrace = trace.map((traceEl) => {
                 //     return {
                 //         class: traceEl.getClassName(),
@@ -77,7 +77,7 @@ function attachNativeSocket() {
             }
 
             if (backtrace) {
-                // msg.backtrace = Thread.backtrace(this.context, Backtracer.ACCURATE).map(DebugSymbol.fromAddress);
+                // msg.backtrace = xzxz
             }
 
             //send(msg)
@@ -111,13 +111,13 @@ function attachNativeSocket() {
 }
 
 function logOpen(msg: SocketOpenMessage) {
-    const host = (`${msg.hostIp?.replace('::ffff:', '')}` + String(msg.port ? `:${msg.port}` : ''));
-    const dest = (msg.dstIp ? (`, dst@${msg.dstIp.replace('::ffff:', '')}` + String(msg.dstPort ? `:${msg.dstPort}` : '')) : '');
+    const host = (`${msg.hostIp?.replace('::ffff:', '')}${String(msg.port ? `:${msg.port}` : '')}`);
+    const dest = (msg.dstIp ? (`, dst@${msg.dstIp.replace('::ffff:', '')}${String(msg.dstPort ? `:${msg.dstPort}` : '')}`) : '');
     logger.info(`(pid: ${msg.pid}, thread: ${msg.threadId}, fd: ${msg.socketFd}) ${msg.type} -> [host@${host}${dest}]`);
 }
 
 function logClose(msg: SocketCloseMessage) {
-    const host = (`${msg.hostIp?.replace('::ffff:', '')}` + String(msg.port ? `:${msg.port}` : ''));
+    const host = (`${msg.hostIp?.replace('::ffff:', '')}${String(msg.port ? `:${msg.port}` : '')}`);
     const thread = (msg.threadId ? `, thread: ${msg.threadId}` : '');
     logger.info(`(pid: ${msg.pid}${thread}, fd: ${msg.socketFd}) ${msg.type} -> ${host}`);
 }

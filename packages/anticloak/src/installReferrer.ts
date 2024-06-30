@@ -15,15 +15,15 @@ interface ReferrerDetails {
 }
 
 function createInstallReferrer(classWrapper: Java.Wrapper, details: ReferrerDetails): Java.Wrapper {
-    const now = Date.now();
+    const now = Date.now() / 1000;
     const bundle = Classes.Bundle.$new();
     bundle.putBoolean('google_play_instant', details?.google_play_instant ?? true);
-    bundle.putLong('install_begin_timestamp_seconds', details?.install_begin_timestamp_seconds ?? now - 30 * 1000);
-    bundle.putLong('install_begin_timestamp_server_seconds', details?.install_begin_timestamp_server_seconds ?? now - 30 * 1000);
+    bundle.putLong('install_begin_timestamp_seconds', details?.install_begin_timestamp_seconds ?? now - 30);
+    bundle.putLong('install_begin_timestamp_server_seconds', details?.install_begin_timestamp_server_seconds ?? now - 30);
     bundle.putString('install_referrer', details?.install_referrer ?? 'utm_medium=Non-Organic');
     bundle.putString('install_version', details?.install_version ?? '1.0.0');
-    bundle.putLong('referrer_click_timestamp_seconds', details?.referrer_click_timestamp_seconds ?? now - 65 * 1000);
-    bundle.putLong('referrer_click_timestamp_server_seconds', details?.referrer_click_timestamp_server_seconds ?? now - 65 * 1000);
+    bundle.putLong('referrer_click_timestamp_seconds', details?.referrer_click_timestamp_seconds ?? now - 65);
+    bundle.putLong('referrer_click_timestamp_server_seconds', details?.referrer_click_timestamp_server_seconds ?? now - 65);
     return classWrapper.$new(bundle);
 }
 

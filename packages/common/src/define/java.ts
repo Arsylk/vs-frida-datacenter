@@ -64,7 +64,21 @@ const ClassesString = {
     Throwable: 'java.lang.Throwable',
     ActivityManager: 'android.app.ActivityManager',
     ActivityManager$RunningAppProcessInfo: 'android.app.ActivityManager$RunningAppProcessInfo',
-    ActivityThread: 'android.app.ActivityThread'
+    ActivityThread: 'android.app.ActivityThread',
+    IoBridge: 'libcore.io.IoBridge',
+    Linux: 'libcore.io.Linux',
+    ByteArrayInputStream: 'java.io.ByteArrayInputStream',
+    StandardCharsets: 'java.nio.charset.StandardCharsets',
+    HttpURLConnectionImpl: 'com.android.okhttp.internal.huc.HttpURLConnectionImpl',
+    SimpleDateFormat: 'java.text.SimpleDateFormat',
+    Resources: 'android.content.res.Resources',
+    Preferences: 'androidx.datastore.preferences.core.Preferences',
+    Preferences$Key: 'androidx.datastore.preferences.core.Preferences$Key',
+    ByteBuffer: 'java.nio.ByteBuffer',
+    KeyguardManager: 'android.app.KeyguardManager',
+    ContextImpl: 'android.app.ContextImpl',
+    Context: 'android.content.Context',
+    Executable: 'java.lang.reflect.Executable',
 };
 
 type ClassesType = PropertyJavaUseMapper<typeof ClassesString>;

@@ -1,0 +1,42 @@
+import { logger } from '@clockwork/logging';
+import { Inject } from './inject.js';
+
+function hookLogcat() {
+    const liblog = Process.getModuleByName('liblog.so');
+    const _isLoggable = liblog.getExportByName('__android_log_is_loggable');
+    Interceptor.replaceFast(_isLoggable, new NativeCallback(() => 1, 'bool', ['int', 'pointer', 'int']));
+    const _logPrint = liblog.getExportByName('__android_log_print');
+    Interceptor.attach(_logPrint, {
+        onEnter: function (args) {
+            this.resultPtr = this.context.sp.sub(1112);
+            const tag = (this.tag = args[1].readCString()) ?? '';
+            const msg = (this.msg = args[2].readCString()) ?? '';
+            // logger.info(`${this.resultPtr} +- ${args[1]} = ${args[1].sub(this.resultPtr)}` )
+        },
+        onLeave(retval) {
+            // ogger.info({ tag: 'logcat', id: this.tag }, `{${counter++}} ${this.resultPtr.readCString(200)}`);
+        },
+    });
+    const vsnprintf = Module.getExportByName(null, 'vsnprintf');
+    Inject.attachInModule('liblog.so', vsnprintf, {
+        onEnter: function (args) {
+            this.result = args[0];
+        },
+        onLeave: function (retval) {
+            if (liblog.base <= this.returnAddress && liblog.base.add(liblog.size) >= this.returnAddress) {
+                const result = this.result;
+                logger.info({ tag: 'logcat' }, `${result.readCString()}`.trimEnd());
+                // MemoryAccessMonitor.enable(
+                //     { base: result, size: 1024 },
+                //     {
+                //         onAccess(details) {
+                //             logger.info({ tag: 'memwatch', id: `${result}` }, JSON.stringify(details));
+                //         },
+                //     },
+                // );
+            }
+        },
+    });
+}
+
+export { hookLogcat };

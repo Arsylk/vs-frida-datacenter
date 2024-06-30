@@ -1,4 +1,5 @@
 import { stacktrace } from "@clockwork/common";
+import { ifError } from "assert";
 
 
 const prefsMeasurementInternalIgnored = [
@@ -51,7 +52,7 @@ const Filter = {
 
         return true;
     },
-    prefs: (method: any, ...args: any[]) => {
+    prefs: (method: Java.Method, ...args: any[]) => {
         const trace = stacktrace();
         if (trace.includes('at com.yandex.mobile.ads.core.initializer.MobileAdsInitializeProvider.')) return false;
         if (trace.includes('at com.facebook.FacebookSdk.getLimitEventAndDataUsage')) return false;
@@ -83,6 +84,9 @@ const Filter = {
                 }
             }
         }
+        if (method.methodName === 'getInt' && args[0] === 'music') {
+            return false;
+        }
 
         return true;
     },
@@ -92,6 +96,8 @@ const Filter = {
         if (trace.includes('at com.appsflyer.internal.')) return false;
         if (trace.includes('at com.onesignal.OneSignalPrefs.')) return false;
         if (trace.includes('at com.google.android.gms.internal.ads.')) return false;
+        if (trace.includes('at com.adjust.sdk.SdkClickHandler.sendSdkClick')) return false;
+        if (trace.includes('at com.appsgeyser.sdk.ads.AdsLoader')) return false;
         console.log(trace)
         return true;
     },

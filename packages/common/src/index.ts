@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import { ClassesProxy as Classes, ClassesString } from './define/java.js';
-import { LibcFinderProxy } from './define/libc.js';
+import { LibcFinderProxy, LibcType } from './define/libc.js';
 export * as Struct from './define/struct.js';
 export * as Std from './define/std.js';
 export * as Text from './text.js';
@@ -27,9 +27,14 @@ function getApplicationContext(): Java.Wrapper {
 
 const emitter = new EventEmitter();
 declare global {
+    const Libc: LibcType;
     function findClass(className: string, ...loaders: Java.Wrapper[]): Java.Wrapper | null
 }
 Object.defineProperties(global, {
+    Libc: { 
+        value: LibcFinderProxy,
+        writable: false,
+    },
     findClass: {
         value: findClass
     },

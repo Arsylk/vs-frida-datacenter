@@ -1,21 +1,21 @@
-import { JavaMethod } from './javaMethod.js';
-import { JNIEnvInterceptorARM64 } from './jniEnvInterceptorArm64.js';
-import { JNIEnvInterceptor } from './jniEnvInterceptor.js';
-import { Text, Classes, Std, enumerateMembers } from '@clockwork/common';
+import { Classes, ClassesString, Text } from '@clockwork/common';
 import { Color, subLogger } from '@clockwork/logging';
+import type { JavaMethod } from './javaMethod.js';
+import { JNIEnvInterceptorARM64 } from './jniEnvInterceptorArm64.js';
 import { JNIMethod } from './jniMethod.js';
 import { fastpathMethod, resolveMethod } from './tracer.js';
+import { asFunction, JNI } from './jni.js';
 const logger = subLogger('jnitrace');
 const { black, blue, dim, redBright, yellow } = Color.use();
 
+const PrimitiveNumberTypes = ['double', 'float', 'int', 'long', 'short'];
+
 // TODO fix all of this
-let IF_CHECK = function (thisRef: InvocationContext): boolean {
-    return false;
-};
+let IF_CHECK = (thisRef: InvocationContext): boolean => false;
 
 function ColorMethod(jMethodId: NativePointer, method: JavaMethod): string {
     let sb = '';
-    sb += redBright(`${jMethodId}` + ' -' + dim('>'));
+    sb += redBright(`${jMethodId} -${dim('>')}`);
     sb += Color.className(method.className);
     sb += '::';
     sb += Color.method(method.name);
@@ -28,7 +28,7 @@ function ColorMethod(jMethodId: NativePointer, method: JavaMethod): string {
     return sb;
 }
 
-function ColorMethodInvoke(method: JavaMethod, args: any[]): string {
+function ColorMethodInvoke(method: JavaMethod, args: string[]): string {
     let sb = '';
     sb += dim('call');
     sb += ' ';
@@ -60,62 +60,83 @@ function hookIf<T>(
     };
 }
 
-function hookIfTag<T>(tag: string, callback: (this: InvocationContext, args: T) => string | null | undefined) {
+function hookIfTag<T extends InvocationArguments | InvocationReturnValue>(
+    tag: string,
+    callback: (this: InvocationContext, args: T) => string | null | undefined,
+) {
     return hookIf(callback, dim(tag));
 }
 
-function formatCallMethod(nativeName: string, jMethodId: NativePointer, method: JavaMethod | null, args: any[] | null): string | null {
+function formatCallMethod(
+    nativeName: string,
+    jMethodId: NativePointer,
+    method: JavaMethod | null,
+    args: NativeFunctionArgumentValue[] | null,
+): string | null {
     if (!method) return null; // ! TODO fix
     if (args) {
         const mappedArgs: string[] = [];
         for (const i in method.parameters) {
             const param = method.parameters[i];
-            mappedArgs.push(args[i] as any);
+            const arg = args[i];
+            mappedArgs.push(`${arg}`);
 
-            switch (param) {
-                case 'java.lang.String': {
-                    const wrapped = Java.cast(args[i] as any, Classes.String);
-                    mappedArgs[i] = Color.string(wrapped);
-                    continue;
-                }
-                case 'boolean': {
-                    const textBoolean = args[i] ? 'true' : 'false';
-                    mappedArgs[i] = Color.number(textBoolean);
-                    continue;
-                }
-                case 'double':
-                case 'float':
-                case 'int':
-                case 'long': {
-                    mappedArgs[i] = Color.number(args[i]);
-                    continue
-                }
+            if (arg === undefined) {
+                mappedArgs[i] = Color.number(null);
+                continue;
             }
 
-            if ((args[i] instanceof NativePointer) && (args[i] as NativePointer)?.isNull()) {
-                mappedArgs[i] = Color.number(null)
-                continue
+            if (Object.hasOwn(arg as object, '$h') && param === ClassesString.String && arg instanceof NativePointer) {
+                const wrapped = Java.cast(arg, Classes.String);
+                mappedArgs[i] = Color.string(wrapped);
+                continue;
+            }
+
+            if (param === 'boolean') {
+                const textBoolean = args[i] ? 'true' : 'false';
+                mappedArgs[i] = Color.number(textBoolean);
+                continue;
+            }
+
+            if (param in PrimitiveNumberTypes) {
+                mappedArgs[i] = Color.number(args[i]);
+                continue;
+            }
+
+            if (arg instanceof NativePointer && (args[i] as NativePointer)?.isNull()) {
+                mappedArgs[i] = Color.number(null);
+                continue;
             }
 
             try {
-                const wrapped = Java.cast(args[i] as any, Classes.Object);
+                const wrapped = Java.cast(args[i] as NativePointerValue | Java.Wrapper, Classes.Object);
                 //@ts-ignore
-                mappedArgs[i] = Classes.String.valueOf(wrapped)
-            } catch(e) {
-            }
+                mappedArgs[i] = Classes.String.valueOf(wrapped);
+            } catch (e) {}
         }
-        
+
         return ColorMethodInvoke(method, mappedArgs);
     }
     return null;
 }
 
 function formatMethodReturn(value: NativePointer | null): string | null {
-    if (!value || value.isNull()) return null;
+    // ! end the suffering, refactor this
     let text = `${value}`;
+    if (value && !value.isNull())
+        try {
+            // ? do not ask, i have no idea why this prevents crashes
+            String(value) + String(value.readByteArray(8));
+            const wrapped = Java.cast(value as NativePointer, Classes.Object);
+            //@ts-ignore
+            text = Classes.String.valueOf(wrapped);
+            if (text === `${value}`) text = Color.string(text);
+        } catch (err) {
+            logger.error(err);
+        }
     let type = null; // Java.vm.tryGetEnv()?.getObjectClassName(value);
-    if (type && (type = Text.toPrettyType(type))) {
-        if (type == Classes.String.$className) {
+    if (value && !value.isNull() && type && (type = Text.toPrettyType(type))) {
+        if (type === Classes.String.$className) {
             text = yellow(`"${Java.cast(value, Classes.String)}"`);
         } else if (type.includes('.')) {
             text = `${Java.cast(value, Classes.Object)}`;
@@ -154,52 +175,55 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
     const addrsCallStatic: JNIMethod[] = [];
     const addrsCallNonvirtual: JNIMethod[] = [];
     const addrsCallMethod: JNIMethod[] = [];
-    let ToReflectedMethod: NativeFunction<NativePointer, [NativePointerValue, NativePointerValue, NativePointerValue]> | null = null;
-    let GetMethodID: NativeFunction<NativePointer, [NativePointerValue, NativePointerValue, NativePointerValue]> | null = null;
+    const addrsNewObject: JNIMethod[] = [];
+    let ToReflectedMethod: NativeFunction<NativePointer, [NativePointerValue, NativePointerValue, NativePointerValue, number]> | null =
+        null;
+    // let GetMethodID: NativeFunction<NativePointer, [NativePointerValue, NativePointerValue, NativePointerValue, NativePointerValue]> | null = null;
 
-    symbols.forEach(({ name, address }) => {
+    for (const { name, address } of symbols) {
         if (name.includes('art') && name.includes('JNI') && name.includes('_ZN3art3JNIILb0') && !name.includes('CheckJNI')) {
             if (name.includes('GetStringUTFChars')) {
                 addrGetStringUTFChars = address;
-                logger.trace('GetStringUTFChars is at', address, name);
+                logger.trace(`GetStringUTFChars is at ${name} ${address}`);
             } else if (name.includes('NewStringUTF')) {
                 addrNewStringUTF = address;
-                logger.trace('NewStringUTF is at', address, name);
+                logger.trace(`NewStringUTF is at ${name} ${address}`);
             } else if (name.includes('DefineClass')) {
                 addrsDefineClass.push(address);
-                logger.trace('DefineClass is at', address, name);
+                logger.trace(`DefineClass is at ${name} ${address}`);
             } else if (name.includes('FindClass')) {
                 addrFindClass = address;
-                logger.trace('FindClass is at', address, name);
+                logger.trace(`FindClass is at ${name} ${address}`);
             } else if (name.includes('GetMethodID')) {
                 addrGetMethodID = address;
-                GetMethodID = new NativeFunction(addrGetMethodID, 'pointer', ['pointer', 'pointer', 'pointer']);
-                logger.trace('GetMethodID is at', address, name);
+                logger.trace(`GetMethodID is at ${name} ${address}`);
             } else if (name.includes('GetStaticMethodID')) {
                 addrGetStaticMethodID = address;
-                logger.trace('GetStaticMethodID is at', address, name);
+                logger.trace(`GetStaticMethodID is at ${name} ${address}`);
             } else if (name.includes('GetFieldID')) {
                 addrGetFieldID = address;
-                logger.trace('GetFieldID is at', address, name);
+                logger.trace(`GetFieldID is at ${name} ${address}`);
             } else if (name.includes('GetStaticFieldID')) {
                 addrGetStaticFieldID = address;
-                logger.trace('GetStaticFieldID is at', address, name);
+                logger.trace(`GetStaticFieldID is at ${name} ${address}`);
             } else if (name.includes('RegisterNatives')) {
                 addrRegisterNatives = address;
-                logger.trace('RegisterNatives is at', address, name);
+                logger.trace(`RegisterNatives is at ${name} ${address}`);
+            } else if (name.includes('NewObject')) {
+                addrsNewObject.push(new JNIMethod(name, address));
+                logger.trace(`NewObject is at ${name} ${address}`);
             } else if (name.includes('CallStatic')) {
                 addrsCallStatic.push(new JNIMethod(name, address));
-                logger.trace('CallStatic is at', address, name);
+                logger.trace(`CallStatic is at ${name} ${address}`);
             } else if (name.includes('CallNonvirtual')) {
                 addrsCallNonvirtual.push(new JNIMethod(name, address));
-                logger.trace('CallNonvirtual is at', address, name);
+                logger.trace(`CallNonvirtual is at ${name} ${address}`);
             } else if (name.includes('Call') && name.includes('Method')) {
-                console.warn(name);
                 addrsCallMethod.push(new JNIMethod(name, address));
-                logger.trace('Call<>Method is at', address, name);
+                logger.trace(`Call<>Method is at ${name} ${address}`);
             } else if (name.includes('ToReflectedMethod')) {
-                ToReflectedMethod = new NativeFunction(address, 'pointer', ['pointer', 'pointer', 'pointer']);
-                logger.trace('ToReflectedMethod is at', address, name);
+                ToReflectedMethod = new NativeFunction(address, 'pointer', ['pointer', 'pointer', 'pointer', 'uint8']);
+                logger.trace(`ToReflectedMethod is at ${name} ${address}`);
             } else if (name.includes('GetArrayLength')) {
                 // Interceptor.attach(address, {
                 //     onLeave: hookIfTag('GetArrayLength', (retval) => `${retval}`),
@@ -226,46 +250,81 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
                 // });
             }
         }
-    });
+    }
 
     addrGetStringUTFChars &&
         Interceptor.attach(addrGetStringUTFChars, {
             // std::tuple< UniqueStringUTFChars, bool > 	GetStringUTFChars (JNIEnv &env, jstring &string)
-            onLeave: hookIfTag('GetStringUTFChars', (retval) => yellow(`"${retval.readCString()}"`)),
+            onLeave: hookIfTag('GetStringUTFChars', (retval) => Color.string(retval.readCString())),
         });
     addrNewStringUTF &&
         Interceptor.attach(addrNewStringUTF, {
             // jstring & 	NewStringUTF (JNIEnv &env, const char *bytes)
-            onEnter: hookIfTag('NewStringUTF', (args) => yellow(`"${args[1].readCString()}"`)),
+            onEnter: hookIfTag('NewStringUTF', (args) => {
+                const string = args[1].readCString();
+                switch (string) {
+                    case 'com/cocos/lib/CocosHelper':
+                    case 'org/cocos2dx/lib/CanvasRenderingContext2DImpl':
+                    case 'com/cocos/lib/CanvasRenderingContext2DImpl':
+                        return;
+                }
+                return Color.string(string);
+            }),
         });
 
-    addrsDefineClass.forEach((addres) => {
+    for (const addres of addrsDefineClass) {
         Interceptor.attach(addres, {
             // jclass & 	DefineClass (JNIEnv &env, const char *name, jobject &loader, const jbyte *buf, jsize size)
             // auto 	DefineClass (JNIEnv &env, const char *name, jobject &loader, const Array &buf) -> std::enable_if_t< IsArraylike< Array >::value, jclass & >
             onEnter: hookIfTag('DefineClass', (args) => args[1].readCString()),
         });
-    });
+    }
 
     addrFindClass &&
         Interceptor.attach(addrFindClass, {
             // jclass & 	FindClass (JNIEnv &env, const char *name)
-            onEnter: hookIfTag('FindClass', (args) => args[1].readCString()),
+            onEnter: hookIfTag('FindClass', (args) => {
+                const className = args[1].readCString();
+                if (className === 'com/cocos/lib/CocosHelper') return;
+                return className;
+            }),
         });
 
-
-    const getMethodId = function (isStatic: boolean = false) {
+    const getMethodId = (isStatic: boolean) => {
         // jmethodID       GetMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig);
         // jmethodID GetStaticMethodID(JNIEnv *env, jclass clazz, const char *name, const char *sig);
         return {
-            onEnter(this: InvocationContext, args: any) {
+            onEnter(this: InvocationContext, args: InvocationArguments) {
                 this.env = args[0];
                 this.clazz = args[1];
-                this.name = args[2].readCString();
-                this.sig = args[3].readCString();
+                this.name = args[2]?.readCString();
+                this.sig = args[3]?.readCString();
             },
-            onLeave: hookIfTag<NativePointer>(`Get${isStatic ? 'Static' : ''}MethodID`, function (retval) {
-                const className = Java.vm.tryGetEnv().getClassName(this.clazz);
+            onLeave: hookIfTag<InvocationReturnValue>(`Get${isStatic ? 'Static' : ''}MethodID`, function (retval) {
+                // return `missing args [ env: ${this.env} clazz: ${this.clazz} name: ${this.name} sig: ${this.sig} ]`
+
+                const className = Java.vm.tryGetEnv()?.getClassName(this.clazz);
+                if (
+                    className === 'com.cocos.lib.CocosHelper' &&
+                    (this.name === 'flushTasksOnGameThreadAtForeground' || this.name === 'flushTasksOnGameThread')
+                ) {
+                    return;
+                }
+                if (className?.endsWith('lib.CanvasRenderingContext2DImpl')) {
+                    return;
+                    switch (this.name) {
+                        case 'measureText':
+                        case 'setLineJoin':
+                        case 'getDataRef':
+                        case 'setFillStyle':
+                        case 'updateFont':
+                        case 'setStrokeStyle':
+                        case 'setTextAlign':
+                        case 'setTextBaseline':
+                            return;
+                    }
+                    return;
+                }
                 const method = fastpathMethod(retval, className, this.name, this.sig, isStatic);
                 return ColorMethod(retval, method);
             }),
@@ -273,6 +332,7 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
     };
     addrGetMethodID && Interceptor.attach(addrGetMethodID, getMethodId(false));
     addrGetStaticMethodID && Interceptor.attach(addrGetStaticMethodID, getMethodId(true));
+
     // addrGetFieldID &&
     //     Interceptor.attach(addrGetFieldID, {
     //         // jfieldID & 	GetFieldID (JNIEnv &env, jclass &clazz, const char *name, const char *sig)
@@ -299,60 +359,125 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
     //             return `${className}::${name}${sig}`;
     //         }),
     //     });
-
-    addrsCallStatic.forEach(({ address, name }) => {
+    for (const { address, name } of addrsNewObject) {
         Interceptor.attach(address, {
-            // std::enable_if_t<!std::is_void< R >::value, R > 	CallStaticMethod (JNIEnv &env, jclass &clazz, jmethodID &method, Args &&... args)
-            onEnter: hookIfTag('CallStatic', (rawargs) => {
+            onEnter: hookIfTag('NewObject', function (rawargs) {
                 const env = rawargs[0];
                 const jclass = rawargs[1];
                 const jMethodId = rawargs[2];
                 const args = rawargs[3];
-                const method = resolveMethod(jMethodId, true);
-                const callArgs = jniInterceptor.getCallMethodArgs(name, [env, jclass, jMethodId, args], true);
-                return formatCallMethod(name, jMethodId, method, callArgs);
+                const method = (this.method = resolveMethod(env, jclass, jMethodId, true));
+                const callArgs = jniInterceptor.getCallMethodArgs(name, [env, jclass, jMethodId, args], method);
+                const result = formatCallMethod(name, jMethodId, method, callArgs);
+
+                return result;
             }),
-            onLeave: hookIfTag('CallStatic', formatMethodReturn),
         });
-    });
-    addrsCallNonvirtual.forEach(({ address, name }) => {
+    }
+
+    for (const { address, name } of addrsCallStatic) {
+        Interceptor.attach(address, {
+            // std::enable_if_t<!std::is_void< R >::value, R > 	CallStaticMethod (JNIEnv &env, jclass &clazz, jmethodID &method, Args &&... args)
+            onEnter: hookIfTag('CallStatic', function (rawargs) {
+                const env = rawargs[0];
+                const jclass = rawargs[1];
+                const jMethodId = rawargs[2];
+                const args = rawargs[3];
+                const method = (this.method = resolveMethod(env, jclass, jMethodId, true));
+                const callArgs = jniInterceptor.getCallMethodArgs(name, [env, jclass, jMethodId, args], method);
+                const result = formatCallMethod(name, jMethodId, method, callArgs);
+                if (result?.includes('CocosHelper') && result?.includes('flushTasksOnGameThread')) {
+                    return;
+                }
+                return result;
+            }),
+            onLeave: hookIfTag('CallStatic', function (retval) {
+                if (!this.method || this.method.isVoid) return;
+                return formatMethodReturn(retval);
+            }),
+        });
+    }
+    for (const { address, name } of addrsCallNonvirtual) {
         Interceptor.attach(address, {
             // std::enable_if_t< std::is_void< R >::value, R > 	CallNonvirtualMethod (JNIEnv &env, jobject *obj, jclass &clazz, jmethodID &method, Args &&... args)
-            onEnter: hookIfTag('CallNonvirtual', (rawargs) => {
+            onEnter: hookIfTag('CallNonvirtual', function (rawargs) {
                 const env = rawargs[0];
                 const jobject = rawargs[1];
                 const jclass = rawargs[2];
                 const jMethodId = rawargs[3];
                 const args = rawargs[4];
-                const method = resolveMethod(jMethodId, false);
-                const callArgs = jniInterceptor.getCallMethodArgs(name, [env, jobject, jclass, jMethodId, args], false);
+                const method = (this.method = resolveMethod(env, jclass, jMethodId, false));
+                const callArgs = jniInterceptor.getCallMethodArgs(name, [env, jobject, jclass, jMethodId, args], method);
                 return formatCallMethod(name, jMethodId, method, callArgs);
             }),
-            onLeave: hookIfTag('CallNonvirtual', formatMethodReturn),
+            onLeave: hookIfTag('CallNonvirtual', function (retval) {
+                if (this.method?.isVoid) return;
+                return formatMethodReturn(retval);
+            }),
         });
-    });
-    addrsCallMethod.forEach(({ address, name }) => {
+    }
+
+    for (const { address, name } of addrsCallMethod) {
+        const namePtr = Memory.allocUtf8String(name);
+        const tag = Libc.__cxa_demangle(namePtr, NULL, NULL, NULL).readCString() ?? name;
+        
         Interceptor.attach(address, {
             // std::enable_if_t<!std::is_void< R >::value, R > 	CallMethod (JNIEnv &env, jobject *obj, jmethodID &method, Args &&... args)
-            onEnter: hookIfTag('CallMethod', (rawargs) => {
+            onEnter: hookIfTag(tag, function (rawargs) {
                 const env = rawargs[0];
                 const jobject = rawargs[1];
                 const jMethodId = rawargs[2];
                 const args = rawargs[3];
-                const method = resolveMethod(jMethodId, false);
-                const callArgs = jniInterceptor.getCallMethodArgs(name, [env, jobject, jMethodId, args], false);
+                const method = resolveMethod(env, jobject, jMethodId, false);
+                const callArgs = jniInterceptor.getCallMethodArgs(name, [env, jobject, jMethodId, args], method);
 
                 // TODO this logging api
                 // const cn = Java.vm.tryGetEnv().getObjectClassName(jobject);
-                // if (cn.includes('.')) {
+                // if (cn.includes('.')) oiai{
                 //     const str = Java.cast(jobject, Java.use('java.lang.Object'));
                 //     console.warn(str['toString']());
                 // }
-                return formatCallMethod(name, jMethodId, method, callArgs);
+                const result = formatCallMethod(name, jMethodId, method, callArgs);
+                if (result?.includes('ClassLoader') && result?.includes('loadClass')) {
+                    if (
+                        result?.includes('com/cocos/lib/CocosHelper') ||
+                        result?.includes('org/cocos2dx/lib/CanvasRenderingContext2DImpl') ||
+                        result?.includes('com/cocos/lib/CanvasRenderingContext2DImpl')
+                    ) {
+                        this.ignore = true;
+                        return;
+                    }
+                }
+                if (
+                    (result?.includes('UnityPlayer') && result?.includes('executeMainThreadJobs')) ||
+                    (result?.includes('Choreographer') && result?.includes('postFrameCallback'))
+                ) {
+                    this.ignore = true;
+                    return;
+                }
+                if (result?.includes('longValue') && `${DebugSymbol.fromAddress(this.returnAddress)}`?.includes('libunity.so')) {
+                    this.ignore = true;
+                    return;
+                }
+                if (
+                    (this.method?.className === 'android.media.AudioDeviceInfo' ||
+                        this.method?.className === 'android.media.AudioManager' ||
+                        this.method?.className === 'android.view.MotionEvent') &&
+                    `${DebugSymbol.fromAddress(this.returnAddress)}`?.includes('libunity.so')
+                ) {
+                    this.ignore = true;
+                    return;
+                }
+
+                return result;
             }),
-            onLeave: hookIfTag('CallMethod', formatMethodReturn),
+            onLeave: hookIfTag(tag, function (retval) {
+                if (this.method?.isVoid) return;
+                if (this.ignore) return;
+                return formatMethodReturn(retval);
+            }),
         });
-    });
+    }
 }
 
 export { hookLibart as attach };
