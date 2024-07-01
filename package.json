@@ -26,8 +26,11 @@
     },
     "homepage": "https://github.com/Arsylk/frida-clockwork#readme",
     "dependencies": {
+        "@clockwork/common": "^1.0.0",
+        "@clockwork/logging": "^1.0.0",
         "@reversense/interruptor": "^1.0.12",
-        "frida-compile": "^16.4.1"
+        "frida-compile": "^16.4.1",
+        "typescript": "^5.5.2"
     },
     "devDependencies": {
         "@biomejs/biome": "1.8.3",

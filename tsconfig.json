@@ -1,18 +1,39 @@
 {
     "compilerOptions": {
-        "esModuleInterop": true
+        "esModuleInterop": true,
+        "sourceMap": true
     },
     "files": [],
     "references": [
-        { "path": "packages/logging" },
-        { "path": "packages/common" },
-        { "path": "packages/hooks" },
-        { "path": "packages/network" },
-        { "path": "packages/native" },
-        { "path": "packages/jnitrace" },
-        { "path": "packages/cocos2dx" },
-        { "path": "packages/unity" },
-        { "path": "packages/anticloak" },
-        { "path": "packages/dump" },
+        {
+            "path": "packages/logging"
+        },
+        {
+            "path": "packages/common"
+        },
+        {
+            "path": "packages/hooks"
+        },
+        {
+            "path": "packages/network"
+        },
+        {
+            "path": "packages/native"
+        },
+        {
+            "path": "packages/jnitrace"
+        },
+        {
+            "path": "packages/cocos2dx"
+        },
+        {
+            "path": "packages/unity"
+        },
+        {
+            "path": "packages/anticloak"
+        },
+        {
+            "path": "packages/dump"
+        }
     ]
 }
