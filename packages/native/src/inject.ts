@@ -33,11 +33,11 @@ namespace Inject {
 
     // TODO add just hook dlopen_ext
     // const android_dlopen_ext = Module.getExportByName(null, 'android_dlopen_ext');
-    Interceptor.attach(do_dlopen!!, {
+    Interceptor.attach(do_dlopen!, {
         onEnter: function (args) {
             const libPath = (this.libPath = args[0].readCString());
             if (!libPath) return;
-            const libName = (this.libName = libPath.split('/').pop()!!);
+            const libName = (this.libName = libPath.split('/').pop()!);
             logger.info(`[${pink('dlopen')}] ${libPath}`);
             modules.update();
 
@@ -85,7 +85,11 @@ namespace Inject {
         });
     }
 
-    export function attachInModule(name: string, address: NativePointer, callbacks: NatveFunctionCallbacks): void;
+    export function attachInModule(
+        name: string,
+        address: NativePointer,
+        callbacks: NatveFunctionCallbacks,
+    ): void;
     export function attachInModule(
         predicate: (ptr: NativePointer) => boolean,
         address: NativePointer,
@@ -97,7 +101,9 @@ namespace Inject {
         callbacks: NatveFunctionCallbacks,
     ): void {
         const fn =
-            typeof nameOrPredicate === 'function' ? nameOrPredicate : (ptr: NativePointer) => modules.findName(ptr) === nameOrPredicate;
+            typeof nameOrPredicate === 'function'
+                ? nameOrPredicate
+                : (ptr: NativePointer) => modules.findName(ptr) === nameOrPredicate;
         Interceptor.attach(address, {
             onEnter(args) {
                 if (fn(this.returnAddress)) {
@@ -113,17 +119,17 @@ namespace Inject {
     }
 
     export function attachRelativeTo(
-        module: string, 
-        offset: NativePointer, 
+        module: string,
+        offset: NativePointer,
         callback: NatveFunctionCallbacks,
     ) {
-        afterInitArrayModule(({name, base}: Module) => {
+        afterInitArrayModule(({ name, base }: Module) => {
             if (name === module) {
-                const ptr = base.add(offset)
-                console.log('attach to: ', ptr)
+                const ptr = base.add(offset);
+                console.log('attach to: ', ptr);
                 Interceptor.attach(ptr, callback);
             }
-        })
+        });
     }
 
     /** very useful for not hooking hardware, chrome, and other things you that cause crashes */

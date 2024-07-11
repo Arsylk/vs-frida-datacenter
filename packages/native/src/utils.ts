@@ -37,7 +37,7 @@ function getSelfProcessName(): string | null {
 
 function getSelfFiles(): string {
     const process_name = getSelfProcessName();
-    const files_dir = '/data/data/' + process_name + '/files';
+    const files_dir = `/data/data/${process_name}/files`;
     mkdir(files_dir);
     return files_dir;
 }
@@ -83,11 +83,11 @@ function dumpFile(stringPtr: NativePointer, size: number, relativePath: string, 
 function readFdPath(fd: number, bufsize: number = Process.pageSize): string | null {
     const buf = Memory.alloc(bufsize);
     const path = Memory.allocUtf8String(`/proc/self/fd/${fd}`);
-    
-    const _ = Libc.readlink(path, buf, bufsize)
+
+    const _ = Libc.readlink(path, buf, bufsize);
     const str = buf.readCString();
     dellocate(buf);
-    dellocate(path)
+    dellocate(path);
     return str;
 }
 

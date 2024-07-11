@@ -1,10 +1,8 @@
-import { Returnable, StructTypes } from '../types.js';
+import type { Returnable, StructTypes } from '../types.js';
 
 function mock<T>(): () => T {
     return () => {
-        {
-            throw new Error('Stub');
-        }
+        throw new Error('Stub');
     };
 }
 
@@ -26,7 +24,9 @@ function proxyJavaUse<T>(data: T): PropertyJavaUseMapper<T> {
     );
 }
 
-type PropertyCallbackMapper<T extends { [key: string]: Returnable }> = { [Property in keyof T]: ReturnType<T[Property]> };
+type PropertyCallbackMapper<T extends { [key: string]: Returnable }> = {
+    [Property in keyof T]: ReturnType<T[Property]>;
+};
 function proxyCallback<T extends { [key: string]: Returnable }>(data: T): PropertyCallbackMapper<T> {
     const cache: { [key: string]: any } = {};
     return new Proxy(
@@ -56,11 +56,17 @@ type PropertyStructMapper<T extends { [key: string]: StructTypes }> = {
     [Property in keyof T]: T[Property] extends 'int' | 'long'
         ? StructField<number>
         : T[Property] extends 'string'
-        ? StructField<string>
-        : StructField<NativePointer>;
+          ? StructField<string>
+          : StructField<NativePointer>;
 } & { ptr: NativePointer };
-type StructField<T extends number | string | NativePointer> = { ptr: NativePointer; value: T };
-type StructCreator<T extends { [key: string]: StructTypes }> = { (ptr: NativePointer): PropertyStructMapper<T>; size: number };
+type StructField<T extends number | string | NativePointer> = {
+    ptr: NativePointer;
+    value: T;
+};
+type StructCreator<T extends { [key: string]: StructTypes }> = {
+    (ptr: NativePointer): PropertyStructMapper<T>;
+    size: number;
+};
 function proxyStruct<T extends { [key: string]: StructTypes }>(data: T): StructCreator<T> {
     const creator = (ptr: NativePointer) => {
         const cache: { [key: string]: StructField<any> } = {};
@@ -131,7 +137,7 @@ function proxyStruct<T extends { [key: string]: StructTypes }>(data: T): StructC
                 ownKeys(_: any) {
                     return Reflect.ownKeys(data);
                 },
-                apply: (_: any, thisArg: T, argArray: any[]): T => {
+                apply: (_: any, thisArg: T, _argArray: any[]): T => {
                     return thisArg;
                 },
             },
@@ -164,4 +170,12 @@ function proxyStruct<T extends { [key: string]: StructTypes }>(data: T): StructC
     return creator;
 }
 
-export { proxyJavaUse, PropertyJavaUseMapper, proxyCallback, PropertyCallbackMapper, proxyStruct, StructCreator, PropertyStructMapper };
+export {
+    proxyJavaUse,
+    type PropertyJavaUseMapper,
+    proxyCallback,
+    type PropertyCallbackMapper,
+    proxyStruct,
+    type StructCreator,
+    type PropertyStructMapper,
+};

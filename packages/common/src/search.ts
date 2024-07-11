@@ -2,6 +2,7 @@ import { logger } from '@clockwork/logging';
 
 type BaseJavaWrapper<T extends Java.Members<T>> = Java.Wrapper<T>;
 type BaseJavaMembers<T> = Java.Members<T>;
+// biome-ignore lint/complexity/noBannedTypes: Makes types happy
 type Wrapper<T extends BaseJavaMembers<T> = {}> = BaseJavaWrapper<T> & {
     // raw name
     $n: string;
@@ -24,7 +25,11 @@ interface EnumerateMembersCallbacks {
     onComplete?: () => void;
 }
 
-function enumerateMembers(clazz: Java.Wrapper, callback: EnumerateMembersCallbacks, maxDepth: number = Infinity) {
+function enumerateMembers(
+    clazz: Java.Wrapper,
+    callback: EnumerateMembersCallbacks,
+    maxDepth: number = Number.POSITIVE_INFINITY,
+) {
     let current: Wrapper | undefined = clazz as Wrapper;
     let depth = 0;
     while (depth < maxDepth && current && current.$n !== 'java.lang.Object') {
@@ -74,7 +79,7 @@ function getFindUnique() {
     const found = new Set<string>();
 
     return (clazzName: string, fn: (clazz: Java.Wrapper) => void) => {
-        const clazz = findClass(clazzName)
+        const clazz = findClass(clazzName);
         if (!clazz) {
             logger.info({ tag: 'findUnique' }, `class ${clazzName} not found !`);
             return;

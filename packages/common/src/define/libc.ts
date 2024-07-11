@@ -1,4 +1,4 @@
-import { PropertyCallbackMapper, proxyCallback } from '../internal/proxy.js';
+import { type PropertyCallbackMapper, proxyCallback } from '../internal/proxy.js';
 
 const LibcFinder = {
     // int open(const char *pathname, int flags, mode_t mode);
@@ -232,7 +232,7 @@ const LibcFinder = {
     sscanf: () => {
         const ptr = Module.getExportByName('libc.so', 'sscanf');
         return new NativeFunction(ptr, 'int', ['pointer', 'pointer', '...']);
-    }, 
+    },
     // pid_t getpid(void);
     getpid: () => {
         const ptr = Module.getExportByName('libc.so', 'getpid');
@@ -258,33 +258,48 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', '_exit');
         return new NativeFunction(ptr, 'void', ['int']);
     },
-    // int kill(pid_t pid, int sig); 
+    // int kill(pid_t pid, int sig);
     kill: () => {
         const ptr = Module.getExportByName('libc.so', 'kill');
         return new NativeFunction(ptr, 'int', ['pointer', 'int']);
     },
     // long ptrace(enum __ptrace_request request, pid_t pid, void *addr, void *data);
     ptrace: () => {
-        const ptr = Module.getExportByName('libc.so', 'ptrace')
+        const ptr = Module.getExportByName('libc.so', 'ptrace');
         return new NativeFunction(ptr, 'long', ['int', 'int', 'pointer', 'pointer']);
     },
     // int system(const char *command);
     system: () => {
-        const ptr = Module.getExportByName('libc.so', 'system')
+        const ptr = Module.getExportByName('libc.so', 'system');
         return new NativeFunction(ptr, 'int', ['pointer']);
     },
     // int system(const char *command);
     strerror: () => {
-        const ptr = Module.getExportByName('libc.so', 'strerror')
+        const ptr = Module.getExportByName('libc.so', 'strerror');
         return new NativeFunction(ptr, 'pointer', ['int']);
     },
+    // int sprintf ( char * str, const char * format, ... );
+    sprintf: () => {
+        const ptr = Module.getExportByName('libc.so', 'sprintf');
+        return new NativeFunction(ptr, 'int', ['pointer', 'pointer', '...']);
+    },
+
     // char * __cxa_demangle (const char *mangled_name, char *output_buffer, size_t *length, int *status)
     __cxa_demangle: () => {
-        const ptr = Module.getExportByName('libunwindstack.so', '__cxa_demangle')
+        const ptr = Module.getExportByName('libunwindstack.so', '__cxa_demangle');
         return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer', 'pointer', 'pointer']);
-    }
+    },
 };
 
 type LibcType = PropertyCallbackMapper<typeof LibcFinder>;
 const LibcFinderProxy: LibcType = proxyCallback(LibcFinder);
-export { LibcType, LibcFinderProxy };
+export { type LibcType, LibcFinderProxy };
+`
+  #include <gum/guminterceptor.h>
+  #include <stdio.h>
+  #include <stdarg.h>
+
+  void init() {
+    printf("hi")
+  }
+`;

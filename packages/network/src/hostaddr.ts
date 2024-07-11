@@ -64,10 +64,9 @@ function attachInteAton() {
             this.addr = args[0].readCString();
         },
         onLeave(retval) {
-            logger.info({tag: 'inet_aton'}, `${this.addr} -> ${retval}`)
+            logger.info({ tag: 'inet_aton' }, `${this.addr} -> ${retval}`);
         },
-    })
+    });
 }
-
 
 export { attachGetAddrInfo, attachGetHostByName, attachInteAton };

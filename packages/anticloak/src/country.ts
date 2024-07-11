@@ -85,22 +85,35 @@ const Configurations: { [key: string]: Config } = {
     },
 };
 
-
 function mock(key: keyof typeof Configurations): void;
 function mock(config: Config): void;
 function mock(keyOrConfig: Config | keyof typeof Configurations) {
     const config = typeof keyOrConfig === 'object' ? (keyOrConfig as Config) : Configurations[keyOrConfig];
 
-    const number = `${config.code}${Text.stringNumber(10)}`,
-        subscriber = `${config.mccmnc}${Text.stringNumber(15-config.mccmnc.length)}`;
+    const number = `${config.code}${Text.stringNumber(10)}`;
+    const subscriber = `${config.mccmnc}${Text.stringNumber(15 - config.mccmnc.length)}`;
     hook(Classes.TelephonyManager, 'getLine1Number', { replace: always(number) });
-    hook(Classes.TelephonyManager, 'getSimOperator', { replace: always(config.mccmnc) });
-    hook(Classes.TelephonyManager, 'getSimOperatorName', { replace: always(config.operator) });
-    hook(Classes.TelephonyManager, 'getNetworkOperator', { replace: always(config.mccmnc) });
-    hook(Classes.TelephonyManager, 'getNetworkOperatorName', { replace: always(config.operator) });
-    hook(Classes.TelephonyManager, 'getSimCountryIso', { replace: always(config.country) });
-    hook(Classes.TelephonyManager, 'getNetworkCountryIso', { replace: always(config.country) });
-    hook(Classes.TelephonyManager, 'getSubscriberId', { replace: always(subscriber) });
+    hook(Classes.TelephonyManager, 'getSimOperator', {
+        replace: always(config.mccmnc),
+    });
+    hook(Classes.TelephonyManager, 'getSimOperatorName', {
+        replace: always(config.operator),
+    });
+    hook(Classes.TelephonyManager, 'getNetworkOperator', {
+        replace: always(config.mccmnc),
+    });
+    hook(Classes.TelephonyManager, 'getNetworkOperatorName', {
+        replace: always(config.operator),
+    });
+    hook(Classes.TelephonyManager, 'getSimCountryIso', {
+        replace: always(config.country),
+    });
+    hook(Classes.TelephonyManager, 'getNetworkCountryIso', {
+        replace: always(config.country),
+    });
+    hook(Classes.TelephonyManager, 'getSubscriberId', {
+        replace: always(subscriber),
+    });
     hook(Classes.TimeZone, 'getID', { replace: always(config.timezoneId) });
     hook(Classes.Locale, 'getDefault', {
         replace: () => Classes.Locale.$new(config.locale[1], config.locale[0]),
@@ -111,20 +124,23 @@ function mock(keyOrConfig: Config | keyof typeof Configurations) {
     // hook(Classes.Locale, 'getDisplayCountry', { replace: always('Brazil'), logging: { call: false, return: false } });
     // hook(Classes.Locale, 'toString', { replace: always('pt_BR'), logging: { call: false, return: false } });
 
-    hook(Classes.Resources, `getConfiguration`, {
+    hook(Classes.Resources, 'getConfiguration', {
         after(method, returnValue, ...args) {
-            returnValue.mcc.value = Number(config.mcc) 
-            returnValue.mnc.value = Number(config.mnc) 
-            returnValue.setLocale(Classes.Locale.$new(config.locale[1], config.locale[0]))
+            returnValue.mcc.value = Number(config.mcc);
+            returnValue.mnc.value = Number(config.mnc);
+            returnValue.setLocale(Classes.Locale.$new(config.locale[1], config.locale[0]));
         },
         logging: { call: false, return: false },
-    })
+    });
 
     hook(Classes.Date, 'getTime', {
         loggingPredicate: Filter.date,
         replace(method, ...args) {
             const calendar = Classes.Calendar.getInstance(Classes.TimeZone.getTimeZone('UTC'));
-            const zdt = Classes.ZonedDateTime.ofInstant(Classes.Instant.ofEpochMilli(this.getTime()), Classes.ZoneId.of(config.timezoneId));
+            const zdt = Classes.ZonedDateTime.ofInstant(
+                Classes.Instant.ofEpochMilli(this.getTime()),
+                Classes.ZoneId.of(config.timezoneId),
+            );
             calendar.set(1, zdt.getYear());
             calendar.set(2, zdt.getMonthValue() - 1);
             calendar.set(5, zdt.getDayOfMonth());

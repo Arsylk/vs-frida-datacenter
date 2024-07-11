@@ -1,8 +1,10 @@
-import { FridaMethodReplacement, FridaMethodReplacementOptional } from './types.js';
+import type { FridaMethodReplacement, FridaMethodReplacementOptional } from './types.js';
 
 const always: (value: any) => FridaMethodReplacement = (value) => () => value;
 
-const ifReturn: (fn: FridaMethodReplacementOptional) => FridaMethodReplacement = (fn: FridaMethodReplacementOptional) => {
+const ifReturn: (fn: FridaMethodReplacementOptional) => FridaMethodReplacement = (
+    fn: FridaMethodReplacementOptional,
+) => {
     return function (this: Java.Wrapper, method: Java.Method, ...args: any[]) {
         const result = fn.call(this, method, ...args);
         if (result !== undefined) return result;

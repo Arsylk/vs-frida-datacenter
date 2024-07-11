@@ -1,6 +1,6 @@
 import { Classes, ClassesString, Std, enumerateMembers, findClass } from '@clockwork/common';
 import { JavaMethod } from './javaMethod.js';
-import { JNI, asFunction, type jMethodID } from './jni.js';
+import { JNI, asFunction, type jclass, type jMethodID } from './jni.js';
 
 const Cache = {
     storage: new Map<string, JavaMethod>(),
@@ -16,7 +16,7 @@ const Cache = {
     },
 };
 
-let cachedBase: NativePointer | null = null;
+const cachedBase: NativePointer | null = null;
 let FindClass: NativeFunction<any, any> | null = null;
 let ToReflectedMethod: any = null;
 let getDeclaringClassDesc: NativeFunction<any, any> | null = null;
@@ -39,26 +39,30 @@ function prettyMethod(methodId: NativePointer, withSignature: boolean) {
     return result.disposeToString();
 }
 
-function resolveMethod(env: NativePointer, jClass: NativePointer, methodId: jMethodID, isStatic: boolean): JavaMethod | null {
-    let method = Cache.get(methodId, isStatic);
+function resolveMethod(
+    env: NativePointer,
+    clazz: jclass,
+    methodID: jMethodID,
+    isStatic: boolean,
+): JavaMethod | null {
+    let method = Cache.get(methodID, isStatic);
     if (method) return method;
 
     // fallback to frida getEnv()
     env ??= Java.vm.tryGetEnv()?.handle;
     if (!env) return null;
 
-
     if (FindClass === null && env) FindClass = asFunction(env, JNI.FindClass);
     if (ToReflectedMethod === null && env) ToReflectedMethod = asFunction(env, JNI.ToReflectedMethod);
-    
-    if (ToReflectedMethod) { 
-        const jniMethod = ToReflectedMethod(env, jClass, methodId, isStatic ? 1 : 0)
+
+    if (ToReflectedMethod) {
+        const jniMethod = ToReflectedMethod(env, clazz, methodID, isStatic ? 1 : 0);
         const javaExecutable = Java.cast(jniMethod, Classes.Executable);
-        
+
         const name: string = javaExecutable.getName();
-        const declaringClass: Java.Wrapper = javaExecutable.getDeclaringClass(); 
+        const declaringClass: Java.Wrapper = javaExecutable.getDeclaringClass();
         const parameterTypes: Java.Wrapper[] = javaExecutable.getParameterTypes();
-        const declaringClassType: string = declaringClass.getTypeName(); 
+        const declaringClassType: string = declaringClass.getTypeName();
 
         let returnTypeName: string = declaringClassType;
         if (javaExecutable.$className === ClassesString.Method) {
@@ -71,33 +75,38 @@ function resolveMethod(env: NativePointer, jClass: NativePointer, methodId: jMet
         const method = new JavaMethod(
             declaringClassType,
             name,
-            parameterTypes.map(x => x.getTypeName()),
+            parameterTypes.map((x) => x.getTypeName()),
             returnTypeName,
             isStatic,
         );
 
         declaringClass.$dispose();
-        for(const parameterType of parameterTypes) {
-            parameterType.$dispose()
-        }        
+        for (const parameterType of parameterTypes) {
+            parameterType.$dispose();
+        }
 
-        return Cache.set(methodId, method);
+        return Cache.set(methodID, method);
     }
-
-
 
     if (getDeclaringClassDesc === null) {
         // const getDeclaringClassDescSym = Process.getModuleByName('libart.so')
         //     .enumerateSymbols()
         //     .filter((x) => x.name.includes('DeclaringClassDesc'))[0];
-        const getDeclaringClassDescSym = new ApiResolver('module')?.enumerateMatches('exports:libart.so!*DeclaringClassDesc*')?.[0];
+        const getDeclaringClassDescSym = new ApiResolver('module')?.enumerateMatches(
+            'exports:libart.so!*DeclaringClassDesc*',
+        )?.[0];
         if (!getDeclaringClassDescSym) return null;
-        getDeclaringClassDesc = new NativeFunction(getDeclaringClassDescSym.address, 'pointer', ['pointer'], { exceptions: 'propagate' });
+        getDeclaringClassDesc = new NativeFunction(getDeclaringClassDescSym.address, 'pointer', ['pointer'], {
+            exceptions: 'propagate',
+        });
     }
 
-    const thisSigPtr: NativePointer = getDeclaringClassDesc(methodId);
+    const thisSigPtr: NativePointer = getDeclaringClassDesc(methodID);
     let thisSig = thisSigPtr.readCString();
-    thisSig = thisSig?.startsWith('L') && thisSig.endsWith(';') ? thisSig.substring(1, thisSig.length - 1) : thisSig;
+    thisSig =
+        thisSig?.startsWith('L') && thisSig.endsWith(';')
+            ? thisSig.substring(1, thisSig.length - 1)
+            : thisSig;
     thisSig = thisSig?.replaceAll('/', '.') ?? thisSig;
     const cls = thisSig ? findClass(thisSig) : null;
     if (!thisSig || !cls) return null;
@@ -106,7 +115,7 @@ function resolveMethod(env: NativePointer, jClass: NativePointer, methodId: jMet
     enumerateMembers(cls, {
         onMatchMethod(clazz, member) {
             for (const overload of clazz[member]._o) {
-                if (`${overload.handle}` === `${methodId}`) {
+                if (`${overload.handle}` === `${methodID}`) {
                     matched = overload;
                     method = new JavaMethod(
                         thisSig ?? '',
@@ -115,7 +124,7 @@ function resolveMethod(env: NativePointer, jClass: NativePointer, methodId: jMet
                         overload.returnType.className,
                         isStatic,
                     );
-                    return Cache.set(methodId, method);
+                    return Cache.set(methodID, method);
                 }
             }
         },
@@ -123,7 +132,13 @@ function resolveMethod(env: NativePointer, jClass: NativePointer, methodId: jMet
     return null;
 }
 
-function fastpathMethod(methodId: jMethodID, className: string, name: string, sig: string, isStatic: boolean) {
+function fastpathMethod(
+    methodId: jMethodID,
+    className: string,
+    name: string,
+    sig: string,
+    isStatic: boolean,
+) {
     const txt = sig;
 
     let isArray = false;
@@ -201,9 +216,14 @@ function makeCxxMethodWrapperReturningStdStringByValue(impl: any, argTypes: any)
         writer.putBrReg('x7');
     });
 
-    const invokeThunk = new NativeFunction(thunk, 'void', ['pointer'].concat(argTypes) as NativeFunctionArgumentType[], {
-        exceptions: 'propagate',
-    });
+    const invokeThunk = new NativeFunction(
+        thunk,
+        'void',
+        ['pointer'].concat(argTypes) as NativeFunctionArgumentType[],
+        {
+            exceptions: 'propagate',
+        },
+    );
     const wrapper = (...args: NativeFunctionArgumentValue[]) => {
         //@ts-ignore
         invokeThunk(...args);
@@ -213,7 +233,10 @@ function makeCxxMethodWrapperReturningStdStringByValue(impl: any, argTypes: any)
     return wrapper;
 }
 
-function makeCxxMethodWrapperReturningPointerByValueGeneric(address: NativePointer, argTypes: NativeFunctionArgumentType[]) {
+function makeCxxMethodWrapperReturningPointerByValueGeneric(
+    address: NativePointer,
+    argTypes: NativeFunctionArgumentType[],
+) {
     return new NativeFunction(address, 'pointer', argTypes, {
         exceptions: 'propagate',
     });

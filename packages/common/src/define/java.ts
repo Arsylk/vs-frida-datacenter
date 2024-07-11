@@ -1,4 +1,4 @@
-import { PropertyJavaUseMapper, proxyJavaUse } from '../internal/proxy.js';
+import { type PropertyJavaUseMapper, proxyJavaUse } from '../internal/proxy.js';
 
 const ClassesString = {
     String: 'java.lang.String',
@@ -79,9 +79,10 @@ const ClassesString = {
     ContextImpl: 'android.app.ContextImpl',
     Context: 'android.content.Context',
     Executable: 'java.lang.reflect.Executable',
+    VMDebug: 'dalvik.system.VMDebug',
 };
 
 type ClassesType = PropertyJavaUseMapper<typeof ClassesString>;
 const ClassesProxy: ClassesType = proxyJavaUse(ClassesString);
 
-export { ClassesType, ClassesProxy, ClassesString };
+export { type ClassesType, ClassesProxy, ClassesString };

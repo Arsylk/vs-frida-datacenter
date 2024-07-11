@@ -5,7 +5,9 @@ const logger = subLogger('sysprop');
 
 const spammyKeys = ['debug.stagefright.ccodec_timeout_mult'];
 
-function attachSystemPropertyGet(fn?: (this: InvocationContext, key: string, value: string | null) => string | undefined) {
+function attachSystemPropertyGet(
+    fn?: (this: InvocationContext, key: string, value: string | null) => string | undefined,
+) {
     fn &&
         Interceptor.attach(Libc.__system_property_read, {
             onEnter(args) {},

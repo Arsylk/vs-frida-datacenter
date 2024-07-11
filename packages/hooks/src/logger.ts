@@ -1,18 +1,25 @@
 import { logger, Color } from '@clockwork/logging';
-import { LoggerOptions } from './types.js';
-import { OmitFirstArg } from '@clockwork/common/src/types.js';
+import type { LoggerOptions } from './types.js';
+import type { OmitFirstArg } from '@clockwork/common/src/types.js';
 import { Classes, ClassesString, Text, stacktraceList } from '@clockwork/common';
 const { black, gray, red, green, cyan, dim, italic, bold, yellow, hidden } = Color.use();
 
 type ILogger = {
-    printHookClass(className: string, logId: string): void
+    printHookClass(className: string, logId: string): void;
 
-    printHookMethod(methodName: string, argTypes: string[], returnType: string, logId: string): void
+    printHookMethod(methodName: string, argTypes: string[], returnType: string, logId: string): void;
 
-    printCall(className: string, methodName: string, argValues: any[], returnType: string, logId: string, isReplaced: boolean): void
+    printCall(
+        className: string,
+        methodName: string,
+        argValues: any[],
+        returnType: string,
+        logId: string,
+        isReplaced: boolean,
+    ): void;
 
-    printReturn(returnValue: any, logId: string): void
-}
+    printReturn(returnValue: any, logId: string): void;
+};
 
 const DEFAULT_LOGGER_OPTIONS: LoggerOptions = {
     spacing: '   ',
@@ -65,7 +72,9 @@ const HOOK_LOGGER = {
         if (args.length === 0) return '';
         if (!config.arguments) return gray('...');
         const joinBy = config.multiline ? ', \n' : ', ';
-        const joined = args.map((arg: any) => `${config.multiline ? config.spacing : ''}${this.mapValue(arg)}`).join(joinBy);
+        const joined = args
+            .map((arg: any) => `${config.multiline ? config.spacing : ''}${this.mapValue(arg)}`)
+            .join(joinBy);
 
         return config.multiline ? `\n${joined}\n` : joined;
     },
@@ -81,7 +90,13 @@ const HOOK_LOGGER = {
         this.logInfo(sb, logId);
     },
 
-    printHookMethod(config: LoggerOptions, methodName: string, argTypes: string[], returnType: string, logId: string) {
+    printHookMethod(
+        config: LoggerOptions,
+        methodName: string,
+        argTypes: string[],
+        returnType: string,
+        logId: string,
+    ) {
         if (!config.hook) return;
 
         let sb = '';
@@ -103,11 +118,11 @@ const HOOK_LOGGER = {
         argValues: any[],
         returnType: string,
         logId: string,
-        isReplaced: boolean = false,
+        isReplaced = false,
     ) {
         if (!config.call) return;
 
-        let sb: string = '';
+        let sb = '';
         sb += dim(isReplaced ? italic('replace') : 'call');
         sb += ' ';
         if (methodName !== '$init') {
@@ -155,9 +170,9 @@ const HOOK_LOGGER = {
         if (logId) {
             sb = sb.replaceAll(/$/gm, `${this.mapLogId(logId)}`);
         }
-        
+
         logger.info(sb);
-    }
+    },
 };
 
 const HOOK_LOGGER_JSON = {
@@ -178,17 +193,23 @@ const HOOK_LOGGER_JSON = {
     },
 
     mapValue(arg: any): string | null {
-        if (typeof arg === 'string' || typeof arg === 'boolean' || typeof arg === 'number' || arg?.$className === ClassesString.String) {
+        if (
+            typeof arg === 'string' ||
+            typeof arg === 'boolean' ||
+            typeof arg === 'number' ||
+            arg?.$className === ClassesString.String
+        ) {
             return `${arg}`;
         }
         if (arg === null || arg === undefined) {
             return null;
         }
 
-        if (typeof arg === 'object' && arg?.$className === undefined)        try {
-            //@ts-ignore
-            return Classes.Arrays.toString(arg);
-        } catch(_) {}
+        if (typeof arg === 'object' && arg?.$className === undefined)
+            try {
+                //@ts-ignore
+                return Classes.Arrays.toString(arg);
+            } catch (_) {}
         try {
             //@ts-ignore
             return Classes.String.valueOf(arg);
@@ -198,8 +219,12 @@ const HOOK_LOGGER_JSON = {
     },
 
     printHookClass(className: string, logId: string) {
-        const msg = JSON.stringify({ t: 'jvmclass', cn: this.mapClass(className), id: logId });
-        logger.info(msg)
+        const msg = JSON.stringify({
+            t: 'jvmclass',
+            cn: this.mapClass(className),
+            id: logId,
+        });
+        logger.info(msg);
     },
 
     printHookMethod(methodName: string, argTypes: string[], returnType: string, logId: string) {
@@ -210,19 +235,26 @@ const HOOK_LOGGER_JSON = {
             r: this.mapClass(returnType),
             id: logId,
         });
-        logger.info(msg)
+        logger.info(msg);
     },
 
-    printCall(className: string, methodName: string, argValues: any[], returnType: string, logId: string, isReplaced: boolean = false) {
+    printCall(
+        className: string,
+        methodName: string,
+        argValues: any[],
+        returnType: string,
+        logId: string,
+        isReplaced = false,
+    ) {
         const msg = JSON.stringify({
             t: 'jvmcall',
             cn: this.mapClass(className),
             mn: this.mapMethod(methodName),
             id: logId,
             av: argValues.map((arg) => this.mapValue(arg)),
-            st: stacktraceList()
+            st: stacktraceList(),
         });
-        logger.info(msg)
+        logger.info(msg);
     },
 
     printReturn(returnValue: any, logId: string) {
@@ -231,11 +263,13 @@ const HOOK_LOGGER_JSON = {
             id: logId,
             rv: this.mapValue(returnValue),
         });
-        logger.info(msg)
+        logger.info(msg);
     },
 };
 
-function getPrettyLogger(options?: Partial<LoggerOptions>): { [key in keyof typeof HOOK_LOGGER]: OmitFirstArg<(typeof HOOK_LOGGER)[key]> } {
+function getPrettyLogger(options?: Partial<LoggerOptions>): {
+    [key in keyof typeof HOOK_LOGGER]: OmitFirstArg<(typeof HOOK_LOGGER)[key]>;
+} {
     const opt = options ? { ...DEFAULT_LOGGER_OPTIONS, ...options } : DEFAULT_LOGGER_OPTIONS;
     return Object.assign(
         {},
@@ -246,7 +280,7 @@ function getPrettyLogger(options?: Partial<LoggerOptions>): { [key in keyof type
 }
 
 function getJsonLogger() {
-    return HOOK_LOGGER_JSON
+    return HOOK_LOGGER_JSON;
 }
 
 function getLogger(options?: Partial<LoggerOptions>): ILogger {

@@ -3,7 +3,7 @@ import { getFindUnique } from '@clockwork/common';
 
 setImmediate(() => {
     send({ type: 'setImmediate' });
-    
+
     let resolved: Java.Wrapper | null;
 
     let className: string;

@@ -1,17 +1,18 @@
 import { Inject } from './inject.js';
-module Utils {
+namespace Utils {
     const callMnemonics = ['call', 'bl', 'blx', 'blr', 'bx'];
-    export const insertAt = (str: string, sub: string, pos: number) => `${str.slice(0, pos)}${sub}${str.slice(pos)}`;
+    export const insertAt = (str: string, sub: string, pos: number) =>
+        `${str.slice(0, pos)}${sub}${str.slice(pos)}`;
 
     export function ba2hex(b: ArrayBuffer): string {
-        let uint8arr = new Uint8Array(b);
+        const uint8arr = new Uint8Array(b);
         if (!uint8arr) {
             return '';
         }
         let hexStr = '';
         for (let i = 0; i < uint8arr.length; i++) {
             let hex = (uint8arr[i] & 0xff).toString(16);
-            hex = hex.length === 1 ? '0' + hex : hex;
+            hex = hex.length === 1 ? `0${hex}` : hex;
             hexStr += hex;
         }
         return hexStr;
@@ -35,7 +36,7 @@ module Utils {
     }
 }
 
-module Color {
+namespace Color {
     const _red = '\x1b[0;31m';
     const _green = '\x1b[0;32m';
     const _yellow = '\x1b[0;33m';
@@ -49,9 +50,9 @@ module Color {
 
     export function applyColorFilters(text: string): string {
         text = text.toString();
-        text = text.replace(/(\W|^)([a-z]{1,4}\d{0,2})(\W|$)/gm, '$1' + colorify('$2', 'blue') + '$3');
+        text = text.replace(/(\W|^)([a-z]{1,4}\d{0,2})(\W|$)/gm, `$1${colorify('$2', 'blue')}$3`);
         text = text.replace(/(0x[0123456789abcdef]+)/gm, colorify('$1', 'red'));
-        text = text.replace(/#(\d+)/gm, '#' + colorify('$1', 'red'));
+        text = text.replace(/#(\d+)/gm, `#${colorify('$1', 'red')}`);
         return text;
     }
 
@@ -88,7 +89,7 @@ module Color {
     }
 }
 
-export module HooahTrace {
+export namespace HooahTrace {
     const getSpacer = Utils.getSpacer;
 
     interface AnyCpuContext extends PortableCpuContext {
@@ -126,7 +127,7 @@ export module HooahTrace {
     const treeTrace: NativePointer[] = [];
     let targetTid = 0;
     let onInstructionCallback: HooahCallback | null = null;
-    let moduleMap = new ModuleMap();
+    const moduleMap = new ModuleMap();
     let filtersModuleMap: ModuleMap | null = null;
 
     const currentExecutionBlockStackRegisters: RegisterInfo[] = [];
@@ -141,16 +142,22 @@ export module HooahTrace {
 
     export function trace(params: HooahOptions = {}, callback: HooahCallback | undefined) {
         if (targetTid > 0) {
-            console.log('Hooah is already tracing thread: ' + targetTid);
+            console.log(`Hooah is already tracing thread: ${targetTid}`);
             return 1;
         }
 
         if (targetTid > 0) {
-            console.log('Hooah is already tracing thread: ' + targetTid);
+            console.log(`Hooah is already tracing thread: ${targetTid}`);
             return;
         }
 
-        const { printBlocks = true, count = -1, filterModules = [], instructions = [], printOptions = {} } = params;
+        const {
+            printBlocks = true,
+            count = -1,
+            filterModules = [],
+            instructions = [],
+            printOptions = {},
+        } = params;
         sessionPrintBlocks = printBlocks;
         sessionPrintOptions = printOptions;
         if (sessionPrintOptions.treeSpaces && sessionPrintOptions.treeSpaces < 4) {
@@ -191,7 +198,7 @@ export module HooahTrace {
         let startAddress = NULL;
 
         Stalker.follow(targetTid, {
-            transform: function (iterator: StalkerArm64Iterator | StalkerX86Iterator) {
+            transform: (iterator: StalkerArm64Iterator | StalkerX86Iterator) => {
                 let instruction: Arm64Instruction | X86Instruction | null;
                 let moduleFilterLocker = false;
 
@@ -218,7 +225,9 @@ export module HooahTrace {
                                 continue;
                             }
 
-                            iterator.putCallout(<(context: PortableCpuContext) => void>(onHitInstruction as any));
+                            iterator.putCallout(
+                                <(context: PortableCpuContext) => void>(onHitInstruction as any),
+                            );
                         }
                     }
 
@@ -273,7 +282,15 @@ export module HooahTrace {
                 const isJump = Utils.isJumpInstruction(instruction);
                 const isRet = Utils.isRetInstruction(instruction);
 
-                const printInfo = formatInstruction(context, address, instruction, details, colored, treeSpaces, isJump);
+                const printInfo = formatInstruction(
+                    context,
+                    address,
+                    instruction,
+                    details,
+                    colored,
+                    treeSpaces,
+                    isJump,
+                );
                 currentExecutionBlock.push(printInfo);
 
                 if (isJump || isRet) {
@@ -301,11 +318,14 @@ export module HooahTrace {
         }
         const realLineWidth = currentBlockMaxWidth - currentBlockStartWidth;
         const startSpacer = Utils.getSpacer(currentBlockStartWidth + 1);
-        let sepCount = (realLineWidth + 8) / 4;
+        const sepCount = (realLineWidth + 8) / 4;
         const topSep = ' _'.repeat(sepCount).substring(1);
         const botSep = ' \u00AF'.repeat(sepCount).substring(1);
         const nextSepCount = currentBlockStartWidth + 1 + botSep.length;
-        const emptyLine = formatLine({ data: ' '.repeat(currentBlockMaxWidth), lineLength: currentBlockMaxWidth });
+        const emptyLine = formatLine({
+            data: ' '.repeat(currentBlockMaxWidth),
+            lineLength: currentBlockMaxWidth,
+        });
         let topMid = ' ';
         if (sessionPrevSepCount > 0) {
             topMid = '|';
@@ -313,15 +333,15 @@ export module HooahTrace {
             if (sepDiff < 0) {
                 const spacer = Utils.getSpacer(sessionPrevSepCount);
                 if (details) {
-                    console.log(spacer + '|');
+                    console.log(`${spacer}|`);
                 }
-                console.log(spacer + '|' + '_ '.repeat(-sepDiff / 2));
-                console.log(spacer + Utils.getSpacer(-sepDiff) + '|');
+                console.log(`${spacer}|${'_ '.repeat(-sepDiff / 2)}`);
+                console.log(`${spacer + Utils.getSpacer(-sepDiff)}|`);
             } else if (sepDiff > 0) {
                 const spacer = Utils.getSpacer(nextSepCount);
-                console.log(spacer + '|' + '\u00AF '.repeat(sepDiff / 2));
+                console.log(`${spacer}|${'\u00AF '.repeat(sepDiff / 2)}`);
                 if (details) {
-                    console.log(spacer + '|');
+                    console.log(`${spacer}|`);
                 }
             }
         }
@@ -343,11 +363,11 @@ export module HooahTrace {
                 console.log(emptyLine);
             }
         });
-        console.log(startSpacer + botSep + '|' + botSep);
+        console.log(`${startSpacer + botSep}|${botSep}`);
         sessionPrevSepCount = nextSepCount;
-        console.log(Utils.getSpacer(sessionPrevSepCount) + '|');
+        console.log(`${Utils.getSpacer(sessionPrevSepCount)}|`);
         if (details) {
-            console.log(Utils.getSpacer(sessionPrevSepCount) + '|');
+            console.log(`${Utils.getSpacer(sessionPrevSepCount)}|`);
         }
     }
 
@@ -375,7 +395,7 @@ export module HooahTrace {
         let intTreeSpace = 0;
         let spaceAtOpStr: number;
 
-        const append = function (what: string, color?: string): void {
+        const append = (what: string, color?: string): void => {
             line += what;
             if (colored) {
                 if (color) {
@@ -386,7 +406,7 @@ export module HooahTrace {
             }
         };
 
-        const appendModuleInfo = function (address: NativePointer): void {
+        const appendModuleInfo = (address: NativePointer): void => {
             const module = moduleMap.find(address);
             if (module !== null) {
                 append(' (');
@@ -400,7 +420,7 @@ export module HooahTrace {
             }
         };
 
-        const addSpace = function (count: number): void {
+        const addSpace = (count: number): void => {
             append(Utils.getSpacer(count + intTreeSpace - line.length));
         };
 
@@ -437,7 +457,7 @@ export module HooahTrace {
 
         if (isJump) {
             try {
-                let jumpInsn = getJumpInstruction(instruction, anyCtx);
+                const jumpInsn = getJumpInstruction(instruction, anyCtx);
                 if (jumpInsn) {
                     appendModuleInfo(jumpInsn.address);
                 }
@@ -452,18 +472,21 @@ export module HooahTrace {
         let detailsData: PrintInfo[] = [];
         if (details) {
             if (currentExecutionBlockStackRegisters.length > 0) {
-                let postLines: PrintInfo[] = [];
+                const postLines: PrintInfo[] = [];
                 currentExecutionBlockStackRegisters.forEach((reg) => {
                     const contextVal = getRegisterValue(context, reg.reg);
                     if (contextVal && contextVal != reg.value) {
                         const toStr = contextVal.toString();
                         let str = getSpacer(spaceAtOpStr);
                         if (colored) {
-                            str += Color.colorify(reg.reg, 'blue bold') + ' = ' + Color.colorify(toStr, 'red');
+                            str += `${Color.colorify(reg.reg, 'blue bold')} = ${Color.colorify(toStr, 'red')}`;
                         } else {
-                            str += reg.reg + ' = ' + toStr;
+                            str += `${reg.reg} = ${toStr}`;
                         }
-                        postLines.push({ data: str, lineLength: spaceAtOpStr + reg.reg.length + toStr.length + 3 });
+                        postLines.push({
+                            data: str,
+                            lineLength: spaceAtOpStr + reg.reg.length + toStr.length + 3,
+                        });
                     }
                 });
                 currentExecutionBlockStackRegisters.length = 0;
@@ -480,7 +503,11 @@ export module HooahTrace {
             });
         }
 
-        return { data: colored ? coloredLine : line, lineLength: lineLength, details: detailsData };
+        return {
+            data: colored ? coloredLine : line,
+            lineLength: lineLength,
+            details: detailsData,
+        };
     }
 
     function formatInstructionDetails(
@@ -517,12 +544,15 @@ export module HooahTrace {
                     try {
                         value = getRegisterValue(anyContext, reg);
                         if (typeof value !== 'undefined') {
-                            currentExecutionBlockStackRegisters.push({ reg: reg.toString(), value: value });
+                            currentExecutionBlockStackRegisters.push({
+                                reg: reg.toString(),
+                                value: value,
+                            });
                             value = getRegisterValue(anyContext, reg);
-                            let regLabel = reg.toString();
+                            const regLabel = reg.toString();
                             data.push([
                                 regLabel,
-                                value.toString() + (adds > 0 ? '#' + adds.toString(16) : ''),
+                                value.toString() + (adds > 0 ? `#${adds.toString(16)}` : ''),
                                 getTelescope(value.add(adds), colored, isJump),
                             ]);
                         }
@@ -531,22 +561,22 @@ export module HooahTrace {
             });
         }
 
-        const applyColor = function (what: string, color: string | null): string {
+        const applyColor = (what: string, color: string | null): string => {
             if (colored && color) {
                 what = Color.colorify(what, color);
             }
             return what;
         };
 
-        let lines: PrintInfo[] = [];
+        const lines: PrintInfo[] = [];
         data.forEach((row) => {
             let line = Utils.getSpacer(spaceAtOpStr);
             let lineLength = spaceAtOpStr + row[0].length + row[1].toString().length + 3;
-            line += applyColor(row[0], 'blue') + ' = ' + applyColor(row[1], 'filter');
+            line += `${applyColor(row[0], 'blue')} = ${applyColor(row[1], 'filter')}`;
             if (row.length > 2 && row[2] !== null) {
                 const printInfo = row[2] as PrintInfo;
                 if (printInfo.lineLength > 0) {
-                    line += ' >> ' + printInfo.data;
+                    line += ` >> ${printInfo.data}`;
                     lineLength += printInfo.lineLength + 4;
                 }
             }
@@ -565,13 +595,16 @@ export module HooahTrace {
                 } else {
                     ret = instruction.mnemonic;
                 }
-                ret += ' ' + instruction.opStr;
-                return { data: ret, lineLength: instruction.mnemonic.length + instruction.opStr.length + 1 };
+                ret += ` ${instruction.opStr}`;
+                return {
+                    data: ret,
+                    lineLength: instruction.mnemonic.length + instruction.opStr.length + 1,
+                };
             } catch (e) {}
         } else {
             let count = 0;
             let current = address;
-            let result: string = '';
+            let result = '';
             let resLen = 0;
             while (true) {
                 try {
@@ -597,13 +630,13 @@ export module HooahTrace {
                         }
 
                         try {
-                            let str = address.readUtf8String();
+                            const str = address.readUtf8String();
                             if (str && str.length > 0) {
-                                let ret = str.replace('\n', ' ');
+                                const ret = str.replace('\n', ' ');
                                 if (colored) {
-                                    result += ' (' + Color.colorify(ret, 'green') + ')';
+                                    result += ` (${Color.colorify(ret, 'green')})`;
                                 } else {
-                                    result += ' (' + ret + ')';
+                                    result += ` (${ret})`;
                                 }
                                 resLen += str.length + 3;
                             }

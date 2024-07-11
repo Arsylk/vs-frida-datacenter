@@ -34,5 +34,4 @@ class StdString {
     }
 }
 
-
-export { StdString as String }
+export { StdString as String };

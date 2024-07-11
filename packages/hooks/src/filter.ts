@@ -1,6 +1,5 @@
-import { stacktrace } from "@clockwork/common";
-import { ifError } from "assert";
-
+import { stacktrace } from '@clockwork/common';
+import { ifError } from 'assert';
 
 const prefsMeasurementInternalIgnored = [
     'consent_settings',
@@ -27,15 +26,15 @@ const prefsMeasurementInternalIgnored = [
 const applovinPrivacyIgnored = [
     'com.applovin.sdk.compliance.has_user_consent',
     'com.applovin.sdk.compliance.is_age_restricted_user',
-    'com.applovin.sdk.compliance.is_do_not_sell'
-]
+    'com.applovin.sdk.compliance.is_do_not_sell',
+];
 
 const settingsKeysIgnored = [
     'render_shadows_in_compositor',
     'force_resizable_activities',
     'use_blast_adapter_sv',
-    'show_angle_in_use_dialog_box'
-]
+    'show_angle_in_use_dialog_box',
+];
 
 const Filter = {
     json: (_: any, ...args: any[]) => {
@@ -48,13 +47,15 @@ const Filter = {
         if (trace.includes('at com.google.android.gms.internal.ads.')) return false;
         if (trace.includes('at com.google.android.gms.ads.internal.config.')) return false;
         if (trace.includes('at com.google.firebase.installations.local.PersistedInstallation')) return false;
-        if (trace.includes('at com.unity3d.services.core.configuration.PrivacyConfigurationLoader')) return false;
+        if (trace.includes('at com.unity3d.services.core.configuration.PrivacyConfigurationLoader'))
+            return false;
 
         return true;
     },
     prefs: (method: Java.Method, ...args: any[]) => {
         const trace = stacktrace();
-        if (trace.includes('at com.yandex.mobile.ads.core.initializer.MobileAdsInitializeProvider.')) return false;
+        if (trace.includes('at com.yandex.mobile.ads.core.initializer.MobileAdsInitializeProvider.'))
+            return false;
         if (trace.includes('at com.facebook.FacebookSdk.getLimitEventAndDataUsage')) return false;
         if (trace.includes('at com.facebook.internal.')) return false;
         if (trace.includes('at com.appsflyer.internal.')) return false;
@@ -77,10 +78,13 @@ const Filter = {
                 return false;
             }
         }
-        if (trace.includes('at com.applovin.sdk.AppLovinSdk.getInstance') && trace.includes('at com.applovin.impl.sdk.')) {
-            if (args[0] && args[0].startsWith('com.applovin.sdk.')) {
+        if (
+            trace.includes('at com.applovin.sdk.AppLovinSdk.getInstance') &&
+            trace.includes('at com.applovin.impl.sdk.')
+        ) {
+            if (args[0]?.startsWith('com.applovin.sdk.')) {
                 if (method.methodName === 'contains') {
-                    return false
+                    return false;
                 }
             }
         }
@@ -98,7 +102,7 @@ const Filter = {
         if (trace.includes('at com.google.android.gms.internal.ads.')) return false;
         if (trace.includes('at com.adjust.sdk.SdkClickHandler.sendSdkClick')) return false;
         if (trace.includes('at com.appsgeyser.sdk.ads.AdsLoader')) return false;
-        console.log(trace)
+        // console.log(trace);
         return true;
     },
     date: () => {
@@ -110,17 +114,20 @@ const Filter = {
         if (trace.includes('at com.applovin.sdk.AppLovinInitProvider.onCreate')) return false;
         if (trace.includes('at com.google.firebase.provider.FirebaseInitProvider.onCreate')) return false;
         if (trace.includes('at com.google.firebase.crashlytics.CrashlyticsRegistrar')) return false;
-        if (trace.includes('at com.facebook.appevents.internal.') && trace.includes('at android.icu.util.Currency.getAvailableCurrencyCodes')) 
+        if (
+            trace.includes('at com.facebook.appevents.internal.') &&
+            trace.includes('at android.icu.util.Currency.getAvailableCurrencyCodes')
+        )
             return false;
-        
+
         // console.log(trace)
 
-        return true
+        return true;
     },
     settings: (_: any, ...args: any) => {
         const key = `${args[1]}`;
-        return !settingsKeysIgnored.includes(key)
-    }  
+        return !settingsKeysIgnored.includes(key);
+    },
 };
 
 export { Filter };

@@ -1,6 +1,6 @@
 import { findClass, Classes, ClassesString, enumerateMembers } from '@clockwork/common';
 import { ClassLoader, hook } from '@clockwork/hooks';
-import { MethodOverload } from '@clockwork/hooks/dist/types';
+import type { MethodOverload } from '@clockwork/hooks/dist/types';
 import { subLogger, Color } from '@clockwork/logging';
 const logger = subLogger('installreferrer');
 
@@ -19,11 +19,17 @@ function createInstallReferrer(classWrapper: Java.Wrapper, details: ReferrerDeta
     const bundle = Classes.Bundle.$new();
     bundle.putBoolean('google_play_instant', details?.google_play_instant ?? true);
     bundle.putLong('install_begin_timestamp_seconds', details?.install_begin_timestamp_seconds ?? now - 30);
-    bundle.putLong('install_begin_timestamp_server_seconds', details?.install_begin_timestamp_server_seconds ?? now - 30);
+    bundle.putLong(
+        'install_begin_timestamp_server_seconds',
+        details?.install_begin_timestamp_server_seconds ?? now - 30,
+    );
     bundle.putString('install_referrer', details?.install_referrer ?? 'utm_medium=Non-Organic');
     bundle.putString('install_version', details?.install_version ?? '1.0.0');
     bundle.putLong('referrer_click_timestamp_seconds', details?.referrer_click_timestamp_seconds ?? now - 65);
-    bundle.putLong('referrer_click_timestamp_server_seconds', details?.referrer_click_timestamp_server_seconds ?? now - 65);
+    bundle.putLong(
+        'referrer_click_timestamp_server_seconds',
+        details?.referrer_click_timestamp_server_seconds ?? now - 65,
+    );
     return classWrapper.$new(bundle);
 }
 
@@ -41,7 +47,12 @@ function replace(details: ReferrerDetails = {}) {
     });
 }
 
-function performReplace(details: ReferrerDetails, client: Java.Wrapper, startMethod: string, getMethod: string) {
+function performReplace(
+    details: ReferrerDetails,
+    client: Java.Wrapper,
+    startMethod: string,
+    getMethod: string,
+) {
     const beforeInit = function (this: Java.Wrapper) {
         const paretnClass = findClass(this.$className);
         if (!paretnClass) {
@@ -101,8 +112,8 @@ function performReplace(details: ReferrerDetails, client: Java.Wrapper, startMet
 }
 
 function matchReferrerClientMethods(clazz: Java.Wrapper): [string, string] {
-    let startMethod = null,
-        getMethod = null;
+    let startMethod = null;
+    let getMethod = null;
     enumerateMembers(
         clazz,
         {
@@ -117,7 +128,6 @@ function matchReferrerClientMethods(clazz: Java.Wrapper): [string, string] {
 
                     if (getInstallReferrerPredicate(overload)) {
                         getMethod ??= member;
-                        continue;
                     }
                 }
             },
@@ -157,11 +167,19 @@ const startConnectionPredicate: (overload: MethodOverload) => boolean = ({ retur
         argumentTypes[0].className === ClassesString.InstallReferrerStateListener
     );
 };
-const getInstallReferrerPredicate: (overload: MethodOverload) => boolean = ({ returnType, argumentTypes }) => {
+const getInstallReferrerPredicate: (overload: MethodOverload) => boolean = ({
+    returnType,
+    argumentTypes,
+}) => {
     return returnType.className === ClassesString.ReferrerDetails && argumentTypes.length === 0;
 };
-const onInstallReferrerSetupFinishedPredicate: (overload: MethodOverload) => boolean = ({ returnType, argumentTypes }) => {
-    return returnType.className === 'void' && argumentTypes.length === 1 && argumentTypes[0].className === 'int';
+const onInstallReferrerSetupFinishedPredicate: (overload: MethodOverload) => boolean = ({
+    returnType,
+    argumentTypes,
+}) => {
+    return (
+        returnType.className === 'void' && argumentTypes.length === 1 && argumentTypes[0].className === 'int'
+    );
 };
 
 export { replace, createInstallReferrer };

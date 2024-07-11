@@ -11,7 +11,6 @@ class JNIEnvInterceptorARM64 extends JNIEnvInterceptor {
     private vrOffs = 0;
     private vrOffsIndex = 0;
 
-
     protected setUpVaListArgExtract(vaList: NativePointer): void {
         const vrStart = 2;
         const grOffset = 3;
@@ -40,22 +39,16 @@ class JNIEnvInterceptorARM64 extends JNIEnvInterceptor {
 
                 this.vrOffsIndex++;
             } else {
-                currentPtr = this.stack.add(
-                    this.stackIndex * Process.pointerSize
-                );
+                currentPtr = this.stack.add(this.stackIndex * Process.pointerSize);
                 this.stackIndex++;
             }
         } else {
             if (this.grOffsIndex < MAX_GR_REG_NUM) {
-                currentPtr = this.grTop
-                    .add(this.grOffs)
-                    .add(this.grOffsIndex * Process.pointerSize);
+                currentPtr = this.grTop.add(this.grOffs).add(this.grOffsIndex * Process.pointerSize);
 
                 this.grOffsIndex++;
             } else {
-                currentPtr = this.stack.add(
-                    this.stackIndex * Process.pointerSize
-                );
+                currentPtr = this.stack.add(this.stackIndex * Process.pointerSize);
                 this.stackIndex++;
             }
         }
