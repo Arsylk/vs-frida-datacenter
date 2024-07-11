@@ -1,12 +1,13 @@
-import { Classes, ClassesString, Text } from '@clockwork/common';
+import { Classes, ClassesString, Text, stacktrace } from '@clockwork/common';
 import { Color, subLogger } from '@clockwork/logging';
 import type { JavaMethod } from './javaMethod.js';
 import { JNIEnvInterceptorARM64 } from './jniEnvInterceptorArm64.js';
 import { JNIMethod } from './jniMethod.js';
 import { fastpathMethod, resolveMethod } from './tracer.js';
 import { asFunction, JNI } from './jni.js';
+import { JniInvokeCallbacks, JniInvokeMode, LimitedCallback } from './jniInvokeCallback.js';
 const logger = subLogger('jnitrace');
-const { black, blue, dim, redBright, yellow } = Color.use();
+const { black, blue, dim, redBright, italic } = Color.use();
 
 const PrimitiveNumberTypes = ['double', 'float', 'int', 'long', 'short'];
 
@@ -67,82 +68,100 @@ function hookIfTag<T extends InvocationArguments | InvocationReturnValue>(
     return hookIf(callback, dim(tag));
 }
 
+function formatNativeValue(value: NativePointer, type?: string) {
+    let text: string | null = null;
+
+    // * anti crashes yey
+    if (value !== null && value !== undefined) {
+        try {
+            // handle primitive types
+            switch (type) {
+                case 'boolean':
+                    text = Color.number(value ? 'true' : 'false');
+                    break;
+                case 'int': {
+                    //@ts-ignore
+                    const strInt = Classes.String.valueOf.overload('int').bind(Classes.String);
+                    text = Color.number(strInt(value));
+                    break;
+                }
+                case 'float': {
+                    //@ts-ignore
+                    const strFloat = Classes.String.valueOf.overload('float').bind(Classes.String);
+                    text = Color.number(strFloat(value));
+                    break;
+                }
+                case 'double': {
+                    //@ts-ignore
+                    const strDoubke = Classes.String.valueOf.overload('double').bind(Classes.String);
+                    text = Color.number(strDoubke(value));
+                    break;
+                }
+                case 'long':
+                    text = Color.number(`${new Int64(value.toString())}`);
+                    break;
+            }
+
+            if (text !== null) {
+                return text;
+            }
+
+            // ? do not ask, i have no idea why this prevents crashes
+            String(value) + String(value.readByteArray(8));
+
+            if (type === ClassesString.String) {
+                const str = Java.cast(value, Classes.String);
+                text = Color.string(str);
+            } else if (type?.endsWith('[]')) {
+                const any = Java.cast(value, Classes.Object);
+                const className = any.$className.endsWith(';') ? '[Ljava.lang.Object;' : any.$className;
+                const real = Java.cast(value, Java.use(className));
+                //@ts-expect-error
+                const array = Classes.Arrays.toString.overload(className).call(Classes.Arrays, real);
+                return array;
+            } else {
+                const any = Java.cast(value, Classes.Object);
+                //@ts-ignore
+                text = Classes.String.valueOf(any);
+            }
+        } catch (e: any) {
+            return black(
+                `${e.message}${black('<')}${dim(`${value}`)}${black('>')}${black(`${type}:${typeof value}`)}`,
+            );
+        }
+    } else {
+        text = `${Color.number(`${value}`)} ${black(`${type}`)}`;
+    }
+    // * help
+    return (text ??= `ripme: ${value}`);
+}
+
 function formatCallMethod(
     nativeName: string,
     jMethodId: NativePointer,
     method: JavaMethod | null,
-    args: NativeFunctionArgumentValue[] | null,
+    args: NativeCallbackArgumentValue[] | null,
+    log = false,
 ): string | null {
-    if (!method) return null; // ! TODO fix
-    if (args) {
-        const mappedArgs: string[] = [];
-        for (const i in method.parameters) {
-            const param = method.parameters[i];
-            const arg = args[i];
-            mappedArgs.push(`${arg}`);
-
-            if (arg === undefined) {
-                mappedArgs[i] = Color.number(null);
-                continue;
-            }
-
-            if (Object.hasOwn(arg as object, '$h') && param === ClassesString.String && arg instanceof NativePointer) {
-                const wrapped = Java.cast(arg, Classes.String);
-                mappedArgs[i] = Color.string(wrapped);
-                continue;
-            }
-
-            if (param === 'boolean') {
-                const textBoolean = args[i] ? 'true' : 'false';
-                mappedArgs[i] = Color.number(textBoolean);
-                continue;
-            }
-
-            if (param in PrimitiveNumberTypes) {
-                mappedArgs[i] = Color.number(args[i]);
-                continue;
-            }
-
-            if (arg instanceof NativePointer && (args[i] as NativePointer)?.isNull()) {
-                mappedArgs[i] = Color.number(null);
-                continue;
-            }
-
-            try {
-                const wrapped = Java.cast(args[i] as NativePointerValue | Java.Wrapper, Classes.Object);
-                //@ts-ignore
-                mappedArgs[i] = Classes.String.valueOf(wrapped);
-            } catch (e) {}
-        }
-
-        return ColorMethodInvoke(method, mappedArgs);
+    // better than nothing ...
+    if (!method || args?.length === undefined) {
+        return `${nativeName}::${jMethodId}()`;
     }
-    return null;
+
+    // colorful mapping flow
+    const mappedArgs = new Array<string>(method.parameters.length);
+    for (const i in method.parameters) {
+        const param = method.parameters[i];
+        const arg = (args as any)[i];
+        mappedArgs[i] = formatNativeValue(arg, param);
+    }
+    return ColorMethodInvoke(method, mappedArgs);
 }
 
-function formatMethodReturn(value: NativePointer | null): string | null {
-    // ! end the suffering, refactor this
-    let text = `${value}`;
-    if (value && !value.isNull())
-        try {
-            // ? do not ask, i have no idea why this prevents crashes
-            String(value) + String(value.readByteArray(8));
-            const wrapped = Java.cast(value as NativePointer, Classes.Object);
-            //@ts-ignore
-            text = Classes.String.valueOf(wrapped);
-            if (text === `${value}`) text = Color.string(text);
-        } catch (err) {
-            logger.error(err);
-        }
-    let type = null; // Java.vm.tryGetEnv()?.getObjectClassName(value);
-    if (value && !value.isNull() && type && (type = Text.toPrettyType(type))) {
-        if (type === Classes.String.$className) {
-            text = yellow(`"${Java.cast(value, Classes.String)}"`);
-        } else if (type.includes('.')) {
-            text = `${Java.cast(value, Classes.Object)}`;
-        }
-    }
-    return `${dim('return')} ${text}`;
+function formatMethodReturn(value: NativePointer, type?: string): string | null {
+    const text = formatNativeValue(value, type);
+
+    return `${dim('return')} ${text}`; // + `${type}[${value}: ${typeof value}]`;
 }
 
 /*
@@ -176,12 +195,19 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
     const addrsCallNonvirtual: JNIMethod[] = [];
     const addrsCallMethod: JNIMethod[] = [];
     const addrsNewObject: JNIMethod[] = [];
-    let ToReflectedMethod: NativeFunction<NativePointer, [NativePointerValue, NativePointerValue, NativePointerValue, number]> | null =
-        null;
+    let ToReflectedMethod: NativeFunction<
+        NativePointer,
+        [NativePointerValue, NativePointerValue, NativePointerValue, number]
+    > | null = null;
     // let GetMethodID: NativeFunction<NativePointer, [NativePointerValue, NativePointerValue, NativePointerValue, NativePointerValue]> | null = null;
 
     for (const { name, address } of symbols) {
-        if (name.includes('art') && name.includes('JNI') && name.includes('_ZN3art3JNIILb0') && !name.includes('CheckJNI')) {
+        if (
+            name.includes('art') &&
+            name.includes('JNI') &&
+            name.includes('_ZN3art3JNIILb0') &&
+            !name.includes('CheckJNI')
+        ) {
             if (name.includes('GetStringUTFChars')) {
                 addrGetStringUTFChars = address;
                 logger.trace(`GetStringUTFChars is at ${name} ${address}`);
@@ -209,7 +235,7 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
             } else if (name.includes('RegisterNatives')) {
                 addrRegisterNatives = address;
                 logger.trace(`RegisterNatives is at ${name} ${address}`);
-            } else if (name.includes('NewObject')) {
+            } else if (name.includes('NewObject') && !name.includes('Array')) {
                 addrsNewObject.push(new JNIMethod(name, address));
                 logger.trace(`NewObject is at ${name} ${address}`);
             } else if (name.includes('CallStatic')) {
@@ -222,7 +248,12 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
                 addrsCallMethod.push(new JNIMethod(name, address));
                 logger.trace(`Call<>Method is at ${name} ${address}`);
             } else if (name.includes('ToReflectedMethod')) {
-                ToReflectedMethod = new NativeFunction(address, 'pointer', ['pointer', 'pointer', 'pointer', 'uint8']);
+                ToReflectedMethod = new NativeFunction(address, 'pointer', [
+                    'pointer',
+                    'pointer',
+                    'pointer',
+                    'uint8',
+                ]);
                 logger.trace(`ToReflectedMethod is at ${name} ${address}`);
             } else if (name.includes('GetArrayLength')) {
                 // Interceptor.attach(address, {
@@ -300,38 +331,33 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
                 this.name = args[2]?.readCString();
                 this.sig = args[3]?.readCString();
             },
-            onLeave: hookIfTag<InvocationReturnValue>(`Get${isStatic ? 'Static' : ''}MethodID`, function (retval) {
-                // return `missing args [ env: ${this.env} clazz: ${this.clazz} name: ${this.name} sig: ${this.sig} ]`
+            onLeave: hookIfTag<InvocationReturnValue>(
+                `Get${isStatic ? 'Static' : ''}MethodID`,
+                function (retval) {
+                    // return `missing args [ env: ${this.env} clazz: ${this.clazz} name: ${this.name} sig: ${this.sig} ]`
 
-                const className = Java.vm.tryGetEnv()?.getClassName(this.clazz);
-                if (
-                    className === 'com.cocos.lib.CocosHelper' &&
-                    (this.name === 'flushTasksOnGameThreadAtForeground' || this.name === 'flushTasksOnGameThread')
-                ) {
-                    return;
-                }
-                if (className?.endsWith('lib.CanvasRenderingContext2DImpl')) {
-                    return;
-                    switch (this.name) {
-                        case 'measureText':
-                        case 'setLineJoin':
-                        case 'getDataRef':
-                        case 'setFillStyle':
-                        case 'updateFont':
-                        case 'setStrokeStyle':
-                        case 'setTextAlign':
-                        case 'setTextBaseline':
-                            return;
+                    const className = Java.vm.tryGetEnv()?.getClassName(this.clazz);
+                    if (
+                        className === 'com.cocos.lib.CocosHelper' &&
+                        (this.name === 'flushTasksOnGameThreadAtForeground' ||
+                            this.name === 'flushTasksOnGameThread')
+                    ) {
+                        return;
                     }
-                    return;
-                }
-                const method = fastpathMethod(retval, className, this.name, this.sig, isStatic);
-                return ColorMethod(retval, method);
-            }),
+                    if (className?.endsWith('lib.CanvasRenderingContext2DImpl')) {
+                        return;
+                    }
+                    const method = fastpathMethod(retval, className, this.name, this.sig, isStatic);
+                    return ColorMethod(retval, method);
+                },
+            ),
         };
     };
     addrGetMethodID && Interceptor.attach(addrGetMethodID, getMethodId(false));
     addrGetStaticMethodID && Interceptor.attach(addrGetStaticMethodID, getMethodId(true));
+    // biome-ignore lint/suspicious/noSelfCompare: <explanation>
+    // biome-ignore lint/correctness/noConstantCondition: <explanation>
+    if (1 === 1) return;
 
     // addrGetFieldID &&
     //     Interceptor.attach(addrGetFieldID, {
@@ -360,19 +386,28 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
     //         }),
     //     });
     for (const { address, name } of addrsNewObject) {
-        Interceptor.attach(address, {
-            onEnter: hookIfTag('NewObject', function (rawargs) {
-                const env = rawargs[0];
-                const jclass = rawargs[1];
-                const jMethodId = rawargs[2];
-                const args = rawargs[3];
-                const method = (this.method = resolveMethod(env, jclass, jMethodId, true));
-                const callArgs = jniInterceptor.getCallMethodArgs(name, [env, jclass, jMethodId, args], method);
-                const result = formatCallMethod(name, jMethodId, method, callArgs);
-
-                return result;
-            }),
-        });
+        Interceptor.attach(
+            address,
+            LimitedCallback(
+                predicate,
+                JniInvokeCallbacks(jniInterceptor, name, JniInvokeMode.Constructor, {
+                    onEnter(/* everything in `this` context, maybe can be done better ? */) {
+                        const msg = formatCallMethod(
+                            name,
+                            this.methodID,
+                            this.method,
+                            this.jArgs ?? null,
+                            true,
+                        );
+                        console.log(
+                            `[${dim('NewObject')}]`,
+                            msg,
+                            DebugSymbol.fromAddress(this.returnAddress),
+                        );
+                    },
+                }),
+            ),
+        );
     }
 
     for (const { address, name } of addrsCallStatic) {
@@ -384,16 +419,26 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
                 const jMethodId = rawargs[2];
                 const args = rawargs[3];
                 const method = (this.method = resolveMethod(env, jclass, jMethodId, true));
-                const callArgs = jniInterceptor.getCallMethodArgs(name, [env, jclass, jMethodId, args], method);
+                const callArgs = jniInterceptor.getCallMethodArgs(
+                    name,
+                    [env, jclass, jMethodId, args],
+                    method,
+                );
                 const result = formatCallMethod(name, jMethodId, method, callArgs);
                 if (result?.includes('CocosHelper') && result?.includes('flushTasksOnGameThread')) {
+                    this.ignore = true;
+                    return;
+                }
+                if (result?.includes('System') && result?.includes('nanoTime')) {
+                    this.ignore = true;
                     return;
                 }
                 return result;
             }),
             onLeave: hookIfTag('CallStatic', function (retval) {
-                if (!this.method || this.method.isVoid) return;
-                return formatMethodReturn(retval);
+                const method: JavaMethod | undefined | null = this.method;
+                if (!method || method.isVoid || this.ignore) return;
+                return formatMethodReturn(retval, method.returnType);
             }),
         });
     }
@@ -407,29 +452,39 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
                 const jMethodId = rawargs[3];
                 const args = rawargs[4];
                 const method = (this.method = resolveMethod(env, jclass, jMethodId, false));
-                const callArgs = jniInterceptor.getCallMethodArgs(name, [env, jobject, jclass, jMethodId, args], method);
+                const callArgs = jniInterceptor.getCallMethodArgs(
+                    name,
+                    [env, jobject, jclass, jMethodId, args],
+                    method,
+                );
                 return formatCallMethod(name, jMethodId, method, callArgs);
             }),
             onLeave: hookIfTag('CallNonvirtual', function (retval) {
-                if (this.method?.isVoid) return;
-                return formatMethodReturn(retval);
+                const method: JavaMethod | undefined | null = this.method;
+                if (method?.isVoid) return;
+                return formatMethodReturn(retval, method?.returnType);
             }),
         });
     }
 
     for (const { address, name } of addrsCallMethod) {
         const namePtr = Memory.allocUtf8String(name);
-        const tag = Libc.__cxa_demangle(namePtr, NULL, NULL, NULL).readCString() ?? name;
-        
+        const tag = name;
+        // Libc.__cxa_demangle(namePtr, NULL, NULL, NULL).readCString() ?? name;
+
         Interceptor.attach(address, {
             // std::enable_if_t<!std::is_void< R >::value, R > 	CallMethod (JNIEnv &env, jobject *obj, jmethodID &method, Args &&... args)
-            onEnter: hookIfTag(tag, function (rawargs) {
+            onEnter: hookIfTag('CallObject', function (rawargs) {
                 const env = rawargs[0];
                 const jobject = rawargs[1];
                 const jMethodId = rawargs[2];
                 const args = rawargs[3];
-                const method = resolveMethod(env, jobject, jMethodId, false);
-                const callArgs = jniInterceptor.getCallMethodArgs(name, [env, jobject, jMethodId, args], method);
+                const method = (this.method = resolveMethod(env, jobject, jMethodId, false));
+                const callArgs = jniInterceptor.getCallMethodArgs(
+                    name,
+                    [env, jobject, jMethodId, args],
+                    method,
+                );
 
                 // TODO this logging api
                 // const cn = Java.vm.tryGetEnv().getObjectClassName(jobject);
@@ -455,7 +510,10 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
                     this.ignore = true;
                     return;
                 }
-                if (result?.includes('longValue') && `${DebugSymbol.fromAddress(this.returnAddress)}`?.includes('libunity.so')) {
+                if (
+                    result?.includes('longValue') &&
+                    `${DebugSymbol.fromAddress(this.returnAddress)}`?.includes('libunity.so')
+                ) {
                     this.ignore = true;
                     return;
                 }
@@ -471,10 +529,11 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
 
                 return result;
             }),
-            onLeave: hookIfTag(tag, function (retval) {
-                if (this.method?.isVoid) return;
+            onLeave: hookIfTag('CallObject', function (retval) {
+                const method: JavaMethod | undefined | null = this.method;
+                if (method?.isVoid) return;
                 if (this.ignore) return;
-                return formatMethodReturn(retval);
+                return formatMethodReturn(retval, method?.returnType);
             }),
         });
     }

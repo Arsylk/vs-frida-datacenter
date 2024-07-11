@@ -15,8 +15,8 @@ function memoryPatch(name: string = NativeLibName) {
             let module: Module | null = null;
             if (hookNow && (module = Process.findModuleByName(NativeLibName))) {
                 Memory.scan(module.base, module.size, Arm64Pattern, {
-                    onMatch: function (found) {
-                        Interceptor.attach(found, function (args) {
+                    onMatch: (found) => {
+                        Interceptor.attach(found, (args) => {
                             Memory.protect(args[0], Process.pointerSize, 'rwx');
                             try {
                                 const arg0 = args[0].readCString();
@@ -26,7 +26,7 @@ function memoryPatch(name: string = NativeLibName) {
                             } catch (e) {}
                         });
                     },
-                    onComplete: function () {
+                    onComplete: () => {
                         logger.info({ tag: 'jigau' }, 'frida detection nypassed');
                     },
                 });

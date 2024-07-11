@@ -1,8 +1,9 @@
 import { Classes, enumerateMembers } from '@clockwork/common';
 import { logger } from '@clockwork/logging';
-import { always, hook, ifKey, Filter } from '@clockwork/hooks';
-import { HookParameters } from '@clockwork/hooks/dist/types.js';
+import { always, hook, ifKey, Filter, ClassLoader, getHookUnique } from '@clockwork/hooks';
+import type { HookParameters } from '@clockwork/hooks/dist/types.js';
 import { buildMapper } from './buildprop.js';
+import { randomUUID } from 'crypto';
 
 export * as Jigau from './jigau.js';
 export * as InstallReferrer from './installReferrer.js';
@@ -27,7 +28,7 @@ function hookDevice(fn?: (key: string) => number | undefined) {
 }
 
 function hookSettings(fn?: (key: string) => number | undefined) {
-    const mapper = function (key: string): number | undefined {
+    const mapper = (key: string): number | undefined => {
         switch (key) {
             case 'development_settings_enabled':
             case 'adb_enabled':
@@ -38,13 +39,22 @@ function hookSettings(fn?: (key: string) => number | undefined) {
         }
     };
 
-    [Classes.Settings$Secure, Classes.Settings$Global].forEach((clazz) =>
+    for (const clazz of [Classes.Settings$Secure, Classes.Settings$Global]) {
         hook(clazz, 'getInt', {
             loggingPredicate: Filter.settings,
             logging: { multiline: false, short: true },
             replace: ifKey((key) => fn?.(key) ?? mapper(key), 1),
-        }),
-    );
+        });
+    }
+}
+
+function hookAdId(id = randomUUID()) {
+    const uniqHook = getHookUnique(false);
+    ClassLoader.perform(() => {
+        uniqHook('com.google.android.gms.ads.identifier.AdvertisingIdClient$Info', 'getId', {
+            replace: always(id),
+        });
+    });
 }
 
 function hookInstallerPackage() {
@@ -67,10 +77,7 @@ function hookSensor() {
     const params: HookParameters = {
         replace(method, ...args) {
             const value = `${method.call(this, ...args)}`;
-            return value.replace(
-                /open|source|emulator|google|aosp|ranchu|goldfish|cuttlefish/gi,
-                'nya',
-            );
+            return value.replace(/open|source|emulator|google|aosp|ranchu|goldfish|cuttlefish/gi, 'nya');
         },
         logging: {
             short: true,
@@ -87,4 +94,4 @@ function generic() {
     hookSensor();
 }
 
-export { hookDevice, hookSettings, hookInstallerPackage, generic };
+export { hookDevice, hookSettings, hookInstallerPackage, hookAdId, generic };

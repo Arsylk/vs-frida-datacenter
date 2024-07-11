@@ -3,7 +3,7 @@ import { logger } from '@clockwork/logging';
 
 function hookExit(predicate: (ptr: NativePointer) => boolean) {
     const array: ('exit' | '_exit')[] = ['exit', '_exit'];
-    for(const key of array) {
+    for (const key of array) {
         const func = Libc[key];
         Interceptor.replace(
             func,
@@ -16,7 +16,7 @@ function hookExit(predicate: (ptr: NativePointer) => boolean) {
                 ['pointer'],
             ),
         );
-    };
+    }
 }
 
 function hookKill(predicate: (ptr: NativePointer) => boolean) {
@@ -34,9 +34,8 @@ function hookKill(predicate: (ptr: NativePointer) => boolean) {
 }
 
 function hook(predicate: (ptr: NativePointer) => boolean) {
-    hookKill(predicate)
-    hookExit(predicate)
+    hookKill(predicate);
+    hookExit(predicate);
 }
 
 export { hook, hookExit, hookKill };
-

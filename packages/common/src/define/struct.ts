@@ -1,6 +1,5 @@
-import { StructCreator, PropertyStructMapper, proxyStruct } from "../internal/proxy.js";
-import { StructTypes } from "../types.js";
-
+import { type StructCreator, type PropertyStructMapper, proxyStruct } from '../internal/proxy.js';
+import type { StructTypes } from '../types.js';
 
 const Time = {
     tm: proxyStruct({
@@ -15,8 +14,16 @@ const Time = {
         tm_isdst: 'long',
         tm_gmtoff: 'long',
         tm_zone: 'pointer', // -> string
-    })
-}
+    }),
+    timeval: proxyStruct({
+        tv_sec: 'int',
+        tv_usec: 'int',
+    }),
+    timezone: proxyStruct({
+        tz_minuteswest: 'int',
+        tz_dsttime: 'int',
+    }),
+};
 
 const Stat = {
     timespec: proxyStruct({
@@ -39,19 +46,22 @@ const Stat = {
         st_atim: 'pointer', // -> timespec
         st_mtim: 'pointer', // -> timespec
         st_ctim: 'pointer', // -> timespec
-        st_ino: 'long'
-    })
-}
+        st_ino: 'long',
+    }),
+};
 
 function malloc<T extends { [key: string]: StructTypes }>(struct: StructCreator<T>) {
-    return struct(Memory.alloc(struct.size))
+    return struct(Memory.alloc(struct.size));
 }
 
 function toObject<T extends { [key: string]: StructTypes }>(struct: PropertyStructMapper<T>) {
-    return Object.assign({}, ...Reflect.ownKeys(struct).map((k: any) => {
-        const { value } = struct[k];
-        return { [k]: value };
-    }));
+    return Object.assign(
+        {},
+        ...Reflect.ownKeys(struct).map((k: symbol | string) => {
+            const { value } = struct[k as string];
+            return { [k]: value };
+        }),
+    );
 }
 
-export { malloc, toObject, Time, Stat }
+export { malloc, toObject, Time, Stat };

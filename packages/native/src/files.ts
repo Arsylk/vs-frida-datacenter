@@ -2,7 +2,8 @@ import { Libc } from '@clockwork/common';
 import { Color, logger } from '@clockwork/logging';
 import { readFdPath } from './utils.js';
 import { unbox } from './index.js';
-const { bold, dim, green, red, italic, gray, bgRed, bgBlackBright, bgBlack, bgWhite, bgWhiteBright } = Color.use();
+const { bold, dim, green, red, italic, gray, bgRed, bgBlackBright, bgBlack, bgWhite, bgWhiteBright } =
+    Color.use();
 
 enum Mode {
     F_OK = 0,
@@ -11,9 +12,18 @@ enum Mode {
     R_OK = 4,
 }
 
-function hookAccess(predicate: (ptr: NativePointer) => boolean, fn?: (path: string, mode: Mode, isOk: boolean) => void) {
+function hookAccess(
+    predicate: (ptr: NativePointer) => boolean,
+    fn?: (path: string, mode: Mode, isOk: boolean) => void,
+) {
     const empty = dim('-');
-    function log(this: InvocationContext | CallbackContext, path: string | null, mode: Mode | null, ret: number, tag: string) {
+    function log(
+        this: InvocationContext | CallbackContext,
+        path: string | null,
+        mode: Mode | null,
+        ret: number,
+        tag: string,
+    ) {
         const isOk = ret !== -1;
         mode ??= 0;
         const mask = `?${mode & Mode.R_OK ? 'R' : empty}${mode & Mode.W_OK ? 'W' : empty}${mode & Mode.X_OK ? 'X' : empty}`;
@@ -29,12 +39,13 @@ function hookAccess(predicate: (ptr: NativePointer) => boolean, fn?: (path: stri
                 let ret: number;
                 if (predicate(this.returnAddress)) {
                     if (pathname.readCString()?.endsWith('/su')) {
-                        pathname.writeUtf8String('/nya')
+                        // Memory.protect(pathname, Process.pageSize, 'rw-');
+                        pathname = Memory.allocUtf8String('/nya');
                     }
                     ret = Libc.access(pathname, mode);
                     log.call(this, pathname.readCString(), mode as Mode, ret, 'access');
                 }
-                return ret ??= Libc.access(pathname, mode);
+                return (ret ??= Libc.access(pathname, mode));
             },
             'int',
             ['pointer', 'int'],
@@ -51,15 +62,15 @@ function hookAccess(predicate: (ptr: NativePointer) => boolean, fn?: (path: stri
                     //     return -1;
                     // }
 
-                    const regExp = /^\/apex\/com.android.conscrypt\/cacerts\/[a-f0-9]{8}\.0/
+                    const regExp = /^\/apex\/com.android.conscrypt\/cacerts\/[a-f0-9]{8}\.0/;
                     if (regExp.test(strPath ?? '')) {
-                        Memory.protect(path, Process.pageSize, 'rw-')
-                        path.writeUtf8String('/data/local/tmp/9a5ba575.0')
+                        Memory.protect(path, Process.pageSize, 'rw-');
+                        path.writeUtf8String('/data/local/tmp/9a5ba575.0');
                     }
-                    
+
                     const ret = Libc.faccessat(fd, path, mode, flag);
                     log.call(this, strPath, mode as Mode, ret, 'faccessat');
-                    return ret
+                    return ret;
                 }
                 const ret = Libc.faccessat(fd, path, mode, flag);
                 return ret;
@@ -81,9 +92,9 @@ function hookOpen(predicate: (ptr: NativePointer) => boolean) {
     ) {
         const isOk = ret !== -1;
         const struri = !isOk ? red(gray(`${uri}`)) : gray(`${uri}`);
-        const flagsEnum = flags ? `0b${flags?.toString(2).padStart(16, '0')}` : null
+        const flagsEnum = flags ? `0b${flags?.toString(2).padStart(16, '0')}` : null;
 
-        logger.info({ tag: key }, `${struri} flags: ${flagsEnum}, ${mode ?  `mode: ${mode}` : ''}`);
+        logger.info({ tag: key }, `${struri} flags: ${flagsEnum}, ${mode ? `mode: ${mode}` : ''}`);
     }
     // Interceptor.replace(
     //     Libc.open,
@@ -101,15 +112,15 @@ function hookOpen(predicate: (ptr: NativePointer) => boolean) {
     // );
     Interceptor.attach(Libc.open, {
         onEnter(args) {
-            this.pathname = args[0]
-            this.flags = args[1].toInt32()
+            this.pathname = args[0];
+            this.flags = args[1].toInt32();
         },
         onLeave(retval) {
             if (predicate(this.returnAddress)) {
                 log.call(this, this.pathname.readCString(), this.flags, retval.toInt32(), 0, 'open');
             }
         },
-    })
+    });
     Interceptor.replace(
         Libc.creat,
         new NativeCallback(
@@ -155,7 +166,7 @@ function hookFopen(
     ) {
         const isFd = typeof uri === 'number';
         let strpath = isFd ? `<fd:${uri}>` : `${uri}`;
-        const isOk = `${errno}` === '0'
+        const isOk = `${errno}` === '0';
 
         if (isFd && statfd) {
             const infs = readFdPath(uri);
@@ -164,7 +175,7 @@ function hookFopen(
 
         const struri = isOk ? dim(`${strpath}`) : dim(red(`${strpath}`));
         const strmod = `${mode}`.padEnd(2);
-        const errstr = !isOk ? ` ${gray(dim(`{${errno}: "${Libc.strerror(errno).readCString()}}"`))}` : ''
+        const errstr = !isOk ? ` ${gray(dim(`{${errno}: "${Libc.strerror(errno).readCString()}}"`))}` : '';
 
         logger.info({ tag: key }, `${struri} ${strmod} ${!stream ? '' : `->${stream}`}${errstr}`);
     }
@@ -173,11 +184,21 @@ function hookFopen(
         Libc.fopen,
         new NativeCallback(
             function (pathname, mode) {
-                const ret = Libc.fopen(pathname, mode);
                 if (predicate(this.returnAddress)) {
-                    //@ts-ignore
-                    log.call(this, pathname.readCString(), mode.readCString(), null, ret.errno, 'fopen');
+                    const pathnameStr = pathname.readCString();
+                    const ret = Libc.fopen(pathname, mode);
+                    log.call(
+                        this,
+                        pathnameStr,
+                        mode.readCString(),
+                        null,
+                        //@ts-ignore
+                        ret.errno,
+                        'fopen',
+                    );
+                    return ret.value;
                 }
+                const ret = Libc.fopen(pathname, mode);
                 return ret.value;
             },
             'pointer',
@@ -215,7 +236,13 @@ function hookFopen(
 }
 
 function hookStat(predicate: (ptr: NativePointer) => boolean) {
-    function log(this: InvocationContext | CallbackContext, uri: string | number | null, statbuf: NativePointer, ret: number, tag: string) {
+    function log(
+        this: InvocationContext | CallbackContext,
+        uri: string | number | null,
+        statbuf: NativePointer,
+        ret: number,
+        tag: string,
+    ) {
         const isFd = typeof uri === 'number';
         const strpath = isFd ? `<fd:${uri}>` : `${uri}`;
         const isOk = ret === 0;
@@ -234,7 +261,7 @@ function hookStat(predicate: (ptr: NativePointer) => boolean) {
     }
 
     const array: ('stat' | 'lstat')[] = ['stat', 'lstat'];
-    for(const key of array) {
+    for (const key of array) {
         const func = Libc[key];
         Interceptor.replace(
             func,
@@ -250,7 +277,7 @@ function hookStat(predicate: (ptr: NativePointer) => boolean) {
                 ['pointer', 'pointer'],
             ),
         );
-    };
+    }
     Interceptor.replace(
         Libc.fstat,
         new NativeCallback(
@@ -278,18 +305,18 @@ function hookRemove(predicate: (ptr: NativePointer) => boolean, ignore?: (path: 
                     let ret: number;
                     if (predicate(this.returnAddress)) {
                         const strpath = pathname.readCString();
-                        const replace = ignore?.(`${pathname}`) === true
+                        const replace = ignore?.(`${pathname}`) === true;
                         const isOk = (ret = replace ? 0 : func(pathname)) !== -1;
-                        const fmt = replace ? bgRed : String
+                        const fmt = replace ? bgRed : String;
                         logger.info({ tag: key }, `${fmt(bold(gray(`${strpath}`)))}`);
                     }
-                    return ret ??= func(pathname);
+                    return (ret ??= func(pathname));
                 },
                 'int',
                 ['pointer'],
             ),
         );
-    };
+    }
 }
 
 function hookReadlink(predicate: (ptr: NativePointer) => boolean) {
@@ -301,7 +328,7 @@ function hookReadlink(predicate: (ptr: NativePointer) => boolean) {
                 if (predicate(this.returnAddress)) {
                     const lnstring = pathname.readCString();
                     const rlstring = buf.readCString(ret);
-                    const frlstring = rlstring // .replace(/�.*$/g, '')
+                    const frlstring = rlstring; // .replace(/�.*$/g, '')
                     logger.info({ tag: 'readlink' }, `"${lnstring}" -> "${frlstring}"`);
                 }
                 return ret;
@@ -309,7 +336,7 @@ function hookReadlink(predicate: (ptr: NativePointer) => boolean) {
             'int',
             ['pointer', 'pointer', 'int'],
         ),
-    )
+    );
 }
 
 export { hookAccess, hookFopen, hookOpen, hookReadlink, hookRemove, hookStat };

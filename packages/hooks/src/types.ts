@@ -1,4 +1,5 @@
-import { ReturnOptional } from '@clockwork/common/src/types';
+import type { JavaArgument } from '@clockwork/common';
+import type { ReturnOptional } from '@clockwork/common/src/types';
 
 type LoggerOptions = {
     spacing: string;
@@ -17,20 +18,17 @@ type HookParameters = {
     replace?: FridaMethodReplacement;
     after?: FridaAfterMethod;
     logging?: Partial<LoggerOptions>;
-    loggingPredicate?: LoggingPredicate,
+    loggingPredicate?: LoggingPredicate;
 };
 
 type MethodOverload = {
-    argumentTypes: {className: string}[];
-    returnType: {className: string}; 
-}
+    argumentTypes: { className: string }[];
+    returnType: { className: string };
+};
 
-type MethodHookPredicate = (
-    overload: MethodOverload,
-    index: number,
-) => boolean;
+type MethodHookPredicate = (overload: MethodOverload, index: number) => boolean;
 
-type LoggingPredicate = (this: Java.Wrapper, method: Java.Method, ...args: any[]) => boolean;
+type LoggingPredicate = (this: Java.Wrapper, method: Java.Method, ...args: JavaArgument[]) => boolean;
 
 type FridaMethodReplacement = (this: Java.Wrapper, method: Java.Method, ...args: any[]) => any;
 type FridaMethodReplacementOptional = ReturnOptional<FridaMethodReplacement>;
@@ -39,4 +37,10 @@ type FridaBeforeMethod = (this: Java.Wrapper, method: Java.Method, ...args: any[
 
 type FridaAfterMethod = (this: Java.Wrapper, method: Java.Method, returnValue?: any, ...args: any[]) => void;
 
-export { LoggerOptions, HookParameters, MethodOverload, FridaMethodReplacement, FridaMethodReplacementOptional };
+export type {
+    LoggerOptions,
+    HookParameters,
+    MethodOverload,
+    FridaMethodReplacement,
+    FridaMethodReplacementOptional,
+};

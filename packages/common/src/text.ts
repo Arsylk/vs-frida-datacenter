@@ -8,18 +8,18 @@ function noLines(message: any): string {
 }
 
 function toHex(decimal: any): string {
-    return ('0' + Number(decimal).toString(16)).slice(-2);
+    return `0${Number(decimal).toString(16)}`.slice(-2);
 }
 
 function toByteSize(size: number): string {
     const i = size === 0 ? 0 : Math.floor(Math.log(size) / Math.log(1024));
-    return Number((size / Math.pow(1024, i)).toFixed(2)) * 1 + ' ' + ['B', 'kB', 'MB', 'GB', 'TB'][i];
+    return `${Number((size / Math.pow(1024, i)).toFixed(2)) * 1} ${['B', 'kB', 'MB', 'GB', 'TB'][i]}`;
 }
 
-function stringNumber(length: number): string { 
+function stringNumber(length: number): string {
     let text = '';
     for (let i = 0; i < length; i++) {
-        text += `${Math.floor((Math.random() * 10)) % 10}`
+        text += `${Math.floor(Math.random() * 10) % 10}`;
     }
     return text;
 }
@@ -34,7 +34,7 @@ const PRIMITIVE_TYPE: { [key: string]: string } = {
     J: 'long',
     S: 'short',
     V: 'void',
-}
+};
 
 function toPrettyType(type: string): string {
     const len = type.length;
@@ -44,7 +44,6 @@ function toPrettyType(type: string): string {
         return type.substring(1, type.length - 1).replaceAll('/', '.') + '[]'.repeat(depth);
     return (PRIMITIVE_TYPE[type] ?? type) + '[]'.repeat(depth);
 }
-
 
 function base64(input: string) {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -65,6 +64,5 @@ function base64(input: string) {
 
     return output;
 }
-
 
 export { maxLengh, noLines, toHex, toByteSize, toPrettyType, stringNumber, base64 };

@@ -8,7 +8,7 @@ class SyscallCallback {
     }
 }
 
-let callbacks: SyscallCallback[] = [];
+const callbacks: SyscallCallback[] = [];
 
 function hookSyscall(syscallAddress: NativePointer, callback: NativeCallback<any, any>) {
     const address = syscallAddress.sub(12);
@@ -18,19 +18,24 @@ function hookSyscall(syscallAddress: NativePointer, callback: NativeCallback<any
         throw new Error(`Unable to read instructions at address ${address}.`);
     }
 
-    Memory.patchCode(address, 16, function (code) {
-        let writer = new Arm64Writer(code, { pc: address });
+    Memory.patchCode(address, 16, (code) => {
+        const writer = new Arm64Writer(code, { pc: address });
         writer.putBranchAddress(createCallback(callback, instructions, address.add(16), syscallAddress));
         writer.flush();
     });
 }
 
-function createCallback(callback: NativeCallback<any, any>, instructions: ArrayBuffer, retAddress: NativePointer, syscallAddress: NativePointer) {
+function createCallback(
+    callback: NativeCallback<any, any>,
+    instructions: ArrayBuffer,
+    retAddress: NativePointer,
+    syscallAddress: NativePointer,
+) {
     // Create custom instructions.
-    let frida = Memory.alloc(Process.pageSize);
+    const frida = Memory.alloc(Process.pageSize);
 
-    Memory.patchCode(frida, Process.pageSize, function (code) {
-        let writer = new Arm64Writer(code, { pc: frida });
+    Memory.patchCode(frida, Process.pageSize, (code) => {
+        const writer = new Arm64Writer(code, { pc: frida });
 
         // Restore argument instructions.
         writer.putBytes(instructions);
@@ -91,4 +96,4 @@ function createCallback(callback: NativeCallback<any, any>, instructions: ArrayB
     return callbacks[callbacks.length - 1].frida;
 }
 
-export { hookSyscall, SyscallCallback }
+export { hookSyscall, SyscallCallback };

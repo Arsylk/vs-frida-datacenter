@@ -40,10 +40,14 @@ function attachNativeSocket() {
             const sockType = Socket.type(sockFd);
             if (!(sockType === 'tcp' || sockType === 'tcp6')) return;
 
-            const sockLocal: TcpEndpointAddress | null = Socket.localAddress(sockFd) as TcpEndpointAddress | null;
+            const sockLocal: TcpEndpointAddress | null = Socket.localAddress(
+                sockFd,
+            ) as TcpEndpointAddress | null;
             const tcpEpLocal = sockLocal ?? undefined;
-            const sockRemote: TcpEndpointAddress | null = Socket.peerAddress(sockFd) as TcpEndpointAddress | null;
-            const tcpEpRemote = sockRemote ?? undefined
+            const sockRemote: TcpEndpointAddress | null = Socket.peerAddress(
+                sockFd,
+            ) as TcpEndpointAddress | null;
+            const tcpEpRemote = sockRemote ?? undefined;
 
             if (!tcpEpLocal) return;
             // ToDo: if socket FD already exists in the set, a faked 'close' message shall be sent first (currently handled by receiving logic)
@@ -111,14 +115,18 @@ function attachNativeSocket() {
 }
 
 function logOpen(msg: SocketOpenMessage) {
-    const host = (`${msg.hostIp?.replace('::ffff:', '')}${String(msg.port ? `:${msg.port}` : '')}`);
-    const dest = (msg.dstIp ? (`, dst@${msg.dstIp.replace('::ffff:', '')}${String(msg.dstPort ? `:${msg.dstPort}` : '')}`) : '');
-    logger.info(`(pid: ${msg.pid}, thread: ${msg.threadId}, fd: ${msg.socketFd}) ${msg.type} -> [host@${host}${dest}]`);
+    const host = `${msg.hostIp?.replace('::ffff:', '')}${String(msg.port ? `:${msg.port}` : '')}`;
+    const dest = msg.dstIp
+        ? `, dst@${msg.dstIp.replace('::ffff:', '')}${String(msg.dstPort ? `:${msg.dstPort}` : '')}`
+        : '';
+    logger.info(
+        `(pid: ${msg.pid}, thread: ${msg.threadId}, fd: ${msg.socketFd}) ${msg.type} -> [host@${host}${dest}]`,
+    );
 }
 
 function logClose(msg: SocketCloseMessage) {
-    const host = (`${msg.hostIp?.replace('::ffff:', '')}${String(msg.port ? `:${msg.port}` : '')}`);
-    const thread = (msg.threadId ? `, thread: ${msg.threadId}` : '');
+    const host = `${msg.hostIp?.replace('::ffff:', '')}${String(msg.port ? `:${msg.port}` : '')}`;
+    const thread = msg.threadId ? `, thread: ${msg.threadId}` : '';
     logger.info(`(pid: ${msg.pid}${thread}, fd: ${msg.socketFd}) ${msg.type} -> ${host}`);
 }
 

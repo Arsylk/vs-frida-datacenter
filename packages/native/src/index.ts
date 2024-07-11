@@ -15,26 +15,24 @@ function gPtr(value: string | number): NativePointer {
 }
 
 function type<T extends object>(fn: (this: T, ...args: any[]) => void) {
-    return function (
-        this: CallbackContext | InvocationContext,
-        ...args: any[]
-    ) {
-        return fn.call(this as T, ...args,);
-    };   
+    return function (this: CallbackContext | InvocationContext, ...args: any[]) {
+        return fn.call(this as T, ...args);
+    };
 }
 
 function unbox<T extends NativeFunctionReturnValue>(box: SystemFunctionResult<T>): [T, number] {
     let casted: SystemFunctionResult<T> | null = null;
-    if ((casted = (box as UnixSystemFunctionResult<T>))) {
-        return [casted.value, casted.errno]
+    if ((casted = box as UnixSystemFunctionResult<T>)) {
+        return [casted.value, casted.errno];
     }
-    if ((casted = (box as WindowsSystemFunctionResult<T>))) {
-        return [casted.value, casted.lastError]
+    if ((casted = box as WindowsSystemFunctionResult<T>)) {
+        return [casted.value, casted.lastError];
     }
-    return [box.value, Number.NaN] 
+    return [box.value, Number.NaN];
 }
 
-function initLibart() { 
+// * Currently unused
+function initLibart() {
     const module = Process.getModuleByName('libart.so');
     for (const { name, address } of module.enumerateSymbols()) {
         (Java as any).api['art::ArtMethod::GetSignature'] ??= name.includes(
@@ -42,28 +40,13 @@ function initLibart() {
         )
             ? new NativeFunction(address, 'pointer', ['pointer'])
             : undefined;
-        (Java as any).api['art::ArtMethod::JniLongName'] ??= name.includes(
-            '_ZN3art9ArtMethod11JniLongNameEv',
-        )
+        (Java as any).api['art::ArtMethod::JniLongName'] ??= name.includes('_ZN3art9ArtMethod11JniLongNameEv')
             ? new NativeFunction(address, 'pointer', ['pointer'])
             : undefined;
-        (Java as any).api['NterpGetShortyFromMethodId'] ??= name.includes(
-            'NterpGetShortyFromMethodId',
-        )
+        (Java as any).api['NterpGetShortyFromMethodId'] ??= name.includes('NterpGetShortyFromMethodId')
             ? new NativeFunction(address, 'pointer', ['pointer'])
             : undefined;
-
-        
     }
 }
 
-export {
-    initLibart,
-    type,
-    unbox,
-    gPtr,
-    attachRegisterNatives,
-    attachSystemPropertyGet,
-    Inject,
-    HooahTrace,
-};
+export { initLibart, type, unbox, gPtr, attachRegisterNatives, attachSystemPropertyGet, Inject, HooahTrace };

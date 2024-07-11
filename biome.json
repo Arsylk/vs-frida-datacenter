@@ -1,23 +1,51 @@
 {
-	"$schema": "https://biomejs.dev/schemas/1.8.1/schema.json",
-	"organizeImports": {
-		"enabled": true
-	},
-	"linter": {
-		"enabled": true,
-		"rules": {
-			"recommended": true,
-			"suspicious": {
-				"noAssignInExpressions": "off",
-				"noExplicitAny": "warn"
-			},
-			"style": {
-				"noParameterAssign": "off",
-				"useTemplate": {
-					"level": "warn",
-					"fix": "safe"
-				}
-			}
-		}
-	}
+    "$schema": "https://biomejs.dev/schemas/1.8.1/schema.json",
+    "vcs": {
+        "enabled": true,
+        "clientKind": "git",
+        "defaultBranch": "main",
+        "useIgnoreFile": true
+    },
+    "javascript": {
+        "formatter": {
+            "quoteStyle": "single",
+            "trailingCommas": "all",
+            "bracketSpacing": true,
+            "semicolons": "always"
+        }
+    },
+    "organizeImports": {
+        "enabled": true,
+        "ignore": ["dist/**", "node_modules/**"],
+        "include": ["*.ts"]
+    },
+    "formatter": {
+        "enabled": true,
+        "formatWithErrors": true,
+        "indentStyle": "space",
+        "indentWidth": 4,
+        "lineWidth": 110
+    },
+    "linter": {
+        "enabled": true,
+        "rules": {
+            "recommended": true,
+            "suspicious": {
+                "noAssignInExpressions": "off",
+                "noExplicitAny": "off"
+            },
+            "style": {
+                "noParameterAssign": "off",
+                "useNodejsImportProtocol": "off",
+                "useTemplate": {
+                    "level": "warn",
+                    "fix": "safe"
+                }
+            }
+        }
+    },
+    "files": {
+        "ignore": ["dist/**", "node_modules/**"],
+        "include": ["*.ts"]
+    }
 }

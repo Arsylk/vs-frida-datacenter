@@ -9,7 +9,7 @@ function propMapper(key: string): string | undefined {
         case 'ro.debuggable':
             return '0';
         case 'ro.build.characteristics':
-            return 'default'
+            return 'default';
         case 'ro.build.display.id':
             return 'SQ1D.220205.003';
         case 'ro.build.tags':
@@ -28,13 +28,13 @@ function propMapper(key: string): string | undefined {
         case 'ro.product.device':
             return 'hi6250';
         case 'ro.build.product':
-            return 'nya64a'
+            return 'nya64a';
         case 'gsm.version.baseband':
             return '4.0.2.c8-00047-0722+1520_40cbe21,4.0.2.c8-00047-0722_1520_40cbe21';
         case 'ro.build.fingerprint':
             return 'Xiaomi/raven/raven:14/SQ1D.220205.003/8069835:user/release-keys';
         case 'ro.build.description':
-            return 'xiaomi-raven 15 SQ1D.220205.003 8069835 release-keys';
+            return 'xiaomi-raven 14 SQ1D.220205.003 8069835 release-keys';
         case 'persist.sys.timezone':
             return '';
     }
@@ -48,11 +48,11 @@ function buildMapper(key: string): string | undefined {
         case 'MANUFACTURER':
         case 'SOC_MANUFACTURER':
             return 'Xiaomi';
-        // case 'DEVICE':
-        // case 'PRODUCT': // this can be problematic for EGLConfig
-        //     return 'nya_arm64';
+        case 'DEVICE':
+        case 'PRODUCT': // this can be problematic for EGLConfig
+            return 'nya_arm64';
         case 'HARDWARE':
-            return 'qcom'
+            return 'qcom';
         case 'BOARD':
             return 'hi6250';
         case 'FINGERPRINT':
@@ -84,10 +84,9 @@ function buildMapper(key: string): string | undefined {
 
 function systemMapper(key: string): string | undefined {
     switch (key) {
-        case 'http.agent': 
-            return `Mozilla/5.0 (Linux; Android 14; Go 6 Pro Build/SQ1D.220205.003) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.66.Mobile Safari/537.36`
+        case 'http.agent':
+            return 'Mozilla/5.0 (Linux; Android 14; Go 6 Pro Build/SQ1D.220205.003) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.66.Mobile Safari/537.36';
     }
 }
 
-
-export { buildMapper, propMapper, systemMapper }
+export { buildMapper, propMapper, systemMapper };

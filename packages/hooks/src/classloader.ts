@@ -14,8 +14,7 @@ namespace ClassLoader {
     }
 
     function onNewClassLoader(this: Java.Wrapper) {
-        const loader = this;
-        notify(loader);
+        notify(this);
     }
 
     function invoke() {

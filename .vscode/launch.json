@@ -6,5 +6,5 @@
             "type": "node",
             "request": "attach"
         }
-    ],
-} 
+    ]
+}

@@ -22,23 +22,23 @@ const args: (args: any[]) => string = (args: string[]) => {
     const joinBy = true ? ', \n' : ', ';
     const joined = args.map((arg: any) => `    ${arg}`).join(joinBy);
     return `\n${joined}\n`;
-}; 
+};
 
 const bracket: (char: any) => string = (char: any) => {
     if (!char) return char;
     return blue(`${char}`);
-}
+};
 
 const url: (url: any) => string = (url: string) => {
     return underline(`${url}`);
-}
+};
 
 const string: (string: any) => string = (string: any) => {
     return yellow(`"${string}"`);
-}
+};
 
 const number: (number: any) => string = (number: any) => {
     return magenta(`${number}`);
-}
+};
 
 export { className, method, args, bracket, url, string, number, use };

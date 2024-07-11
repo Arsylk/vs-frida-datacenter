@@ -1,2 +1,5 @@
-import * as Cocos2dx from '@clockwork/cocos2dx';
-Cocos2dx.dump();
+import { enumerateMembers, getFindUnique } from '@clockwork/common';
+import { ClassLoader, hook } from '@clockwork/hooks';
+import * as Unity from '@clockwork/unity';
+
+Unity.attachStrings();

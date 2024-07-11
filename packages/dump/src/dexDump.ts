@@ -7,7 +7,10 @@ const FLAG_ENABLE_DEEP_SEARCH = false;
 function dump() {
     let enable_deep_search = FLAG_ENABLE_DEEP_SEARCH;
     const know_paths = ['.js', '.html', '.xml'];
-    const AppClassLoader = Java.use('android.app.ActivityThread').currentApplication().getApplicationContext().getClassLoader();
+    const AppClassLoader = Java.use('android.app.ActivityThread')
+        .currentApplication()
+        .getApplicationContext()
+        .getClassLoader();
     const currentApplication = Java.use('android.app.ActivityThread').currentApplication();
     const context = getApplicationContext();
 
@@ -22,7 +25,7 @@ function dump() {
     logger.trace(listFile);
 
     // For Device
-    const dir_to_write = file.$new(context.getFilesDir() + '/frida_dumped_files/');
+    const dir_to_write = file.$new(`${context.getFilesDir()}/frida_dumped_files/`);
     dir_to_write.mkdirs();
     const scandexVar = scandex();
     // logger.trace(JSON.stringify(scandexconst))
@@ -52,7 +55,11 @@ function dump() {
 
             // For Device
             //@ts-ignore
-            const file: any = new File(context.getFilesDir() + `/frida_dumped_files/${scandex.addr}.dex`, 'wb');
+            const file: any = new File(
+                //@ts-ignore
+                `${context.getFilesDir()}/frida_dumped_files/${scandex.addr}.dex`,
+                'wb',
+            );
             file.write(buffer);
             file.flush();
             file.close();
@@ -101,11 +108,14 @@ function dump() {
 
     function scandex() {
         const result: any[] = [];
-        Process.enumerateRanges('r--').forEach(function (range) {
+        Process.enumerateRanges('r--').forEach((range) => {
             try {
-                Memory.scanSync(range.base, range.size, '64 65 78 0a 30 ?? ?? 00').forEach(function (match) {
+                Memory.scanSync(range.base, range.size, '64 65 78 0a 30 ?? ?? 00').forEach((match) => {
                     // range.file.path.startsWith("/data/app/") ||
-                    if (range?.file?.path?.startsWith('/data/dalvik-cache/') || range?.file?.path?.startsWith('/system/')) {
+                    if (
+                        range?.file?.path?.startsWith('/data/dalvik-cache/') ||
+                        range?.file?.path?.startsWith('/system/')
+                    ) {
                         return;
                     }
 
@@ -116,7 +126,7 @@ function dump() {
                 });
 
                 if (enable_deep_search) {
-                    Memory.scanSync(range.base, range.size, '70 00 00 00').forEach(function (match) {
+                    Memory.scanSync(range.base, range.size, '70 00 00 00').forEach((match) => {
                         const dex_base = match.address.sub(0x3c);
                         if (dex_base < range.base) {
                             return;
@@ -137,8 +147,6 @@ function dump() {
 
         return result;
     }
-
-    
 }
 
 function verify(dexptr: NativePointer, range: RangeDetails | null, enable_verify_maps: boolean) {
@@ -199,14 +207,14 @@ function verifyByMaps(dexptr: NativePointer, mapsptr: NativePointer) {
 /**
  * The entrypoint function.
  */
-function scheduleDexDump(delay: number = 10_000) {
+function scheduleDexDump(delay = 10_000) {
     setTimeout(() => {
         Java.performNow(() => {
             logger.info('start dumping');
             try {
                 dump();
             } catch (err: any) {
-                logger.warn('failed to dump:' + err.message);
+                logger.warn(`failed to dump:${err.message}`);
                 return;
             }
             logger.info('finish dumping');

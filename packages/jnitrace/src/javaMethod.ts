@@ -19,7 +19,7 @@ class JavaMethod {
      */
 
     public get javaParams(): string[] {
-        return this.#javaParams ??= this.parameters.map(Text.toPrettyType);
+        return (this.#javaParams ??= this.parameters.map(Text.toPrettyType));
     }
 
     /**
@@ -27,7 +27,7 @@ class JavaMethod {
      */
 
     public get javaRet(): string {
-        return this.#javaRet ??= Text.toPrettyType(this.returnType);
+        return (this.#javaRet ??= Text.toPrettyType(this.returnType));
     }
 
     public get isVoid(): boolean {

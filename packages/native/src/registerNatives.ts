@@ -20,7 +20,7 @@ function find(offset: number, returnType: NativeFunctionReturnType, args: Native
     return func ?? null;
 }
 
-function attachRegisterNatives(fn?: ((this: InvocationContext, retval: InvocationReturnValue) => void)) {
+function attachRegisterNatives(fn?: (this: InvocationContext, retval: InvocationReturnValue) => void) {
     const found = find(215, 'int32', ['pointer', 'pointer', 'pointer', 'int32']);
     if (found) {
         Interceptor.attach(found, {
@@ -37,8 +37,13 @@ function attachRegisterNatives(fn?: ((this: InvocationContext, retval: Invocatio
     // fallback previous method
     const libart = Process.getModuleByName('libart.so');
     const symbols = libart.enumerateSymbols();
-    for(const { name, address } of symbols) {
-        if (name.includes('art') && name.includes('JNI') && name.includes('RegisterNatives') && !name.includes('CheckJNI')) {
+    for (const { name, address } of symbols) {
+        if (
+            name.includes('art') &&
+            name.includes('JNI') &&
+            name.includes('RegisterNatives') &&
+            !name.includes('CheckJNI')
+        ) {
             console.log('RegisterNatives is at ', address, name);
             Interceptor.attach(address, {
                 onEnter(args) {
@@ -47,7 +52,7 @@ function attachRegisterNatives(fn?: ((this: InvocationContext, retval: Invocatio
                 },
             });
         }
-    };
+    }
 }
 
 /*
@@ -66,7 +71,7 @@ function logOnEnterRegisterNatives(this: InvocationContext, args: InvocationArgu
     const nMethods = args[3].toInt32();
     const className = Java.vm.tryGetEnv()?.getClassName(clazz) ?? '<unknown>';
 
-    logger.info({tag: 'RegisterNatives'}, `${redBright(className)} methods: ${bold(nMethods)}`);
+    logger.info({ tag: 'RegisterNatives' }, `${redBright(className)} methods: ${bold(nMethods)}`);
     addToExport({
         module: module?.name,
         name: className,
@@ -87,7 +92,10 @@ function logOnEnterRegisterNatives(this: InvocationContext, args: InvocationArgu
         const name = namePtr.readCString() ?? '';
         const sig = sigPtr.readCString() ?? '';
         const symbol = DebugSymbol.fromAddress(fnPtrPtr);
-        console.log(`${black(dim('  >'))}${green(name)}${sig}`, `at:\n    ${symbol}\n    ${DebugSymbol.fromAddress(this.returnAddress)}`);
+        console.log(
+            `${black(dim('  >'))}${green(name)}${sig}`,
+            `at:\n    ${symbol}\n    ${DebugSymbol.fromAddress(this.returnAddress)}`,
+        );
         // console.log(
         //     '[#]',
         //     JSON.stringify({
@@ -116,7 +124,7 @@ function badConvert(symbol: DebugSymbol): NativePointer {
 }
 
 function addToExport(item: object) {
-    const native: object[] = ((rpc as (typeof rpc & {RegisterNatives: object[]})).RegisterNatives ??= []);
+    const native: object[] = ((rpc as typeof rpc & { RegisterNatives: object[] }).RegisterNatives ??= []);
     native.push(item);
 }
 
