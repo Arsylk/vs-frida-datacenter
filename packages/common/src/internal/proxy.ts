@@ -83,6 +83,15 @@ function proxyStruct<T extends { [key: string]: StructTypes }>(data: T): StructC
                     };
                     offset += Process.pointerSize;
                     break;
+                case 'string*':
+                    cache[key] = {
+                        ptr: crnt,
+                        get value() {
+                            return crnt.readPointer().readCString();
+                        },
+                    };
+                    offset += Process.pointerSize;
+                    break;
                 case 'pointer':
                     cache[key] = {
                         ptr: crnt,
@@ -171,11 +180,11 @@ function proxyStruct<T extends { [key: string]: StructTypes }>(data: T): StructC
 }
 
 export {
-    proxyJavaUse,
-    type PropertyJavaUseMapper,
     proxyCallback,
-    type PropertyCallbackMapper,
+    proxyJavaUse,
     proxyStruct,
-    type StructCreator,
+    type PropertyCallbackMapper,
+    type PropertyJavaUseMapper,
     type PropertyStructMapper,
+    type StructCreator,
 };

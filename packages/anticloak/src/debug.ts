@@ -1,4 +1,5 @@
 import { Libc } from '@clockwork/common';
+import { always, hook } from '@clockwork/hooks';
 import { logger } from '@clockwork/logging';
 
 function hookPtrace() {
@@ -24,4 +25,8 @@ function hookPtrace() {
     );
 }
 
-export { hookPtrace };
+function hookVMDebug() {
+    hook(Classes.VMDebug, 'isDebuggerConnected', { replace: always(false) });
+}
+
+export { hookPtrace, hookVMDebug };

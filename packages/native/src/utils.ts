@@ -1,5 +1,4 @@
 import { Libc } from '@clockwork/common';
-import { logger } from '@clockwork/logging';
 
 function dellocate(ptr: NativePointer) {
     try {
@@ -91,4 +90,29 @@ function readFdPath(fd: number, bufsize: number = Process.pageSize): string | nu
     return str;
 }
 
-export { dellocate, getSelfProcessName, getSelfFiles, dumpFile, readFdPath };
+function readTidName(tid: number): string {
+    //@ts-ignore issue with File from esnext 5.4
+    const file: any = new File(`/proc/self/task/${tid}/comm`, 'r');
+    const str = file.readLine().slice(0, -1);
+    file.close();
+    return str;
+}
+
+function tryDemangle<T extends string | null>(name: T): T {
+    if (!name) return name;
+    try {
+        if (!Libc.__cxa_demangle) {
+            throw Error('__cxa_demangle not found');
+        }
+        const str = Memory.allocUtf8String(name);
+        const len = Memory.alloc(4).writeUInt(name.length);
+        const buf = Libc.__cxa_demangle(str, NULL, len, NULL);
+        dellocate(str);
+        const demangled = buf.readCString();
+        dellocate(buf);
+        if (demangled && demangled.length > 0) return demangled as T;
+    } catch (e) {}
+    return name;
+}
+
+export { dellocate, dumpFile, getSelfFiles, getSelfProcessName, readFdPath, readTidName, tryDemangle };

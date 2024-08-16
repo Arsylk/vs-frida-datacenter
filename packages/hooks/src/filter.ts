@@ -1,5 +1,4 @@
 import { stacktrace } from '@clockwork/common';
-import { ifError } from 'assert';
 
 const prefsMeasurementInternalIgnored = [
     'consent_settings',
@@ -34,6 +33,7 @@ const settingsKeysIgnored = [
     'force_resizable_activities',
     'use_blast_adapter_sv',
     'show_angle_in_use_dialog_box',
+    'accessibility_captioning_enabled',
 ];
 
 const Filter = {
@@ -128,6 +128,35 @@ const Filter = {
         const key = `${args[1]}`;
         return !settingsKeysIgnored.includes(key);
     },
+    systemprop: (_: any, ...args: any) => {
+        const key = `${args[0]}`;
+        switch (key) {
+            case 'line.separator':
+            case 'jsse.enableSNIExtension':
+            case 'http.proxyHost':
+            case 'proxyHost':
+            case 'socksProxyHost':
+            case 'http.keepAlive':
+            case 'http.maxConnections':
+            case 'http.keepAliveDuration':
+            case 'javax.net.ssl.keyStore':
+            case 'com.android.org.conscrypt.useEngineSocketByDefault':
+            case 'java.library.path':
+            case 'java.version':
+            case 'java.vm.name':
+            case 'file.separator':
+            case 'guava.concurrent.generate_cancellation_cause':
+                return false;
+        }
+        return true;
+    },
 };
 
-export { Filter };
+const FilterJni = {
+    getFieldId: (className: string, typeName: string, name: string) => {
+        if (className === 'io.flutter.embedding.engine.FlutterJNI' && name === 'refreshRateFPS') return false;
+        return true;
+    },
+};
+
+export { Filter, FilterJni };

@@ -4,8 +4,8 @@ type ReturnOptional<T extends Returnable> = (
     ...args: Parameters<T>
 ) => ReturnType<T> | undefined;
 type OmitFirstArg<T> = T extends (x: any, ...args: infer P) => infer R ? (...args: P) => R : never;
-type StructTypes = 'short' | 'int' | 'long' | 'string' | 'pointer';
+type StructTypes = 'short' | 'int' | 'long' | 'string' | 'string*' | 'pointer';
 type JavaArgument = any;
 type JavaArguments = Variadic;
 
-export type { Returnable, ReturnOptional, OmitFirstArg, StructTypes, JavaArgument, JavaArguments };
+export type { JavaArgument, JavaArguments, OmitFirstArg, ReturnOptional, Returnable, StructTypes };

@@ -1,7 +1,7 @@
-import { findClass, Classes, ClassesString, enumerateMembers } from '@clockwork/common';
+import { Classes, ClassesString, enumerateMembers, findClass } from '@clockwork/common';
 import { ClassLoader, hook } from '@clockwork/hooks';
 import type { MethodOverload } from '@clockwork/hooks/dist/types';
-import { subLogger, Color } from '@clockwork/logging';
+import { Color, subLogger } from '@clockwork/logging';
 const logger = subLogger('installreferrer');
 
 interface ReferrerDetails {
@@ -182,4 +182,4 @@ const onInstallReferrerSetupFinishedPredicate: (overload: MethodOverload) => boo
     );
 };
 
-export { replace, createInstallReferrer };
+export { createInstallReferrer, replace };

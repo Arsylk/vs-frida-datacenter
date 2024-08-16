@@ -75,13 +75,13 @@ function findClass(className: string, ...loaders: Java.Wrapper[]): Java.Wrapper 
     return null;
 }
 
-function getFindUnique() {
+function getFindUnique(logging = true) {
     const found = new Set<string>();
 
     return (clazzName: string, fn: (clazz: Java.Wrapper) => void) => {
         const clazz = findClass(clazzName);
         if (!clazz) {
-            logger.info({ tag: 'findUnique' }, `class ${clazzName} not found !`);
+            logging && logger.info({ tag: 'findUnique' }, `class ${clazzName} not found !`);
             return;
         }
 
@@ -93,4 +93,4 @@ function getFindUnique() {
     };
 }
 
-export { findClass, getFindUnique, enumerateMembers };
+export { enumerateMembers, findClass, getFindUnique };

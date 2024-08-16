@@ -1,11 +1,18 @@
 import { EventEmitter } from 'events';
 import { ClassesProxy, ClassesString, type ClassesType } from './define/java.js';
 import { LibcFinderProxy, type LibcType } from './define/libc.js';
-export * as Struct from './define/struct.js';
+import { enumerateMembers, findClass, getFindUnique } from './search.js';
 export * as Std from './define/std.js';
+export * as Struct from './define/struct.js';
 export * as Text from './text.js';
 export * from './types.js';
-import { enumerateMembers, findClass, getFindUnique } from './search.js';
+
+function tryNull<T>(fn: () => T): T | null {
+    try {
+        return fn();
+    } catch (_) {}
+    return null;
+}
 
 function isJWrapper(clazzOrName: Java.Wrapper | string): clazzOrName is Java.Wrapper {
     return Object.hasOwn(clazzOrName as any, '$className');
@@ -54,15 +61,16 @@ Object.defineProperties(global, {
 });
 
 export {
-    ClassesString,
     ClassesProxy as Classes,
-    LibcFinderProxy as Libc,
+    ClassesString,
+    emitter,
+    enumerateMembers,
+    findClass,
+    getApplicationContext,
+    getFindUnique,
     isJWrapper,
+    LibcFinderProxy as Libc,
     stacktrace,
     stacktraceList,
-    getApplicationContext,
-    findClass,
-    enumerateMembers,
-    getFindUnique,
-    emitter,
+    tryNull,
 };

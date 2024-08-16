@@ -1,13 +1,13 @@
-import { Classes, ClassesString, Text, stacktrace } from '@clockwork/common';
+import { Classes, ClassesString } from '@clockwork/common';
+import { FilterJni } from '@clockwork/hooks';
 import { Color, subLogger } from '@clockwork/logging';
 import type { JavaMethod } from './javaMethod.js';
 import { JNIEnvInterceptorARM64 } from './jniEnvInterceptorArm64.js';
-import { JNIMethod } from './jniMethod.js';
-import { fastpathMethod, resolveMethod } from './tracer.js';
-import { asFunction, JNI } from './jni.js';
 import { JniInvokeCallbacks, JniInvokeMode, LimitedCallback } from './jniInvokeCallback.js';
+import { JNIMethod } from './jniMethod.js';
+import { fastpathMethod, resolveMethod, signatureToPrettyTypes } from './tracer.js';
 const logger = subLogger('jnitrace');
-const { black, blue, dim, redBright, italic } = Color.use();
+const { black, gray, dim, redBright, magenta } = Color.use();
 
 const PrimitiveNumberTypes = ['double', 'float', 'int', 'long', 'short'];
 
@@ -338,9 +338,12 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
 
                     const className = Java.vm.tryGetEnv()?.getClassName(this.clazz);
                     if (
-                        className === 'com.cocos.lib.CocosHelper' &&
-                        (this.name === 'flushTasksOnGameThreadAtForeground' ||
-                            this.name === 'flushTasksOnGameThread')
+                        (className === 'com.cocos.lib.CocosHelper' &&
+                            (this.name === 'flushTasksOnGameThreadAtForeground' ||
+                                this.name === 'flushTasksOnGameThread' ||
+                                (this.name === 'getSystemService' &&
+                                    className === 'com.unity3d.player.UnityPlayerActivity'))) ||
+                        (this.name === 'getMemoryInfo' && className === 'android.app.ActivityManager')
                     ) {
                         return;
                     }
@@ -355,43 +358,45 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
     };
     addrGetMethodID && Interceptor.attach(addrGetMethodID, getMethodId(false));
     addrGetStaticMethodID && Interceptor.attach(addrGetStaticMethodID, getMethodId(true));
-    // biome-ignore lint/suspicious/noSelfCompare: <explanation>
-    // biome-ignore lint/correctness/noConstantCondition: <explanation>
-    if (1 === 1) return;
 
-    // addrGetFieldID &&
-    //     Interceptor.attach(addrGetFieldID, {
-    //         // jfieldID & 	GetFieldID (JNIEnv &env, jclass &clazz, const char *name, const char *sig)
-    //         onEnter: hookIfTag('GetFieldID', (args) => {
-    //             if (args[2] === null) return null;
+    const getFieldId = (isStatic: boolean) => {
+        return {
+            // jfieldID & 	GetFieldID       (JNIEnv &env, jclass &clazz, const char *name, const char *sig)
+            // jfieldID & 	GetStaticFieldID (JNIEnv &env, jclass &clazz, const char *name, const char *sig)
+            onEnter(this: InvocationContext, args: InvocationArguments) {
+                this.env = args[0];
+                this.clazz = args[1];
+                this.name = args[2]?.readCString();
+                this.sig = args[3]?.readCString();
+            },
+            onLeave: hookIfTag<InvocationReturnValue>(
+                `Get${isStatic ? 'Static' : ''}FieldID`,
+                function (retval) {
+                    const name = this.name;
+                    const sig = this.sig;
+                    const className = Java.vm.tryGetEnv().getClassName(this.clazz);
+                    const typeName = signatureToPrettyTypes(sig)?.[0] ?? `${sig}`;
 
-    //             const clazz = args[1];
-    //             const name = args[2].readCString();
-    //             const className = Java.vm.tryGetEnv().getClassName(clazz);
-    //             const sig = args[3].readCString();
-    //             return `${className}::${name}${sig}`;
-    //         }),
-    //     });
-    // addrGetStaticFieldID &&
-    //     Interceptor.attach(addrGetStaticFieldID, {
-    //         // jfieldID & 	GetStaticFieldID (JNIEnv &env, jclass &clazz, const char *name, const char *sig)
-    //         onEnter: hookIfTag('GetStaticFieldID', (args) => {
-    //             if (args[2] === null) return null;
+                    if (className === 'android.app.ActivityManager$MemoryInfo') return;
+                    if (!FilterJni.getFieldId(className, typeName, name)) return;
 
-    //             const clazz = args[1];
-    //             const name = args[2].readCString();
-    //             const className = Java.vm.tryGetEnv().getClassName(clazz);
-    //             const sig = args[3].readCString();
-    //             return `${className}::${name}${sig}`;
-    //         }),
-    //     });
+                    const pre = isStatic ? `${gray('static')} ` : '';
+                    const id = redBright(`${retval} -${dim('>')}`);
+                    return `${id}${pre}${Color.className(typeName)} ${Color.className(className)}${Color.bracket('.')}${Color.field(name)}`;
+                },
+            ),
+        };
+    };
+    addrGetFieldID && Interceptor.attach(addrGetFieldID, getFieldId(false));
+    addrGetStaticFieldID && Interceptor.attach(addrGetStaticFieldID, getFieldId(true));
+
     for (const { address, name } of addrsNewObject) {
         Interceptor.attach(
             address,
             LimitedCallback(
                 predicate,
                 JniInvokeCallbacks(jniInterceptor, name, JniInvokeMode.Constructor, {
-                    onEnter(/* everything in `this` context, maybe can be done better ? */) {
+                    onEnter(/* everything in `; this` context, maybe can be done better ? */) {
                         const msg = formatCallMethod(
                             name,
                             this.methodID,
@@ -399,16 +404,37 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
                             this.jArgs ?? null,
                             true,
                         );
+
+                        if (
+                            this.name === 'android.app.ActivityManager$MemoryInfo' &&
+                            this.method.name === '<init>'
+                        )
+                            return;
+
                         console.log(
                             `[${dim('NewObject')}]`,
                             msg,
                             DebugSymbol.fromAddress(this.returnAddress),
                         );
                     },
+                    onLeave(retval) {
+                        if (this.method.className === ClassesString.String) {
+                            try {
+                                console.log(
+                                    `[${dim('NewObject')}]`,
+                                    Color.string(Java.cast(retval, Classes.String)),
+                                );
+                            } catch (e) {}
+                        }
+                    },
                 }),
             ),
         );
     }
+
+    // biome-ignore lint/suspicious/noSelfCompare: <explanation>
+    // biome-ignore lint/correctness/noConstantCondition: <explanation>
+    if (1 === 1) return;
 
     for (const { address, name } of addrsCallStatic) {
         Interceptor.attach(address, {

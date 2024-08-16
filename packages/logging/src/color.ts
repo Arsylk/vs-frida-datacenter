@@ -1,6 +1,8 @@
 import { createColors } from 'colorette';
-const Colors = createColors({ useColor: true });
-const { cyan, green, blue, underline, yellow, magenta } = use();
+const Colors = Object.assign(createColors({ useColor: true }), {
+    orange: (text: string | number) => `\x1b[38;2;250;179;135m${text}\x1b[39m`,
+});
+const { cyan, green, gray, blue, underline, yellow, magenta, orange } = use();
 
 function use() {
     return Colors;
@@ -15,6 +17,15 @@ const className: (className: any) => string = (className: any) => {
 const method: (methodName: any) => string = (methodName: any) => {
     if (!methodName) return methodName;
     return green(`${methodName}`);
+};
+
+const field: (fieldName: any) => string = (fieldName: any) => {
+    if (!fieldName) return fieldName;
+    return magenta(`${fieldName}`);
+};
+
+const keyword: (value: any) => string = (value: any) => {
+    return gray(`${value}`);
 };
 
 const args: (args: any[]) => string = (args: string[]) => {
@@ -41,4 +52,4 @@ const number: (number: any) => string = (number: any) => {
     return magenta(`${number}`);
 };
 
-export { className, method, args, bracket, url, string, number, use };
+export { args, bracket, className, field, keyword, method, number, string, url, use };

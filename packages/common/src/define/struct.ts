@@ -1,4 +1,4 @@
-import { type StructCreator, type PropertyStructMapper, proxyStruct } from '../internal/proxy.js';
+import { type PropertyStructMapper, type StructCreator, proxyStruct } from '../internal/proxy.js';
 import type { StructTypes } from '../types.js';
 
 const Time = {
@@ -50,6 +50,34 @@ const Stat = {
     }),
 };
 
+const Unity = {
+    Il2CppClass: proxyStruct({
+        image: 'pointer',
+        gc_desc: 'pointer',
+        name: 'string*',
+        namespaze: 'string*',
+        byval_arg_data: 'pointer',
+        byval_arg_bits: 'short',
+        this_arg_data: 'pointer',
+        this_arg_bits: 'short',
+        element_class: 'pointer',
+        castClass: 'pointer',
+        declaringType: 'pointer',
+        parent: 'pointer',
+        generic_class: 'pointer',
+        typeMetadataHandle: 'pointer',
+        interopData: 'pointer',
+        klass: 'pointer',
+        fields: 'pointer',
+        events: 'pointer',
+        properties: 'pointer',
+        methods: 'pointer',
+        nestedTypes: 'pointer',
+        implementedInterfaces: 'pointer',
+        interfaceOffsets: 'pointer',
+    }),
+};
+
 function malloc<T extends { [key: string]: StructTypes }>(struct: StructCreator<T>) {
     return struct(Memory.alloc(struct.size));
 }
@@ -64,4 +92,4 @@ function toObject<T extends { [key: string]: StructTypes }>(struct: PropertyStru
     );
 }
 
-export { malloc, toObject, Time, Stat };
+export { Stat, Time, Unity, malloc, toObject };

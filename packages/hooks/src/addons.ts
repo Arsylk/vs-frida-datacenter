@@ -1,6 +1,27 @@
-import type { FridaMethodReplacement, FridaMethodReplacementOptional } from './types.js';
+import type {
+    FridaMethodReplacement,
+    FridaMethodReplacementOptional,
+    FridaMethodThisCompat,
+} from './types.js';
 
 const always: (value: any) => FridaMethodReplacement = (value) => () => value;
+
+const compat = (fn: (this: FridaMethodThisCompat) => any): FridaMethodReplacement => {
+    return function (this: Java.Wrapper, method: Java.Method, ...args: any[]): any {
+        const addon = {
+            get originalMethod(): Java.Method {
+                return method;
+            },
+            get originalArgs(): any[] {
+                return args;
+            },
+            fallback(): any {
+                return this.originalMethod.call(this, ...this.originalArgs);
+            },
+        };
+        return fn.call(Object.assign(this, addon));
+    };
+};
 
 const ifReturn: (fn: FridaMethodReplacementOptional) => FridaMethodReplacement = (
     fn: FridaMethodReplacementOptional,
@@ -22,4 +43,4 @@ const ifKey: (fn: (key: string) => any | undefined, index?: number) => FridaMeth
     });
 };
 
-export { always, ifReturn, ifKey };
+export { always, compat, ifKey, ifReturn };

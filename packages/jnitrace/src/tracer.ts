@@ -1,6 +1,6 @@
-import { Classes, ClassesString, Std, enumerateMembers, findClass } from '@clockwork/common';
+import { Classes, ClassesString, enumerateMembers, findClass } from '@clockwork/common';
 import { JavaMethod } from './javaMethod.js';
-import { JNI, asFunction, type jclass, type jMethodID } from './jni.js';
+import { JNI, asFunction, type jMethodID, type jclass } from './jni.js';
 
 const Cache = {
     storage: new Map<string, JavaMethod>(),
@@ -32,13 +32,6 @@ const PrimitiveTypes: { [key: string]: string } = {
     V: 'void',
 };
 
-function prettyMethod(methodId: NativePointer, withSignature: boolean) {
-    const result = new Std.String();
-    //@ts-ignore
-    Java.api['art::ArtMethod::PrettyMethod'](result, methodId, withSignature ? 1 : 0);
-    return result.disposeToString();
-}
-
 function resolveMethod(
     env: NativePointer,
     clazz: jclass,
@@ -59,17 +52,20 @@ function resolveMethod(
         const jniMethod = ToReflectedMethod(env, clazz, methodID, isStatic ? 1 : 0);
         const javaExecutable = Java.cast(jniMethod, Classes.Executable);
 
-        const name: string = javaExecutable.getName();
+        let name: string = javaExecutable.getName();
         const declaringClass: Java.Wrapper = javaExecutable.getDeclaringClass();
         const parameterTypes: Java.Wrapper[] = javaExecutable.getParameterTypes();
         const declaringClassType: string = declaringClass.getTypeName();
 
-        let returnTypeName: string = declaringClassType;
+        let returnTypeName = 'void';
         if (javaExecutable.$className === ClassesString.Method) {
             const javaMethod = Java.cast(javaExecutable, Classes.Method);
             const returnType = javaMethod.getReturnType();
             returnTypeName = returnType.getTypeName();
             returnType.$dispose();
+        } else if (javaExecutable.$className === ClassesString.Constructor) {
+            name = '<init>';
+            returnTypeName = declaringClassType;
         }
 
         const method = new JavaMethod(
@@ -132,19 +128,10 @@ function resolveMethod(
     return null;
 }
 
-function fastpathMethod(
-    methodId: jMethodID,
-    className: string,
-    name: string,
-    sig: string,
-    isStatic: boolean,
-) {
-    const txt = sig;
-
+function signatureToPrettyTypes(sig: string) {
     let isArray = false;
-    let isOpen: number | null = null;
     const arr: string[] = [];
-    const adder = (raw: string) => {
+    const addType = (raw: string) => {
         if (raw.length === 1) {
             raw = PrimitiveTypes[raw];
         } else {
@@ -155,8 +142,9 @@ function fastpathMethod(
         arr.push(raw);
     };
 
-    for (let i = 0; i < txt.length; i++) {
-        const c = txt.charAt(i);
+    let isOpen: number | null = null;
+    for (let i = 0; i < sig.length; i++) {
+        const c = sig.charAt(i);
         if (c === '[') {
             isArray = true;
             continue;
@@ -166,15 +154,25 @@ function fastpathMethod(
             continue;
         }
         if (isOpen && c === ';') {
-            adder(txt.substring(isOpen, i));
+            addType(sig.substring(isOpen, i));
             isOpen = null;
             continue;
         }
         if (!isOpen && c in PrimitiveTypes) {
-            adder(c);
+            addType(c);
         }
     }
+    return arr;
+}
 
+function fastpathMethod(
+    methodId: jMethodID,
+    className: string,
+    name: string,
+    sig: string,
+    isStatic: boolean,
+) {
+    const arr = signatureToPrettyTypes(sig);
     const ret = arr.pop() ?? 'void';
     const method = new JavaMethod(className, name, arr, ret, isStatic);
     return Cache.set(methodId, method);
@@ -304,4 +302,4 @@ function atleasttry() {
     // console.warn('begin:', w = (getSignature as any)(h))
     // console.warn('begin:', w = (sigToStr as any)(w))
 }
-export { fastpathMethod, resolveMethod };
+export { fastpathMethod, resolveMethod, signatureToPrettyTypes };

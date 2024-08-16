@@ -1,5 +1,5 @@
-import { subLogger } from '@clockwork/logging';
 import { Libc } from '@clockwork/common';
+import { subLogger } from '@clockwork/logging';
 import { Inject } from '@clockwork/native';
 import { getSelfProcessName } from '@clockwork/native/dist/utils.js';
 
@@ -74,9 +74,9 @@ function dump_lib(so_name: string) {
     // let libso_buffer = libso.base.readByteArray(libso.size);
 
     let sofixer = '';
-    if (Process.arch == 'arm') {
+    if (Process.arch === 'arm') {
         sofixer = drop_so_fixer(soFixer32, `${generateRandomHex(16)}libdumpfixerArm32.so`);
-    } else if (Process.arch == 'arm64') {
+    } else if (Process.arch === 'arm64') {
         sofixer = drop_so_fixer(soFixer64, 'libdumpfixerArm64.so');
     } else {
         logger.error(`Not supported arch${Process.arch}`);
@@ -151,28 +151,26 @@ function dump_from_maps() {
     const self = getSelfProcessName() ?? '';
     //@ts-ignore
     const modules = Process.enumerateModulesSync();
-    modules.forEach((module: Module) => {
-        if (
-            module.path.includes(self) &&
-            !module.path.endsWith('/base.odex') &&
-            !module.path.includes('libdumpfixer')
-        ) {
+    for (const module of modules) {
+        if (!module.path.endsWith('/base.odex') && !module.path.includes('libdumpfixer')) {
+            logger.info({ tag: 'proc' }, module);
             const libname = module.path.split('/').pop();
-            if (hash_dumped_libs.get(libname) == undefined) {
+            if (hash_dumped_libs.get(libname) === undefined) {
+                // biome-ignore lint/style/noNonNullAssertion: <explanation>
                 dump_lib(module.path.split('/').pop()!);
                 hash_dumped_libs.set(libname, 'true');
             }
         }
-    });
+    }
 }
 
 function initSoDump() {
     const self = getSelfProcessName() ?? '';
     Inject.afterInitArrayModule(({ path, name }) => {
         if (path.includes(self) && !path.endsWith('/base.odex') && !path.includes('libdumpfixer')) {
-            if (Libc.pthread_mutex_lock(mutex_addr) == 0x0) {
+            if (Libc.pthread_mutex_lock(mutex_addr) === 0x0) {
                 try {
-                    if (hash_dumped_libs.get(name) == undefined) {
+                    if (hash_dumped_libs.get(name) === undefined) {
                         dump_lib(name);
                         hash_dumped_libs.set(name, 'true');
                     }
@@ -183,7 +181,7 @@ function initSoDump() {
                 }
             }
         } else if (name.includes('libc.so')) {
-            if (Libc.pthread_mutex_lock(mutex_addr) == 0x0) {
+            if (Libc.pthread_mutex_lock(mutex_addr) === 0x0) {
                 try {
                     dump_from_maps();
                 } catch (error) {

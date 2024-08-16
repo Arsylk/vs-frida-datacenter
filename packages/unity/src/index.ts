@@ -1,7 +1,7 @@
 import { subLogger } from '@clockwork/logging';
 import * as Native from '@clockwork/native';
 import 'frida-il2cpp-bridge';
-const logger = subLogger('unity'); 
+const logger = subLogger('unity');
 
 function setVersion(version: string) {
     (globalThis as typeof globalThis & { IL2CPP_UNITY_VERSION: string }).IL2CPP_UNITY_VERSION = version;
@@ -9,12 +9,12 @@ function setVersion(version: string) {
 
 function attachStrings() {
     Il2Cpp.perform(() => {
-        // const mscorlib = Il2Cpp.domain.assembly("mscorlib").image;
-        // const concat = mscorlib.class("System.String").method<Il2Cpp.String>("Concat", 4);
+        // const mscorlib = Il2Cpp.domain.assembly('mscorlib').image;
+        // const concat = mscorlib.class('System.String').method<Il2Cpp.String>('Concat', 1);
         // concat.implementation = (...args) => {
-        //     const ret = mscorlib.class("System.String").method<Il2Cpp.String>("Concat", 4).invoke(args[0], args[1], args[2], args[3]);
-        //     if (ret.toString().includes('stepentyazhesty.fun')) {
-        //         return Il2Cpp.string('https://pastebin.com/raw/29VmuaFs')
+        //     const ret = mscorlib.class('System.String').method<Il2Cpp.String>('Concat', 1).invoke(args[0]);
+        //     if (ret.toString().includes('http://18.141.246.67/api/res_config?channel=')) {
+        //         return Il2Cpp.string('https://pastebin.com/raw/29VmuaFs');
         //     }
         //     return ret;
         // };
@@ -26,7 +26,7 @@ function attachStrings() {
                 (m) =>
                     !m.name.includes('get_Chars') &&
                     !m.name.includes('FastAllocateString') &&
-                    !m.name.includes('FillStringChecked') &&
+                    // !m.name.includes('FillStringChecked') &&
                     !m.name.includes('CtorCharArrayStartLength') &&
                     m.name !== 'Ctor' &&
                     m.name !== 'CreateString' &&
@@ -63,4 +63,17 @@ function mempatchSsl() {
     });
 }
 
-export { attachStrings, mempatchSsl, setVersion };
+function listGameObjects() {
+    Il2Cpp.perform(() => {
+        const fmt = (gmObj: Il2Cpp.Object) => {
+            return `${gmObj}`;
+        };
+        const snap = Il2Cpp.MemorySnapshot.capture();
+        if (!snap) return;
+        for (const obj of snap.objects) {
+            logger.info({ tag: 'il2cpp' }, fmt(obj));
+        }
+    });
+}
+
+export { attachStrings, listGameObjects, mempatchSsl, setVersion };

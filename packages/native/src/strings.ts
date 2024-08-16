@@ -1,6 +1,5 @@
 import { Libc } from '@clockwork/common';
 import { Color, logger } from '@clockwork/logging';
-import { throws } from 'node:assert';
 const { dim, green, red, italic, gray } = Color.use();
 
 function strOneLine(ptr: NativePointer): string {
@@ -23,7 +22,7 @@ function hookStrstr(predicate: (ptr: NativePointer) => boolean) {
                         const strned = isFound
                             ? `"${strOneLine(needle)}"`
                             : gray(`"${strOneLine(needle)}"`.slice(0, 100));
-                        logger.info({ tag: key }, `${strhay} ? ${strned} ${Process.getCurrentThreadId()}`);
+                        logger.info({ tag: key }, `${strhay} ? ${strned}`);
                     }
 
                     return ret;
@@ -85,12 +84,12 @@ function hookStrcpy(predicate: (ptr: NativePointer) => boolean) {
 // hooking strcmp appears to kill the app regardless of what app it is ?
 function hookStrcmp(predicate: (ptr: NativePointer) => boolean) {
     const array: ('strcmp' | 'strncmp')[] = ['strcmp', 'strncmp'];
-    for (const key of array) {
+    for (const key of array.slice(-1)) {
         const func = Libc[key];
         Interceptor.attach(func, {
             onEnter(args) {
                 if (predicate(this.returnAddress)) {
-                    logger.info({ tag: key }, `${args[0]} ? ${args[1]}`);
+                    logger.info({ tag: key }, `${args[0]?.readCString()} ? ${args[1]?.readCString()}`);
                 }
             },
             onLeave(retval) {},
@@ -118,4 +117,40 @@ function hookStrcmp(predicate: (ptr: NativePointer) => boolean) {
     }
 }
 
-export { hookStrstr, hookStrlen, hookStrcmp, hookStrcpy };
+function hookStrtoLong(predicate: (ptr: NativePointer) => boolean) {
+    Interceptor.replace(
+        Libc.strtoll,
+        new NativeCallback(
+            function (src, endptr, base) {
+                if (predicate(this.returnAddress)) {
+                    const strsrc = dim(`"${strOneLine(src)}"`);
+                    logger.info({ tag: 'strtoll' }, `${strsrc}`);
+                }
+
+                const ret = Libc.strtoll(src, endptr, base);
+                return new Int64(ret);
+            },
+            'int64',
+            ['pointer', 'pointer', 'int'],
+        ),
+    );
+
+    Interceptor.replace(
+        Libc.strtoull,
+        new NativeCallback(
+            function (src, endptr, base) {
+                if (predicate(this.returnAddress)) {
+                    const strsrc = dim(`"${strOneLine(src)}"`);
+                    logger.info({ tag: 'strtoull' }, `${strsrc}`);
+                }
+
+                const ret = Libc.strtoull(src, endptr, base);
+                return new UInt64(ret);
+            },
+            'uint64',
+            ['pointer', 'pointer', 'int'],
+        ),
+    );
+}
+
+export { hookStrcmp, hookStrcpy, hookStrlen, hookStrstr, hookStrtoLong };

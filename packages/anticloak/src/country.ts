@@ -1,5 +1,5 @@
-import { Text, Classes } from '@clockwork/common';
-import { hook, always, Filter } from '@clockwork/hooks';
+import { Classes, Text } from '@clockwork/common';
+import { Filter, always, hook } from '@clockwork/hooks';
 
 type Config = {
     timezoneId: string;
@@ -135,20 +135,30 @@ function mock(keyOrConfig: Config | keyof typeof Configurations) {
 
     hook(Classes.Date, 'getTime', {
         loggingPredicate: Filter.date,
+        // replace(method, ...args) {
+        //     const calendar = Classes.Calendar.getInstance(Classes.TimeZone.getTimeZone('UTC'));
+        //     const zdt = Classes.ZonedDateTime.ofInstant(
+        //         Classes.Instant.ofEpochMilli(this.getTime()),
+        //         Classes.ZoneId.of(config.timezoneId),
+        //     );
+        //     calendar.set(1, zdt.getYear());
+        //     calendar.set(2, zdt.getMonthValue() - 1);
+        //     calendar.set(5, zdt.getDayOfMonth());
+        //     calendar.set(11, zdt.getHour());
+        //     calendar.set(12, zdt.getMinute());
+        //     calendar.set(13, zdt.getSecond());
+        //     calendar.set(14, zdt.getNano() / 1_000_000);
+        //     return calendar.getTimeInMillis();
+        // },
+    });
+
+    hook(Classes.Calendar, 'getInstance', {
+        logging: { call: false, return: false },
+        loggingPredicate: Filter.date,
         replace(method, ...args) {
-            const calendar = Classes.Calendar.getInstance(Classes.TimeZone.getTimeZone('UTC'));
-            const zdt = Classes.ZonedDateTime.ofInstant(
-                Classes.Instant.ofEpochMilli(this.getTime()),
-                Classes.ZoneId.of(config.timezoneId),
-            );
-            calendar.set(1, zdt.getYear());
-            calendar.set(2, zdt.getMonthValue() - 1);
-            calendar.set(5, zdt.getDayOfMonth());
-            calendar.set(11, zdt.getHour());
-            calendar.set(12, zdt.getMinute());
-            calendar.set(13, zdt.getSecond());
-            calendar.set(14, zdt.getNano() / 1_000_000);
-            return calendar.getTimeInMillis();
+            const returnValue = method.call(this, ...args);
+            returnValue.setTimeZone(Classes.TimeZone.getTimeZone(config.timezoneId));
+            return returnValue;
         },
     });
 }

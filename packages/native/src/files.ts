@@ -1,9 +1,8 @@
 import { Libc } from '@clockwork/common';
 import { Color, logger } from '@clockwork/logging';
-import { readFdPath } from './utils.js';
 import { unbox } from './index.js';
-const { bold, dim, green, red, italic, gray, bgRed, bgBlackBright, bgBlack, bgWhite, bgWhiteBright } =
-    Color.use();
+import { readFdPath } from './utils.js';
+const { bold, dim, green, red, gray, bgRed } = Color.use();
 
 enum Mode {
     F_OK = 0,
@@ -12,10 +11,7 @@ enum Mode {
     R_OK = 4,
 }
 
-function hookAccess(
-    predicate: (ptr: NativePointer) => boolean,
-    fn?: (path: string, mode: Mode, isOk: boolean) => void,
-) {
+function hookAccess(predicate: (ptr: NativePointer) => boolean) {
     const empty = dim('-');
     function log(
         this: InvocationContext | CallbackContext,
@@ -38,8 +34,9 @@ function hookAccess(
             function (pathname, mode) {
                 let ret: number;
                 if (predicate(this.returnAddress)) {
-                    if (pathname.readCString()?.endsWith('/su')) {
-                        // Memory.protect(pathname, Process.pageSize, 'rw-');
+                    const path = pathname.readCString();
+                    if (path?.endsWith('/su') || path?.startsWith('/system/bin/ls')) {
+                        // Memory.proect(pathname, Process.pageSize, 'rw-');
                         pathname = Memory.allocUtf8String('/nya');
                     }
                     ret = Libc.access(pathname, mode);
@@ -94,7 +91,10 @@ function hookOpen(predicate: (ptr: NativePointer) => boolean) {
         const struri = !isOk ? red(gray(`${uri}`)) : gray(`${uri}`);
         const flagsEnum = flags ? `0b${flags?.toString(2).padStart(16, '0')}` : null;
 
-        logger.info({ tag: key }, `${struri} flags: ${flagsEnum}, ${mode ? `mode: ${mode}` : ''}`);
+        logger.info(
+            { tag: key },
+            `${struri} flags: ${flagsEnum}, ${mode ? `mode: ${mode}` : ''} ${DebugSymbol.fromAddress(this.returnAddress)}`,
+        );
     }
     // Interceptor.replace(
     //     Libc.open,
@@ -153,8 +153,8 @@ function hookOpen(predicate: (ptr: NativePointer) => boolean) {
 
 function hookFopen(
     predicate: (ptr: NativePointer) => boolean,
-    fn?: (path: string, mode: Mode, isOk: boolean) => void,
     statfd = false,
+    fn?: (path: string | null) => string | undefined,
 ) {
     function log(
         this: InvocationContext | CallbackContext,
@@ -186,10 +186,13 @@ function hookFopen(
             function (pathname, mode) {
                 if (predicate(this.returnAddress)) {
                     const pathnameStr = pathname.readCString();
-                    const ret = Libc.fopen(pathname, mode);
+                    const replaceStr = fn?.(pathnameStr);
+                    const pathArg = replaceStr ? Memory.allocUtf8String(replaceStr) : pathname;
+
+                    const ret = Libc.fopen(pathArg, mode);
                     log.call(
                         this,
-                        pathnameStr,
+                        replaceStr ? `${pathnameStr} -> ${replaceStr}` : pathnameStr,
                         mode.readCString(),
                         null,
                         //@ts-ignore
@@ -306,7 +309,6 @@ function hookRemove(predicate: (ptr: NativePointer) => boolean, ignore?: (path: 
                     if (predicate(this.returnAddress)) {
                         const strpath = pathname.readCString();
                         const replace = ignore?.(`${pathname}`) === true;
-                        const isOk = (ret = replace ? 0 : func(pathname)) !== -1;
                         const fmt = replace ? bgRed : String;
                         logger.info({ tag: key }, `${fmt(bold(gray(`${strpath}`)))}`);
                     }

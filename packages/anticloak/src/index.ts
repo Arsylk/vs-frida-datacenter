@@ -1,15 +1,13 @@
-import { Classes, enumerateMembers } from '@clockwork/common';
-import { logger } from '@clockwork/logging';
-import { always, hook, ifKey, Filter, ClassLoader, getHookUnique } from '@clockwork/hooks';
+import { Classes, Text, enumerateMembers, getFindUnique } from '@clockwork/common';
+import { ClassLoader, Filter, always, hook, ifKey } from '@clockwork/hooks';
 import type { HookParameters } from '@clockwork/hooks/dist/types.js';
 import { buildMapper } from './buildprop.js';
-import { randomUUID } from 'crypto';
 
-export * as Jigau from './jigau.js';
-export * as InstallReferrer from './installReferrer.js';
-export * as Country from './country.js';
 export * as BuildProp from './buildprop.js';
+export * as Country from './country.js';
 export * as Debug from './debug.js';
+export * as InstallReferrer from './installReferrer.js';
+export * as Jigau from './jigau.js';
 
 function hookDevice(fn?: (key: string) => number | undefined) {
     enumerateMembers(Classes.Build, {
@@ -48,11 +46,11 @@ function hookSettings(fn?: (key: string) => number | undefined) {
     }
 }
 
-function hookAdId(id = randomUUID()) {
-    const uniqHook = getHookUnique(false);
+function hookAdId(id = Text.uuid()) {
+    const uniqFind = getFindUnique();
     ClassLoader.perform(() => {
-        uniqHook('com.google.android.gms.ads.identifier.AdvertisingIdClient$Info', 'getId', {
-            replace: always(id),
+        uniqFind('com.google.android.gms.ads.identifier.AdvertisingIdClient$Info', (clazz) => {
+            'getId' in clazz && hook(clazz, 'getId', { replace: always(id) });
         });
     });
 }
@@ -94,4 +92,4 @@ function generic() {
     hookSensor();
 }
 
-export { hookDevice, hookSettings, hookInstallerPackage, hookAdId, generic };
+export { generic, hookAdId, hookDevice, hookInstallerPackage, hookSettings };

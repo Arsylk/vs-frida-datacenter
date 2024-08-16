@@ -1,4 +1,3 @@
-import { logger } from '@clockwork/logging';
 import type { JavaMethod } from './javaMethod.js';
 
 const UNION_SIZE = 8;
@@ -7,8 +6,6 @@ const NON_VIRTUAL_METHOD_ID_INDEX = 3;
 
 abstract class JNIEnvInterceptor {
     #missingIds = new Set<string>();
-
-    public constructor() {}
 
     public getCallMethodArgs(
         caller: string,
@@ -86,7 +83,7 @@ abstract class JNIEnvInterceptor {
                 value = extend === true ? currentPtr.readDouble() : currentPtr.readFloat();
                 break;
             }
-            case 'pointer':
+            // case 'pointer':
             default: {
                 value = currentPtr.readPointer();
                 break;
