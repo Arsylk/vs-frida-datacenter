@@ -1,7 +1,7 @@
-import { logger, Color } from '@clockwork/logging';
-import type { LoggerOptions } from './types.js';
-import type { OmitFirstArg } from '@clockwork/common/src/types.js';
 import { Classes, ClassesString, Text, stacktraceList } from '@clockwork/common';
+import type { OmitFirstArg } from '@clockwork/common/src/types.js';
+import { Color, logger } from '@clockwork/logging';
+import type { LoggerOptions } from './types.js';
 const { black, gray, red, green, cyan, dim, italic, bold, yellow, hidden } = Color.use();
 
 type ILogger = {
@@ -46,8 +46,8 @@ const HOOK_LOGGER = {
             type = type.substring(0, index);
         }
         const splits: string[] = type.split('.');
-        if (config.short) return cyan(splits[splits.length - 1]) + array;
-        return splits.map(cyan).join('.') + array;
+        if (config.short) return Color.className(splits[splits.length - 1]) + array;
+        return splits.map(Color.className).join('.') + array;
     },
 
     mapValue(arg: any): string {

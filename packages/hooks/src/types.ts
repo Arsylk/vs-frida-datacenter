@@ -32,15 +32,21 @@ type LoggingPredicate = (this: Java.Wrapper, method: Java.Method, ...args: JavaA
 
 type FridaMethodReplacement = (this: Java.Wrapper, method: Java.Method, ...args: any[]) => any;
 type FridaMethodReplacementOptional = ReturnOptional<FridaMethodReplacement>;
+type FridaMethodThisCompat = Java.Wrapper & {
+    readonly originalMethod: Java.Method;
+    readonly originalArgs: any[];
+    fallback(): any;
+};
 
 type FridaBeforeMethod = (this: Java.Wrapper, method: Java.Method, ...args: any[]) => void;
 
 type FridaAfterMethod = (this: Java.Wrapper, method: Java.Method, returnValue?: any, ...args: any[]) => void;
 
 export type {
-    LoggerOptions,
-    HookParameters,
-    MethodOverload,
     FridaMethodReplacement,
     FridaMethodReplacementOptional,
+    FridaMethodThisCompat,
+    HookParameters,
+    LoggerOptions,
+    MethodOverload,
 };

@@ -80,9 +80,10 @@ const ClassesString = {
     Context: 'android.content.Context',
     Executable: 'java.lang.reflect.Executable',
     VMDebug: 'dalvik.system.VMDebug',
+    Constructor: 'java.lang.reflect.Constructor',
 };
 
 type ClassesType = PropertyJavaUseMapper<typeof ClassesString>;
 const ClassesProxy: ClassesType = proxyJavaUse(ClassesString);
 
-export { type ClassesType, ClassesProxy, ClassesString };
+export { ClassesProxy, ClassesString, type ClassesType };

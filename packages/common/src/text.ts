@@ -13,7 +13,7 @@ function toHex(decimal: any): string {
 
 function toByteSize(size: number): string {
     const i = size === 0 ? 0 : Math.floor(Math.log(size) / Math.log(1024));
-    return `${Number((size / Math.pow(1024, i)).toFixed(2)) * 1} ${['B', 'kB', 'MB', 'GB', 'TB'][i]}`;
+    return `${Number((size / 1024 ** i).toFixed(2)) * 1} ${['B', 'kB', 'MB', 'GB', 'TB'][i]}`;
 }
 
 function stringNumber(length: number): string {
@@ -22,6 +22,19 @@ function stringNumber(length: number): string {
         text += `${Math.floor(Math.random() * 10) % 10}`;
     }
     return text;
+}
+
+function uuid() {
+    const range = '0123456789abcdefghijklmnopqrstuvwxyz';
+    const rnd = () => range.charAt(Math.round(Math.random() * (range.length - 1)));
+    const len = (n: number) => {
+        const arr = Array(n);
+        for (let i = 0; i < n; i += 1) {
+            arr.push(rnd());
+        }
+        return arr.join('');
+    };
+    return Array(len(8), len(4), len(4), len(4), len(12)).join('-');
 }
 
 const PRIMITIVE_TYPE: { [key: string]: string } = {
@@ -56,8 +69,8 @@ function base64(input: string) {
         const c = input.charCodeAt(i++);
         const index1 = a >> 2;
         const index2 = ((a & 3) << 4) | (b >> 4);
-        const index3 = isNaN(b) ? 64 : ((b & 15) << 2) | (c >> 6);
-        const index4 = isNaN(c) ? 64 : c & 63;
+        const index3 = Number.isNaN(b) ? 64 : ((b & 15) << 2) | (c >> 6);
+        const index4 = Number.isNaN(c) ? 64 : c & 63;
 
         output += chars.charAt(index1) + chars.charAt(index2) + chars.charAt(index3) + chars.charAt(index4);
     }
@@ -65,4 +78,4 @@ function base64(input: string) {
     return output;
 }
 
-export { maxLengh, noLines, toHex, toByteSize, toPrettyType, stringNumber, base64 };
+export { maxLengh, noLines, toHex, toByteSize, toPrettyType, stringNumber, base64, uuid };

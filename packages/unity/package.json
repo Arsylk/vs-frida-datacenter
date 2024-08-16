@@ -6,6 +6,9 @@
     "type": "module",
     "author": "Arsylk",
     "license": "ISC",
+    "dependencies": {
+        "il2cpp-hooker": "^1.0.7"
+    },
     "devDependencies": {
         "frida-il2cpp-bridge": "^0.9.0"
     }

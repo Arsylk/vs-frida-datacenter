@@ -1,8 +1,8 @@
 import { createHash } from 'crypto';
-import { Inject, dumpFile, gPtr } from '@clockwork/native';
 import { Std, Text } from '@clockwork/common';
 import { Color, subLogger } from '@clockwork/logging';
-const { red, dim, blue } = Color.use();
+import { Inject, dumpFile } from '@clockwork/native';
+const { dim } = Color.use();
 const logger = subLogger('cocos2dx');
 
 type Cocos2dxOffset = {
@@ -30,7 +30,7 @@ function hookLegacy(): NativePointer[] {
  * */
 const hookEvalString: InvocationListenerCallbacks = {
     onEnter(args) {
-        const [_, scripts, len, a4, filename] = [args[0], args[1], args[2], args[3], args[4]];
+        const [_, scripts, len, , filename] = [args[0], args[1], args[2], args[3], args[4]];
         let length: number | null = null;
         let path: string | null = null;
         let data: string | null = null;
@@ -44,7 +44,7 @@ const hookEvalString: InvocationListenerCallbacks = {
         const result = dumpFile(scripts, length, path, 'cocos2dx');
         logger.info(`${path} ${result ? dim(Text.toByteSize(length)) : 'error'}`);
     },
-    onLeave(retval) {},
+    onLeave() {},
 };
 
 const hookLuaLLoadbuffer: InvocationListenerCallbacks = {
@@ -63,7 +63,7 @@ const hookLuaLLoadbuffer: InvocationListenerCallbacks = {
         const result = dumpFile(scripts, length, path, 'cocos2dx');
         logger.info(`${path} ${result ? dim(Text.toByteSize(length)) : 'error'}`);
     },
-    onLeave(retval) {},
+    onLeave() {},
 };
 
 function dump(...targets: Cocos2dxOffset[]) {
@@ -75,13 +75,13 @@ function dump(...targets: Cocos2dxOffset[]) {
         const evalStringAddresses: NativePointer[] = [];
         const xxteaAddresses: NativePointer[] = [];
         const setXxteaAdresses: NativePointer[] = [];
-        targets.forEach(({ name, fn_dump, fn_key, fn_set }) => {
+        for (const { name, fn_dump, fn_key, fn_set } of targets) {
             if (name === module.name) {
                 if (fn_dump) evalStringAddresses.push(module.base.add(fn_dump));
                 if (fn_key) xxteaAddresses.push(module.base.add(fn_key));
                 if (fn_set) setXxteaAdresses.push(module.base.add(fn_set));
             }
-        });
+        }
 
         if (Number.parseInt(Frida.version.split('.')[0]) <= 15) {
             evalStringAddresses.push(...hookLegacy());
@@ -91,10 +91,10 @@ function dump(...targets: Cocos2dxOffset[]) {
             hookTemp ??= module.findExportByName('_ZN2se12ScriptEngine10evalStringEPKciPNS_5ValueES2_');
             hookTemp && evalStringAddresses.push(hookTemp);
         }
-        evalStringAddresses.forEach((address) => {
+        for (const address of evalStringAddresses) {
             logger.info(`evalString: ${module.name} ${DebugSymbol.fromAddress(address)}`);
             Interceptor.attach(address, hookEvalString);
-        });
+        }
 
         // luad load buffer
         const lual = module.findExportByName('luaL_loadbuffer');
@@ -105,8 +105,8 @@ function dump(...targets: Cocos2dxOffset[]) {
 
         // xxtea decrypt
         // Lua key+sig pair
-        let realKeySize = 0,
-            signSize = 0;
+        let realKeySize = 0;
+        let signSize = 0;
 
         const xxteaCryptDecrypt = module.findExportByName('_ZNK10XXTeaCrypt7decryptERKN7cocos2d4DataEPS1_');
         if (xxteaCryptDecrypt) {
@@ -191,7 +191,7 @@ function dump(...targets: Cocos2dxOffset[]) {
                         `key -> ${args[1].readCString(keylen)} sign -> ${args[3].readCString(siglen)}`,
                     );
                 },
-                onLeave(retval) {},
+                onLeave() {},
             });
         }
 
@@ -199,7 +199,7 @@ function dump(...targets: Cocos2dxOffset[]) {
         xxtea_decrypt && xxteaAddresses.push(xxtea_decrypt);
         xxtea_decrypt = module.findExportByName('xxtea_decrypt');
         xxtea_decrypt && xxteaAddresses.push(xxtea_decrypt);
-        xxteaAddresses.forEach((address) => {
+        for (const address of xxteaAddresses) {
             logger.info(`xxtea_decrypt: ${module.name} ${DebugSymbol.fromAddress(address)}`);
 
             // no idea why this often crashes
@@ -211,12 +211,12 @@ function dump(...targets: Cocos2dxOffset[]) {
                             `key -> ${args[2].readCString(Math.min(args[3].toUInt32(), 16))}`,
                         );
                     },
-                    onLeave: (retval) => {},
+                    onLeave: () => {},
                 });
             } catch (e) {
                 logger.warn(`could not attach to xxtea_decrypt at ${address}`);
             }
-        });
+        }
 
         // New methods for hooking
         const getLuaStack = module.findExportByName('_ZN7cocos2d9LuaEngine11getLuaStackEv');
@@ -284,9 +284,9 @@ function dump(...targets: Cocos2dxOffset[]) {
             });
 
         // TODO refactor this
-        setXxteaAdresses.forEach((offset) => {
-            let ptr: NativePointer | null = null,
-                addr: NativePointer | null = null;
+        for (const offset of setXxteaAdresses) {
+            let ptr: NativePointer | null = null;
+            let addr: NativePointer | null = null;
             try {
                 ptr = module.base.add(offset);
                 addr = ptr.readPointer();
@@ -299,7 +299,7 @@ function dump(...targets: Cocos2dxOffset[]) {
             } catch (e) {
                 logger.warn(`could not attach to set_xxtea_key at ${ptr} -> ${addr}`);
             }
-        });
+        }
 
         if (evalStringAddresses.length > 0 || lual || xxteaAddresses.length > 0) {
             clearTimeout(notFoundId);
