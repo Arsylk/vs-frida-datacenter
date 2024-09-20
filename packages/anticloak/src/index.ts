@@ -47,7 +47,7 @@ function hookSettings(fn?: (key: string) => number | undefined) {
 }
 
 function hookAdId(id = Text.uuid()) {
-    const uniqFind = getFindUnique();
+    const uniqFind = getFindUnique(false);
     ClassLoader.perform(() => {
         uniqFind('com.google.android.gms.ads.identifier.AdvertisingIdClient$Info', (clazz) => {
             'getId' in clazz && hook(clazz, 'getId', { replace: always(id) });
@@ -86,10 +86,17 @@ function hookSensor() {
     hook(Classes.Sensor, 'getName', params);
 }
 
+function hookVerify() {
+    hook(Classes.Signature, 'verify', {
+        replace: () => true,
+    });
+}
+
 function generic() {
     hookInstallerPackage();
     hookLocationHardware();
     hookSensor();
+    hookVerify();
 }
 
 export { generic, hookAdId, hookDevice, hookInstallerPackage, hookSettings };

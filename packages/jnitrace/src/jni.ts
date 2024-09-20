@@ -20,7 +20,8 @@ type JniMethodRetTypeString =
     | 'uint8'
     | 'void';
 type JniMethodTypeMapper<T extends JniMethodRetTypeString> = T extends 'void'
-    ? void
+    ? // biome-ignore lint/suspicious/noConfusingVoidType: <explanation>
+      void
     : T extends 'uint8'
       ? boolean
       : T extends 'int8'
@@ -2556,7 +2557,7 @@ const JNI = {
         name: 'DeleteWeakGlobalRef',
         offset: 227,
     },
-    ExceptionCheck: {
+    mmptionCheck: {
         jni: { ret: 'jboolean', args: ['JNIEnv*'] },
         retType: 'uint8' as const,
         argTypes: ['pointer'] as ['pointer'],
@@ -2647,8 +2648,8 @@ export {
     JNI,
     asFunction,
     type JniMethodDefinition,
-    type jMethodID,
     type jFieldID,
+    type jMethodID,
     type jclass,
     type jobject,
 };

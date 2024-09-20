@@ -1,4 +1,5 @@
 import * as Anticloak from '@clockwork/anticloak';
+import * as Cocos2dx from '@clockwork/cocos2dx';
 import {
     Classes,
     ClassesString,
@@ -90,35 +91,30 @@ function hookNetwork() {
 }
 
 function hookRuntimeExec() {
-    const wrapReplace = (arg0: any, replace: (str: string) => string) => {
-        if (typeof arg0 === 'string') {
-            arg0 = replace(arg0);
-        } else {
-            for (const i in arg0) {
-                if (!Number.isNaN(Number(i))) {
-                    arg0[i] = replace(arg0[i]);
-                }
-            }
-        }
-        return arg0;
-    };
+    const mReplace = (sArg: string) => {
+        sArg = sArg.replace(/^su$/g, 'nya');
+        sArg = sArg.replace(/^\/system\/xbin\/which$/g, 'which');
+        sArg = sArg.replace(/^rm -r/g, 'file ');
+        return Classes.String.$new(`${sArg}`);
+    }
+
     hook(Classes.Runtime, 'exec', {
         replace(method, ...args) {
-            if (`${args[0]}`.includes('getprop ro.board.platform')) {
-                args[0] = wrapReplace(args[0], (str) =>
-                    str.replace('getprop ro.board.platform', 'echo sdm720'),
-                );
+            // string array 
+            if (method.argumentTypes[0].name === '[Ljava/lang/String;') {
+                logger.info({tag: 'exec'}, `[${args[0].join(' ')}]`)
+                const cloned = Array(args[0].length)
+                for (let i = 0; i < args[0].length; i+=1) {
+                    cloned[i] = mReplace(`${args[0][i]}`)
+                }
+                args[0] = Java.array(ClassesString.String, cloned);
             }
-            if (`${args[0]}`.includes('su@object')) {
-                args[0] = wrapReplace(args[0], (str) => str.replace('su', 'sh'));
+            // single string
+            else {
+                logger.info({tag: 'exec'}, args[0])
+                args[0] = mReplace(`${args[0]}`)
             }
-            if (`${args[0]}` === 'su') {
-                args[0] = 'nya';
-            }
-            if (`${args[0]}`.startsWith('rm ')) {
-                args[0] = wrapReplace(args[0], (str) => str.replace(/^rm -r/, 'file '));
-            }
-            if (`${args[0]}`.includes('nya') === false) return Classes.Runtime.exec.call(this, 'echo nya');
+            // if (`${args[0]}`.includes('nya') === false) return Classes.Runtime.exec.call(this, 'echo nya');
             return method.call(this, ...args);
         },
     });
@@ -154,7 +150,8 @@ function hookCrypto() {
                         .overload('[B')
                         .call(Classes.Arrays, returnValue),
                 );
-                transformed ??= `${method}`;
+                //@ts-ignore
+                transformed ??= `${Classes.String.valueOf(returnValue)}`;
                 logger.info({ tag: 'decrypt' }, `${transformed}`);
             }
         },
@@ -221,7 +218,7 @@ function hookPrefs(fn?: (this: FridaMethodThisCompat, key: string, method: strin
     for (const item of keyFns) {
         hook(Classes.SharedPreferencesImpl, item, {
             loggingPredicate: Filter.prefs,
-            logging: { multiline: false, short: true },
+            logging: { multiline: false, short: true, return: false, call: false },
             replace: compat(function () {
                 const result = fn?.call(this, this.originalArgs[0], item);
                 return result !== undefined ? result : this.fallback();
@@ -341,13 +338,18 @@ function bypassIntentFlags() {
             }
             return method.call(this, ...args);
         },
+        logging: { call: false, return: false },
     });
     hook(Classes.PendingIntent, 'checkPendingIntent', {
         replace(method, ...args) {
             return;
         },
+        logging: { call: false, return: false },
     });
-    hook('android.os.UserHandle', 'isCore', { replace: always(true) });
+    hook('android.os.UserHandle', 'isCore', {
+        replace: always(true),
+        logging: { call: false, return: false },
+    });
 }
 
 function bypassReceiverFlags() {
@@ -360,10 +362,12 @@ function bypassReceiverFlags() {
             }
             return method.call(this, ...args);
         },
+        logging: { call: false, return: false },
     });
 
     hook('android.app.AlarmManager', 'setExact', {
         replace: (method) => method.call(this, false),
+        logging: { call: false, return: false },
     });
 }
 
@@ -394,7 +398,7 @@ Java.performNow(() => {
     const C4_URL = 'https://google.pl/search?q=hi';
     const AD_ID = 'fwqna41l-mrux-l4pi-mi6q-imrr3t83da4n';
     const INSTALL_REFERRER =
-        'utm_source=facebook_ads&utm_medium=Non-organic&media_source=true_network&http_referrer=BingSearch';
+        'utm_source=facebook_ads&utm_medium=Non-rganic&media_source=true_network&http_referrer=BingSearch';
     hookActivity();
     hookWebview(true);
     hookNetwork();
@@ -431,44 +435,6 @@ Java.performNow(() => {
             case 'com.flurry.sdk.advertising_id':
             case 'tenjin_advertising_id':
             case 'uuid':
-            case 'gaid':
-            case 'KEY_UID':
-            case 'deviceId':
-            case 'device_id':
-            case 'deviceuuid':
-            case 'uuid_worldmap_quiz':
-            case 'AdPlatformSequenceNative':
-            case 'AdAlternativeBanner':
-            case 'AdAlternativeNative':
-            case 'paidv1_id':
-            case 'paidv2_id':
-            case 'userId':
-            case 'SPU_PSID_KEY':
-            case 'SPU_SESSIONID_KEY':
-            case 'cloud_iqid':
-            case 'google_gaid':
-                return AD_ID;
-            case 'MEDIA_SOURCE':
-            case 'tenjin_campaign_id':
-            case 'tenjin_campaign_name':
-            case 'tenjin_ad_network':
-            case 'last_active_buy_media_source':
-            case 'last_active_buy_channel':
-            case 'last_active_buy_campaign':
-            case 'tenjinGoogleInstallReferrer':
-            case 'install_referrer':
-            case 'media_source':
-            case 'media_campaign':
-            case 'utm_source':
-            case 'utm_medium':
-            case 'referrer':
-            case 'AFConversionData':
-            case 'conversionData':
-            case 'dataScore':
-            case 'raw_referrers':
-            case 'attribution':
-                return INSTALL_REFERRER;
-            case 'AF_MEDIA_SOURCE':
             case 'AF_CAMPAIGN':
                 return 'Non-organic';
             case 'country':
@@ -483,6 +449,13 @@ Java.performNow(() => {
     hookFirestore();
     hookCrypto();
     hookRuntimeExec();
+
+    bypassIntentFlags();
+    bypassReceiverFlags();
+
+    hook('android.content.ContextWrapper', 'getSharedPreferences', {
+        logging: { multiline: false, short: true, return: false },
+    });
 
     hook(Classes.Process, 'killProcess', {
         after: () => {
@@ -500,6 +473,12 @@ Java.performNow(() => {
 
     hook(Classes.ApplicationPackageManager, 'getPackageInfo', {
         logging: { multiline: false, short: true },
+        replace(method, ...args) {
+            if (`${args[0]}` === 'com.topjohnwu.magisk') {
+                args[0] = 'come.just.test.fake.app';
+            }
+            return method.call(this, ...args);
+        },
         after(_method, returnValue) {
             const mPackage = this.mContext.value.getPackageName();
             if (mPackage === returnValue?.packageName?.value) {
@@ -508,6 +487,8 @@ Java.performNow(() => {
     });
 
     Anticloak.Debug.hookVMDebug();
+    // Anticloak.Debug.hookDigestEquals();
+    Anticloak.Debug.hookVerify();
     Anticloak.generic();
     Anticloak.hookDevice();
     Anticloak.hookSettings();
@@ -516,7 +497,7 @@ Java.performNow(() => {
     Anticloak.InstallReferrer.replace({ install_referrer: INSTALL_REFERRER });
 
     hook(Classes.SystemProperties, 'get', {
-        loggingPredicate: (_method, ...args) => `${args[0]}` !== 'debug.force_rtl',
+        loggingPredicate: Filter.systemproperties,
         logging: { multiline: false, short: true },
         replace: ifKey((key) => {
             const value = Anticloak.BuildProp.propMapper(key);
@@ -532,6 +513,8 @@ Java.performNow(() => {
         }),
     });
 
+    hook(Classes.DisplayManager, 'createVirtualDisplay');
+
     hook(Classes.SimpleDateFormat, 'parse', {
         logging: { short: true, multiline: false },
     });
@@ -539,8 +522,11 @@ Java.performNow(() => {
     hook(Classes.DexPathList, '$init', {
         logging: { short: true, multiline: false },
     });
+
     // hook(Classes.Runtime, 'loadLibrary0', { logging: { short: true, multiline: false } });
-    ClassLoader.perform(() => {});
+    ClassLoader.perform(() => {
+        uniqHook('com.startapp.sdk.adsbase.StartAppInitProvider', 'attachInfo', {replace: () => {}})
+    });
 });
 
 Network.injectSsl();
@@ -554,8 +540,16 @@ Native.attachSystemPropertyGet((key) => {
     return value;
 });
 
+Process.setExceptionHandler((exception: ExceptionDetails) => {
+    const ctx = exception.context as Arm64CpuContext;
+    logger.error(
+        { tag: 'exception' },
+        `${black(exception.type)}: ${exception.memory?.operation} ${exception.memory?.address} at: ${gray(`${exception.address}`)}\nx0: ${red(`${ctx.x0}`)} x1: ${red(`${ctx.x1}`)}`,
+    );
+    return exception.type === 'abort';
+});
 Native.initLibart();
-// Cocos2dx.dump({ name: 'libgamesofa.so', fn_dump: ptr(0x007b3d74), fn_key: ptr(0x006a8cf0) });
+Cocos2dx.dump({ name: 'libcocos.so', fn_dump: ptr(0x00cf85b8), fn_key: ptr(0x00cd5dec) });
 // Cocos2dx.hookLocalStorage((key) => {
 //     switch (key) {
 //         case '__FirstLanuchTime':
@@ -568,19 +562,21 @@ Native.initLibart();
 //     }
 // });
 
-// Unity.setVersion('2023.2.12f1');
-// Unity.mempatchSsl();
+// Unity.setVersion('2023.2.0f1');
+// Unity.patchSsl();
 // Unity.attachStrings();
-emitter.on('il2cpp', () => Unity.listGameObjects);
+// Unity.attachScenes();
 
-let enable = !true;
-setTimeout(() => (enable = true), 3000);
+emitter.on('il2cpp', Unity.listGameObjects);
+let enable = true;
+setTimeout(() => (enable = true), 4000);
 emitter.on('jni', (_) => {
     enable = !enable;
 });
 
 const isNativeEnabled = true;
 const predicate = (r) => {
+    // if (1 === 1) return false;
     function isWithinOwnRange(ptr: NativePointer) {
         const path = Native.Inject.modules.findPath(ptr);
         return path?.includes('/data') === true && !path.includes('/com.google.android.trichromelibrary');
@@ -608,11 +604,11 @@ Native.Files.hookRemove(predicate);
 // Native.Strings.hookStrcpy(predicate);
 // Native.Strings.hookStrcmp(predicate);
 // Native.Strings.hookStrstr(predicate);
-Native.Strings.hookStrtoLong(predicate);
+// Native.Strings.hookStrtoLong(predicate);
 Native.TheEnd.hook(predicate);
 
-Native.Time.hookDifftime(predicate);
-Native.Time.hookTime(predicate);
+// Native.Time.hookDifftime(predicate);
+// Native.Time.hookTime(predicate);
 // Native.Time.hookLocaltime(predicate);
 // Native.Time.hookGettimeofday(predicate);
 Anticloak.Debug.hookPtrace();
@@ -620,6 +616,7 @@ Native.Pthread.hookPthread_create();
 // Native.Logcat.hookLogcat();
 // Anticloak.Jigau.memoryPatch();
 
+// Dump.initSoDump();
 emitter.on('dex', () => Dump.scheduleDexDump(0));
 
 // Interceptor.attach(Libc.system, {
@@ -651,7 +648,8 @@ emitter.on('dex', () => Dump.scheduleDexDump(0));
 //         //     logger.info({ tag: 'setother' }, `${_ToString?.(_o) as any} )`);
 //         // }
 //     },
-// } as any);hbj
+// } as any);
+
 // [
 //     'fwrite',
 //     'faccessat',
@@ -695,11 +693,11 @@ const fork = new NativeFunction(fork_ptr, 'int', []);
 Interceptor.replace(
     fork_ptr,
     new NativeCallback(
-        () => {
+        function () {
             const retval = fork();
-            logger.info({ tag: 'fork' }, `${retval}`);
-            // return -1;
+            logger.info({ tag: 'fork' }, `${retval} ${DebugSymbol.fromAddress(this.returnAddress)}`);
             return retval;
+            // return -1;
         },
         'int',
         [],
@@ -711,12 +709,14 @@ Interceptor.replace(
 // Interceptor.replace(
 //     fgetsPtr,
 //     new NativeCallback(
-//         (buffer, size, fp) => {
+//         function (buffer, size, fp) {
 //             const retval = fgets(buffer, size, fp);
-//             logger.info({ tag: 'fgets' }, buffer.readCString()?.trimEnd());
+//             logger.info(
+//                 { tag: 'fgets' },
+//                 `${buffer.readCString()?.trimEnd()} ${DebugSymbol.fromAddress(this.returnAddress)}`,
+//             );
 //             return retval;
 //         },
 //         'pointer',
 //         ['pointer', 'int', 'pointer'],
 //     ),
-// );

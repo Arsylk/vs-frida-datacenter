@@ -19,6 +19,16 @@ function attachStrings() {
         //     return ret;
         // };
 
+        // const SystemString = Il2Cpp.corlib.assembly.image.class('System.String');
+        // logger.info({ tag: 'test' }, `${SystemString}`);
+        // logger.info({ tag: 'test' }, `${SystemString.methods}`);
+        // const Contains = SystemString.method<boolean>('Contains', 1);
+        // Contains.implementation = function (...args) {
+        //     logger.info({ tag: 'System.String.Contains' }, `${this} =~ ${args[0]}`);
+        //     if (new Il2Cpp.String(args[0] as NativePointer).content === 'Brazil') return true;
+        //     return this.method<boolean>(Contains.name, Contains.parameterCount).invoke(...args);
+        // };
+
         Il2Cpp.trace(true)
             .assemblies(Il2Cpp.corlib.assembly)
             .filterClasses((kclass) => kclass.name === 'String')
@@ -34,6 +44,30 @@ function attachStrings() {
             )
             .and()
             .attach();
+    });
+}
+
+function attachScenes() {
+    Il2Cpp.perform(() => {
+        const CoreModule = Il2Cpp.domain.assembly('UnityEngine.CoreModule');
+        Il2Cpp.trace(true)
+            .assemblies(CoreModule)
+            .filterClasses((kclass) => kclass.fullName === 'UnityEngine.SceneManagement.SceneManager')
+            .and()
+            .attach();
+    });
+}
+
+function unitypatchSsl() {
+    Il2Cpp.perform(() => {
+        const WebRequest = Il2Cpp.domain.assembly('UnityEngine.UnityWebRequestModule').image;
+        const CertificateHandler = WebRequest.class('UnityEngine.Networking.CertificateHandler');
+        const ValidateCertificateNative = CertificateHandler.method<boolean>('ValidateCertificateNative');
+        ValidateCertificateNative.implementation = (...args) => true;
+
+        const TlsProvider = Il2Cpp.domain.assembly('System').image.class('Mono.Unity.UnityTlsProvider');
+        const ValidateCertificate = TlsProvider.method<boolean>('ValidateCertificate');
+        ValidateCertificate.implementation = (...args) => true;
     });
 }
 
@@ -63,6 +97,11 @@ function mempatchSsl() {
     });
 }
 
+function patchSsl() {
+    unitypatchSsl();
+    mempatchSsl();
+}
+
 function listGameObjects() {
     Il2Cpp.perform(() => {
         const fmt = (gmObj: Il2Cpp.Object) => {
@@ -76,4 +115,4 @@ function listGameObjects() {
     });
 }
 
-export { attachStrings, listGameObjects, mempatchSsl, setVersion };
+export { attachScenes, attachStrings, listGameObjects, mempatchSsl, patchSsl, setVersion, unitypatchSsl };

@@ -81,6 +81,9 @@ const ClassesString = {
     Executable: 'java.lang.reflect.Executable',
     VMDebug: 'dalvik.system.VMDebug',
     Constructor: 'java.lang.reflect.Constructor',
+    DisplayManager: 'android.hardware.display.DisplayManager',
+    Signature: 'java.security.Signature',
+    MessageDigest: 'java.security.MessageDigest',
 };
 
 type ClassesType = PropertyJavaUseMapper<typeof ClassesString>;

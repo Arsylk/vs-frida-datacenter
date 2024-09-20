@@ -24,6 +24,13 @@ interface EnumerateMembersCallbacks {
     onMatchField?: (clazz: Wrapper, member: string, depth: number) => void;
     onComplete?: () => void;
 }
+// biome-ignore lint/complexity/noBannedTypes: <explanation>
+interface ChooseCallback<T extends Java.Members<T> = {}> {
+    // biome-ignore lint/suspicious/noConfusingVoidType: <explanation>
+    onMatch?: (instance: Java.Wrapper<T>, factory: Java.ClassFactory) => void | EnumerateAction;
+    // biome-ignore lint/suspicious/noConfusingVoidType: <explanation>
+    onComplete?: (factory: Java.ClassFactory) => void | EnumerateAction;
+}
 
 function enumerateMembers(
     clazz: Java.Wrapper,
@@ -93,4 +100,43 @@ function getFindUnique(logging = true) {
     };
 }
 
-export { enumerateMembers, findClass, getFindUnique };
+function findChoose(
+    className: string,
+    callback?: ChooseCallback,
+    ...loaders: Java.Wrapper[]
+): Java.Wrapper[] {
+    const hashes = new Set<number>();
+    const results: Java.Wrapper[] = [];
+    try {
+        const mLoaders = [...(loaders ??= []), ...Java.enumerateClassLoadersSync()];
+        for (const loader of mLoaders) {
+            try {
+                if (loader.loadClass(className)) {
+                    let stop = false;
+                    const factory = Java.ClassFactory.get(loader);
+                    factory.choose(className, {
+                        onMatch: (instance) => {
+                            const hash = instance.hashCode();
+                            if (!hashes.has(hash)) {
+                                hashes.add(hash);
+                                results.push(instance);
+                            }
+                            return callback?.onMatch?.(instance, factory);
+                        },
+                        onComplete() {
+                            if (callback?.onComplete?.(factory) === 'stop') {
+                                stop = true;
+                            }
+                        },
+                    });
+                    if (stop) return results;
+                }
+            } catch (notFound) {}
+        }
+    } catch (err) {
+        logger.error({ tag: 'findChoose' }, JSON.stringify(err));
+    }
+    return results;
+}
+
+export { enumerateMembers, findChoose, findClass, getFindUnique };

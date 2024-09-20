@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { ClassesProxy, ClassesString, type ClassesType } from './define/java.js';
 import { LibcFinderProxy, type LibcType } from './define/libc.js';
-import { enumerateMembers, findClass, getFindUnique } from './search.js';
+import { enumerateMembers, findChoose, findClass, getFindUnique } from './search.js';
 export * as Std from './define/std.js';
 export * as Struct from './define/struct.js';
 export * as Text from './text.js';
@@ -54,6 +54,9 @@ Object.defineProperties(global, {
     },
     findClass: {
         value: findClass,
+    },
+    findChoose: {
+        value: findChoose,
     },
     emitter: {
         value: emitter,
