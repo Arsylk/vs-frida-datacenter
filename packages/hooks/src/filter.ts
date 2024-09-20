@@ -60,14 +60,14 @@ const Filter = {
         if (trace.includes('at com.facebook.internal.')) return false;
         if (trace.includes('at com.appsflyer.internal.')) return false;
         if (trace.includes('at com.onesignal.OneSignalPrefs.')) return false;
-        if (trace.includes('at com.google.android.gms.internal.ads.')) return false;
-        if (trace.includes('at com.google.android.gms.ads.internal.config.')) return false;
-        if (trace.includes('at com.google.android.gms.internal.appset')) return false;
-        if (trace.includes('at com.google.android.gms.measurement.internal.')) {
-            if (args[0] && prefsMeasurementInternalIgnored.includes(args[0])) {
-                return false;
-            }
-        }
+        if (trace.includes('at com.google.android.gms.')) return false;
+        // if (trace.includes('at com.google.android.gms.ads.internal.config.')) return false;
+        // if (trace.includes('at com.google.android.gms.internal.appset')) return false;
+        // if (trace.includes('at com.google.android.gms.measurement.internal.')) {
+        //     if (args[0] && prefsMeasurementInternalIgnored.includes(args[0])) {
+        //         return false;
+        //     }
+        // }
         if (trace.includes('at com.google.firebase.heartbeatinfo.DefaultHeartBeatController.')) {
             if (args[0] && ['last-used-date'].includes(args[0])) {
                 return false;
@@ -127,6 +127,15 @@ const Filter = {
     settings: (_: any, ...args: any) => {
         const key = `${args[1]}`;
         return !settingsKeysIgnored.includes(key);
+    },
+    systemproperties: (_: any, ...args: any) => {
+        const key = `${args[0]}`;
+        switch (key) {
+            case 'persist.sys.fflag.override.settings_auto_text_wrapping':
+            case 'debug.force_rtl':
+                return false;
+        }
+        return true;
     },
     systemprop: (_: any, ...args: any) => {
         const key = `${args[0]}`;

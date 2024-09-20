@@ -468,6 +468,7 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
             }),
         });
     }
+
     for (const { address, name } of addrsCallNonvirtual) {
         Interceptor.attach(address, {
             // std::enable_if_t< std::is_void< R >::value, R > 	CallNonvirtualMethod (JNIEnv &env, jobject *obj, jclass &clazz, jmethodID &method, Args &&... args)

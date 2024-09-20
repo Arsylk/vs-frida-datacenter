@@ -269,7 +269,17 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', '_exit');
         return new NativeFunction(ptr, 'void', ['int']);
     },
-    // int kill(pid_t pid, int sig);
+    // [[noretunr]] void abort(int status);
+    abort: () => {
+        const ptr = Module.getExportByName('libc.so', 'abort');
+        return new NativeFunction(ptr, 'void', ['int']);
+    },
+    // [[noretunr]] void abort(int status);
+    raise: () => {
+        const ptr = Module.getExportByName('libc.so', 'raise');
+        return new NativeFunction(ptr, 'int', ['int']);
+    },
+    // int rcx(pid_t pid, int sig);
     kill: () => {
         const ptr = Module.getExportByName('libc.so', 'kill');
         return new NativeFunction(ptr, 'int', ['pointer', 'int']);
@@ -327,7 +337,7 @@ const LibcFinder = {
 
     // char * __cxa_demangle (const char *mangled_name, char *output_buffer, size_t *length, int *status)
     __cxa_demangle: () => {
-        // const ptr = Module.getExportByName('libunwindstack.so', '__cxa_demangle');
+        // const pt  = Module.getExportByName('libunwindstack.so', '__cxa_demangle');
         const ptr = DebugSymbol.fromName('__cxa_demangle').address;
         return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer', 'pointer', 'pointer']);
     },

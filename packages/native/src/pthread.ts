@@ -7,12 +7,12 @@ function hookPthread_create() {
     Interceptor.replace(
         Libc.pthread_create,
         new NativeCallback(
-            (ptr0, ptr1, ptr2, ptr3) => {
-                const ret = Libc.pthread_create(ptr0, ptr1, ptr2, ptr3);
+            (thread, attr, start_routine, arg) => {
+                const ret = Libc.pthread_create(thread, attr, start_routine, arg);
                 // magic ?
-                const tid = ptr0.readPointer().add(16).readUInt();
+                const tid = thread.readPointer().add(16).readUInt();
 
-                const method = DebugSymbol.fromAddress(ptr2);
+                const method = DebugSymbol.fromAddress(start_routine);
                 const name = tryDemangle(method.name);
                 const threadName = tryNull(() => readTidName(tid));
 
@@ -21,7 +21,7 @@ function hookPthread_create() {
                 const fMethod = `[${gray(`${method.moduleName}`)} ${black(`${name}`)}] ${gray(`${method.address}`)}`;
                 logger.info(
                     { tag: 'pthread_create' },
-                    `${gray('tid:')} ${fTid}, ${ptr1}${fThreadName}${fMethod}, ${ptr3}`,
+                    `${gray('tid:')} ${fTid}, ${attr}${fThreadName}${fMethod}, ${arg.readPointer()}`,
                 );
                 return ret;
             },

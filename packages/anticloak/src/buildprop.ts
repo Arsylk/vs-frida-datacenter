@@ -1,5 +1,5 @@
 function propMapper(key: string): string | undefined {
-    if (key.includes('qemu')) return '';
+    if (key.includes('qemu') || key.includes('goldfish') || key.includes('ranchu')) return '';
 
     switch (key) {
         case 'ro.arch':
@@ -26,7 +26,10 @@ function propMapper(key: string): string | undefined {
         case 'ro.product.board':
         case 'ro.board.platform':
         case 'ro.product.device':
+        case 'ro.soc.model':
             return 'hi6250';
+        case 'ro.hardware.egl':
+            return 'adreno';
         case 'ro.build.product':
             return 'nya64a';
         case 'gsm.version.baseband':
@@ -36,6 +39,7 @@ function propMapper(key: string): string | undefined {
         case 'ro.build.description':
             return 'xiaomi-raven 14 SQ1D.220205.003 8069835 release-keys';
         case 'persist.sys.timezone':
+        case 'ro.hardware.power':
             return '';
     }
 }
@@ -50,7 +54,7 @@ function buildMapper(key: string): string | undefined {
             return 'Xiaomi';
         // case 'DEVICE':
         // case 'PRODUCT': // this can be problematic for EGLConfig
-        //     return 'nya_arm64'
+        // return 'nya_arm64';
         case 'HARDWARE':
             return 'qcom';
         case 'BOARD':
