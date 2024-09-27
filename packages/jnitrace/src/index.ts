@@ -1,7 +1,10 @@
-import { Classes, ClassesString } from '@clockwork/common';
+import { Classes, ClassesString, Text, vs } from '@clockwork/common';
 import { FilterJni } from '@clockwork/hooks';
 import { Color, subLogger } from '@clockwork/logging';
+import * as Native from '@clockwork/native';
+import { EnvWrapper, type MinimumJNI } from './envWrapper.js';
 import type { JavaMethod } from './javaMethod.js';
+import { JNI, asFunction } from './jni.js';
 import { JNIEnvInterceptorARM64 } from './jniEnvInterceptorArm64.js';
 import { JniInvokeCallbacks, JniInvokeMode, LimitedCallback } from './jniInvokeCallback.js';
 import { JNIMethod } from './jniMethod.js';
@@ -10,6 +13,7 @@ const logger = subLogger('jnitrace');
 const { black, gray, dim, redBright, magenta } = Color.use();
 
 const PrimitiveNumberTypes = ['double', 'float', 'int', 'long', 'short'];
+Native.*Utils.dir();
 
 // TODO fix all of this
 let IF_CHECK = (thisRef: InvocationContext): boolean => false;
@@ -152,13 +156,13 @@ function formatCallMethod(
     const mappedArgs = new Array<string>(method.parameters.length);
     for (const i in method.parameters) {
         const param = method.parameters[i];
-        const arg = (args as any)[i];
-        mappedArgs[i] = formatNativeValue(arg, param);
+        const arg = args[i];
+        mappedArgs[i] = vs(arg, param);
     }
     return ColorMethodInvoke(method, mappedArgs);
 }
 
-function formatMethodReturn(value: NativePointer, type?: string): string | null {
+function formatMethodReturn(value: any, type?: string): string | null {
     const text = formatNativeValue(value, type);
 
     return `${dim('return')} ${text}`; // + `${type}[${value}: ${typeof value}]`;
@@ -176,29 +180,42 @@ DefineClass is at 0x????????
 FindClass is at  0xe399ae5d _ZN3art3JNI9FindClassEP7_JNIEnvPKc
 */
 
+let envWrapper: EnvWrapper;
+
 function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
+    envWrapper ??= new EnvWrapper(Java.vm.getEnv());
     IF_CHECK = predicate;
     const libart = Process.getModuleByName('libart.so');
     const symbols = libart.enumerateSymbols();
     const jniInterceptor = new JNIEnvInterceptorARM64();
 
-    let addrGetStringUTFChars: NativePointer | null = null;
-    let addrNewStringUTF: NativePointer | null = null;
-    const addrsDefineClass: NativePointer[] = [];
-    let addrFindClass: NativePointer | null = null;
-    let addrGetMethodID: NativePointer | null = null;
-    let addrGetStaticMethodID: NativePointer | null = null;
-    let addrGetFieldID: NativePointer | null = null;
-    let addrGetStaticFieldID: NativePointer | null = null;
-    let addrRegisterNatives: NativePointer | null = null;
-    const addrsCallStatic: JNIMethod[] = [];
-    const addrsCallNonvirtual: JNIMethod[] = [];
-    const addrsCallMethod: JNIMethod[] = [];
+    const fn = (arg: MinimumJNI) => envWrapper.getFunction(arg);
+    let addrGetStringUTFChars: NativePointer | null = fn(JNI.GetStringUTFChars);
+    let addrNewStringUTF: NativePointer | null = fn(JNI.NewStringUTF);
+    const addrsDefineClass: NativePointer[] = [fn(JNI.DefineClass)];
+    let addrFindClass: NativePointer | null = fn(JNI.FindClass);
+    let addrGetMethodID: NativePointer | null = fn(JNI.GetMethodID);
+    let addrGetStaticMethodID: NativePointer | null = fn(JNI.GetStaticMethodID);
+    let addrGetFieldID: NativePointer | null = fn(JNI.GetFieldID);
+    let addrGetStaticFieldID: NativePointer | null = fn(JNI.GetStaticFieldID);
+    let addrRegisterNatives: NativePointer | null = fn(JNI.RegisterNatives);
+    const addrNewGlobalRef: NativePointer | null = fn(JNI.NewGlobalRef);
+    const addrsCallStatic: JNIMethod[] = [
+        ...Object.values(JNI)
+            .filter((x) => x.name.startsWith('CallStatic'))
+            .map((x) => new JNIMethod(x.name, envWrapper.getFunction(x))),
+    ];
+    const addrsCallNonvirtual: JNIMethod[] = [
+        ...Object.values(JNI)
+            .filter((x) => x.name.startsWith('CallNonvirtual'))
+            .map((x) => new JNIMethod(x.name, envWrapper.getFunction(x))),
+    ];
+    const addrsCallMethod: JNIMethod[] = [
+        ...Object.values(JNI)
+            .filter((x) => x.name.startsWith('CallMethod'))
+            .map((x) => new JNIMethod(x.name, envWrapper.getFunction(x))),
+    ];
     const addrsNewObject: JNIMethod[] = [];
-    let ToReflectedMethod: NativeFunction<
-        NativePointer,
-        [NativePointerValue, NativePointerValue, NativePointerValue, number]
-    > | null = null;
     // let GetMethodID: NativeFunction<NativePointer, [NativePointerValue, NativePointerValue, NativePointerValue, NativePointerValue]> | null = null;
 
     for (const { name, address } of symbols) {
@@ -248,43 +265,50 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
                 addrsCallMethod.push(new JNIMethod(name, address));
                 logger.trace(`Call<>Method is at ${name} ${address}`);
             } else if (name.includes('ToReflectedMethod')) {
-                ToReflectedMethod = new NativeFunction(address, 'pointer', [
-                    'pointer',
-                    'pointer',
-                    'pointer',
-                    'uint8',
-                ]);
                 logger.trace(`ToReflectedMethod is at ${name} ${address}`);
             } else if (name.includes('GetArrayLength')) {
-                // Interceptor.attach(address, {
-                //     onLeave: hookIfTag('GetArrayLength', (retval) => `${retval}`),
-                // });
+                Interceptor.attach(address, {
+                    onLeave: hookIfTag('GetArrayLength', (retval) => `${retval}`),
+                });
             } else if (name.includes('SetByteArrayRegion')) {
-                // Interceptor.attach(address, {
-                //     onLeave: hookIfTag('SetByteArrayRegion', (retval) => `${retval}`),
-                // });
+                Interceptor.attach(address, {
+                    onLeave: hookIfTag('SetByteArrayRegion', (retval) => `${retval}`),
+                });
             } else if (name.includes('NewObjectArray')) {
-                // Interceptor.attach(address, {
-                //     onLeave: hookIfTag('NewObjectArray', (retval) => `${retval}`),
-                // });
+                Interceptor.attach(address, {
+                    onLeave: hookIfTag('NewObjectArray', (retval) => `${retval}`),
+                });
             } else if (name.includes('SetObjectArrayElement')) {
-                // Interceptor.attach(address, {
-                //     onEnter: hookIfTag('SetObjectArrayElement', (args) => `${args[2]} -> ${args[3]}`),
-                // });
+                Interceptor.attach(address, {
+                    onEnter: hookIfTag('SetObjectArrayElement', (args) => `${args[2]} -> ${args[3]}`),
+                });
             } else if (name.includes('ReleaseByteArrayElements')) {
-                // Interceptor.attach(address, {
-                //     onEnter: hookIfTag('ReleaseByteArrayElements', (args) => `${args[2]} -> ${args[3]}`),
-                // });
+                Interceptor.attach(address, {
+                    onEnter: hookIfTag('ReleaseByteArrayElements', (args) => `${args[2]} -> ${args[3]}`),
+                });
             } else if (name.includes('GetByteArrayElements')) {
-                // Interceptor.attach(address, {
-                //     onLeave: hookIfTag('GetByteArrayElements', (retval) => `${retval}, ${retval.readByteArray(32)}`),
-                // });
+                Interceptor.attach(address, {
+                    onLeave: hookIfTag('GetByteArrayElements', (retval) => `${retval}}`),
+                });
+            } else if (name.includes('NewGlobalRef')) {
+                // addrNewGlobalRef = address;
+                logger.trace(`NewGlobalRef is at ${name} ${address}`);
             }
         }
     }
 
+    Interceptor.attach(fn(JNI.IsSameObject), {
+        onEnter(args) {
+            this.a0 = args[0];
+            this.a1 = args[1];
+        },
+        onLeave: hookIfTag<InvocationReturnValue>('IsSameObject', function (retval) {
+            return `${this.a0} == ${this.a1} ? ${retval}`;
+        }),
+    });
+
     addrGetStringUTFChars &&
-        Interceptor.attach(addrGetStringUTFChars, {
+        Interceptor.attach(envWrapper.getFunction(JNI.GetStringUTFChars), {
             // std::tuple< UniqueStringUTFChars, bool > 	GetStringUTFChars (JNIEnv &env, jstring &string)
             onLeave: hookIfTag('GetStringUTFChars', (retval) => Color.string(retval.readCString())),
         });
@@ -318,6 +342,25 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
                 const className = args[1].readCString();
                 if (className === 'com/cocos/lib/CocosHelper') return;
                 return className;
+            }),
+        });
+
+    addrNewGlobalRef &&
+        Interceptor.attach(addrNewGlobalRef, {
+            onEnter(args) {
+                this.env = args[0];
+                this.local = args[1];
+            },
+            onLeave: hookIfTag('NewGlobalRef', function (retval) {
+                const env: NativePointer = this.env;
+                const local: NativePointer = this.local;
+                if (env && local && retval && !retval.isNull() && retval !== ptr(0x0)) {
+                    const getObjectClass = asFunction(env, JNI.GetObjectClass);
+                    const refClass = getObjectClass(env, local);
+                    const type = Text.toPrettyType(Java.cast(refClass, Classes.Class).getName());
+                    const value = vs(local, type);
+                    return `${Color.className(type)}: ${value}`;
+                }
             }),
         });
 
@@ -394,9 +437,11 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
         Interceptor.attach(
             address,
             LimitedCallback(
-                predicate,
+                function () {
+                    return predicate(this);
+                },
                 JniInvokeCallbacks(jniInterceptor, name, JniInvokeMode.Constructor, {
-                    onEnter(/* everything in `; this` context, maybe can be done better ? */) {
+                    onEnter(...args) {
                         const msg = formatCallMethod(
                             name,
                             this.methodID,
@@ -410,23 +455,8 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
                             this.method.name === '<init>'
                         )
                             return;
-
-                        console.log(
-                            `[${dim('NewObject')}]`,
-                            msg,
-                            DebugSymbol.fromAddress(this.returnAddress),
-                        );
                     },
-                    onLeave(retval) {
-                        if (this.method.className === ClassesString.String) {
-                            try {
-                                console.log(
-                                    `[${dim('NewObject')}]`,
-                                    Color.string(Java.cast(retval, Classes.String)),
-                                );
-                            } catch (e) {}
-                        }
-                    },
+                    onLeave(retval) {},
                 }),
             ),
         );
@@ -434,7 +464,7 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
 
     // biome-ignore lint/suspicious/noSelfCompare: <explanation>
     // biome-ignore lint/correctness/noConstantCondition: <explanation>
-    if (1 === 1) return;
+    // if (1 === 1) return;
 
     for (const { address, name } of addrsCallStatic) {
         Interceptor.attach(address, {
@@ -566,4 +596,4 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
     }
 }
 
-export { hookLibart as attach };
+export { JNI, asFunction, hookLibart as attach };

@@ -11,6 +11,14 @@ enum Mode {
     R_OK = 4,
 }
 
+function ofResultColor(path: NativePointer | string | number, ret: NativePointer | number) {
+    if (typeof path === 'number') path = `<fd:${path}>`;
+    if (typeof path === 'object') path = path.readCString() ?? '';
+    const isOk = ret !== -1 && ret !== ptr(-1);
+    const uri = isOk ? dim(green(`${path}`)) : dim(red(`${path}`));
+    return uri;
+}
+
 function hookAccess(predicate: (ptr: NativePointer) => boolean) {
     const empty = dim('-');
     function log(
@@ -238,6 +246,37 @@ function hookFopen(
     );
 }
 
+function hookOpendir(predicate: (ptr: NativePointer) => boolean) {
+    Interceptor.replace(
+        Libc.opendir,
+        new NativeCallback(
+            function (pathname) {
+                const ret = Libc.opendir(pathname);
+                if (predicate(this.returnAddress)) {
+                    logger.info({ tag: 'opendir' }, ofResultColor(pathname, ret));
+                }
+                return ret;
+            },
+            'pointer',
+            ['pointer'],
+        ),
+    );
+    Interceptor.replace(
+        Libc.fdopendir,
+        new NativeCallback(
+            function (fd) {
+                const ret = Libc.fdopendir(fd);
+                if (predicate(this.returnAddress)) {
+                    logger.info({ tag: 'fdopendir' }, ofResultColor(fd, ret));
+                }
+                return ret;
+            },
+            'pointer',
+            ['int'],
+        ),
+    );
+}
+
 function hookStat(predicate: (ptr: NativePointer) => boolean) {
     function log(
         this: InvocationContext | CallbackContext,
@@ -303,6 +342,7 @@ function hookRemove(predicate: (ptr: NativePointer) => boolean, ignore?: (path: 
         const func = Libc[key];
         Interceptor.replace(
             func,
+            
             new NativeCallback(
                 function (pathname) {
                     let ret: number;
@@ -341,4 +381,4 @@ function hookReadlink(predicate: (ptr: NativePointer) => boolean) {
     );
 }
 
-export { hookAccess, hookFopen, hookOpen, hookReadlink, hookRemove, hookStat };
+export { hookAccess, hookFopen, hookOpen, hookOpendir, hookReadlink, hookRemove, hookStat };

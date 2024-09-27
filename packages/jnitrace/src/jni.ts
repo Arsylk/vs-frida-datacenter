@@ -2644,9 +2644,29 @@ function asFunction<T extends NativeFunctionReturnType, R extends [] | NativeFun
     return new NativeFunction(ptr, def.retType, def.argTypes);
 }
 
+function asLocalRef<T>(ptr: NativePointer, fn: (ptr: NativePointer) => T): T | null {
+    const env = Java.vm.tryGetEnv()?.handle;
+
+    let ref: NativePointer | null = null;
+    try {
+        const NewLocalRef = asFunction(env, JNI.NewLocalRef);
+        ref = NewLocalRef(env, ptr);
+        return fn(ref);
+    } catch (error) {
+    } finally {
+        if (ref) {
+            const DeleteLocalRef = asFunction(env, JNI.DeleteLocalRef);
+            DeleteLocalRef(env, ref);
+            ref = null;
+        }
+    }
+    return null;
+}
+
 export {
     JNI,
     asFunction,
+    asLocalRef,
     type JniMethodDefinition,
     type jFieldID,
     type jMethodID,

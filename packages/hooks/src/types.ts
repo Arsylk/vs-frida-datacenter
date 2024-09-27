@@ -21,12 +21,8 @@ type HookParameters = {
     loggingPredicate?: LoggingPredicate;
 };
 
-type MethodOverload = {
-    argumentTypes: { className: string }[];
-    returnType: { className: string };
-};
-
-type MethodHookPredicate = (overload: MethodOverload, index: number) => boolean;
+type MethodHookPredicate = (overload: Java.Method, index: number) => boolean;
+type NativeCallbackPredicate = (this: InvocationContext) => boolean;
 
 type LoggingPredicate = (this: Java.Wrapper, method: Java.Method, ...args: JavaArgument[]) => boolean;
 
@@ -48,5 +44,6 @@ export type {
     FridaMethodThisCompat,
     HookParameters,
     LoggerOptions,
-    MethodOverload,
+    MethodHookPredicate,
+    NativeCallbackPredicate,
 };

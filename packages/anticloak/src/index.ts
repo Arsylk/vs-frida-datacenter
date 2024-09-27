@@ -75,7 +75,10 @@ function hookSensor() {
     const params: HookParameters = {
         replace(method, ...args) {
             const value = `${method.call(this, ...args)}`;
-            return value.replace(/open|source|emulator|google|aosp|ranchu|goldfish|cuttlefish/gi, 'nya');
+            return value.replace(
+                /x86|sdk|open|source|emulator|google|aosp|ranchu|goldfish|cuttlefish|generic|unknown/gi,
+                'nya',
+            );
         },
         logging: {
             short: true,

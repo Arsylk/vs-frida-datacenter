@@ -1,5 +1,4 @@
 import * as Anticloak from '@clockwork/anticloak';
-import * as Cocos2dx from '@clockwork/cocos2dx';
 import {
     Classes,
     ClassesString,
@@ -53,7 +52,13 @@ function hookWebview(trace?: boolean) {
         logging: logging,
         after() {
             if (trace) {
-                logger.info(pink(stacktrace()));
+                const strace = stacktrace();
+                if (
+                    !strace.includes('com.google.android.gms.ads.internal.webview.') &&
+                    !strace.includes('com.google.android.gms.internal.')
+                ) {
+                    logger.info(pink(strace));
+                }
             }
         },
     });
@@ -93,26 +98,24 @@ function hookNetwork() {
 function hookRuntimeExec() {
     const mReplace = (sArg: string) => {
         sArg = sArg.replace(/^su$/g, 'nya');
-        sArg = sArg.replace(/^\/system\/xbin\/which$/g, 'which');
+        sArg = sArg.replace(/\/which/g, '/yhich');
         sArg = sArg.replace(/^rm -r/g, 'file ');
         return Classes.String.$new(`${sArg}`);
-    }
+    };
 
     hook(Classes.Runtime, 'exec', {
         replace(method, ...args) {
-            // string array 
+            // string array
             if (method.argumentTypes[0].name === '[Ljava/lang/String;') {
-                logger.info({tag: 'exec'}, `[${args[0].join(' ')}]`)
-                const cloned = Array(args[0].length)
-                for (let i = 0; i < args[0].length; i+=1) {
-                    cloned[i] = mReplace(`${args[0][i]}`)
+                const cloned = Array(args[0].length);
+                for (let i = 0; i < args[0].length; i += 1) {
+                    cloned[i] = mReplace(`${args[0][i]}`);
                 }
                 args[0] = Java.array(ClassesString.String, cloned);
             }
             // single string
             else {
-                logger.info({tag: 'exec'}, args[0])
-                args[0] = mReplace(`${args[0]}`)
+                args[0] = mReplace(`${args[0]}`);
             }
             // if (`${args[0]}`.includes('nya') === false) return Classes.Runtime.exec.call(this, 'echo nya');
             return method.call(this, ...args);
@@ -290,7 +293,11 @@ function hookFirestore() {
             !FirebaseFirestore &&
             (FirebaseFirestore = findClass('com.google.firebase.firestore.FirebaseFirestore'))
         ) {
-            hook(FirebaseFirestore, '$init', { logging: { short: true } });
+            hook(FirebaseFirestore, '$init', {
+                predicate: (overload) => overload.argumentTypes.length > 0,
+                logging: { short: true },
+            });
+
             'collection' in FirebaseFirestore &&
                 hook(FirebaseFirestore, 'collection', {
                     logging: { short: true, multiline: false },
@@ -394,11 +401,12 @@ Java.performNow(() => {
     //     replace: (_, ...params) => params[0],
     //     logging: {arguments: false, return: false}
     // });
+
     // return
     const C4_URL = 'https://google.pl/search?q=hi';
     const AD_ID = 'fwqna41l-mrux-l4pi-mi6q-imrr3t83da4n';
     const INSTALL_REFERRER =
-        'utm_source=facebook_ads&utm_medium=Non-rganic&media_source=true_network&http_referrer=BingSearch';
+        'utm_source=facebook_ads&utm_medium=Non-organic&media_source=true_network&http_referrer=BingSearch';
     hookActivity();
     hookWebview(true);
     hookNetwork();
@@ -453,9 +461,9 @@ Java.performNow(() => {
     bypassIntentFlags();
     bypassReceiverFlags();
 
-    hook('android.content.ContextWrapper', 'getSharedPreferences', {
-        logging: { multiline: false, short: true, return: false },
-    });
+    // hook('android.content.ContextWrapper', 'getSharedPreferences', {
+    //     logging: { multiline: false, short: true, return: false },
+    // });
 
     hook(Classes.Process, 'killProcess', {
         after: () => {
@@ -469,7 +477,10 @@ Java.performNow(() => {
     });
 
     // hook(Classes.Activity, 'finish', { replace: () => {}, logging: { multiline: false, return: false } });
-    // hook(Classes.Activity, 'finishAffinity', { replace: () => {}, logging: { multiline: false, return: false } });
+    // hook(Classes.Activity, 'finishAffinity', {
+    //     replace: () => {},
+    //     logging: { multiline: false, return: false },
+    // });
 
     hook(Classes.ApplicationPackageManager, 'getPackageInfo', {
         logging: { multiline: false, short: true },
@@ -524,9 +535,7 @@ Java.performNow(() => {
     });
 
     // hook(Classes.Runtime, 'loadLibrary0', { logging: { short: true, multiline: false } });
-    ClassLoader.perform(() => {
-        uniqHook('com.startapp.sdk.adsbase.StartAppInitProvider', 'attachInfo', {replace: () => {}})
-    });
+    ClassLoader.perform(() => {});
 });
 
 Network.injectSsl();
@@ -549,7 +558,7 @@ Process.setExceptionHandler((exception: ExceptionDetails) => {
     return exception.type === 'abort';
 });
 Native.initLibart();
-Cocos2dx.dump({ name: 'libcocos.so', fn_dump: ptr(0x00cf85b8), fn_key: ptr(0x00cd5dec) });
+// Cocos2dx.dump({ name: 'libcocos.so', fn_dump: ptr(0x00d1728c), fn_key: ptr(0x017bdc20) });
 // Cocos2dx.hookLocalStorage((key) => {
 //     switch (key) {
 //         case '__FirstLanuchTime':
@@ -568,11 +577,9 @@ Cocos2dx.dump({ name: 'libcocos.so', fn_dump: ptr(0x00cf85b8), fn_key: ptr(0x00c
 // Unity.attachScenes();
 
 emitter.on('il2cpp', Unity.listGameObjects);
-let enable = true;
-setTimeout(() => (enable = true), 4000);
-emitter.on('jni', (_) => {
-    enable = !enable;
-});
+let enable = !true;
+setTimeout(() => (enable = true), 1500);
+emitter.on('jni', (_) => (enable = !enable));
 
 const isNativeEnabled = true;
 const predicate = (r) => {
@@ -598,6 +605,7 @@ Native.Files.hookFopen(predicate, true, (path) => {
         return `/data/data/${getSelfProcessName()}/files/fake_maps`;
     }
 });
+Native.Files.hookOpendir(predicate);
 // Native.Files.hookStat(predicate);
 Native.Files.hookRemove(predicate);
 // Native.Strings.hookStrlen(predicate);
@@ -607,23 +615,32 @@ Native.Files.hookRemove(predicate);
 // Native.Strings.hookStrtoLong(predicate);
 Native.TheEnd.hook(predicate);
 
-// Native.Time.hookDifftime(predicate);
+Native.Time.hookDifftime(predicate);
 // Native.Time.hookTime(predicate);
 // Native.Time.hookLocaltime(predicate);
 // Native.Time.hookGettimeofday(predicate);
 Anticloak.Debug.hookPtrace();
 Native.Pthread.hookPthread_create();
 // Native.Logcat.hookLogcat();
-// Anticloak.Jigau.memoryPatch();
+Anticloak.Jigau.memoryPatch();
+
+Interceptor.attach(Libc.sprintf, {
+    onEnter(args) {
+        this.dst = args[0];
+    },
+    onLeave(retval) {
+        // const text = this.dst.readCString();
+        // logger.info({ tag: 'sprintf' }, `${text}`);
+    },
+});
 
 // Dump.initSoDump();
 emitter.on('dex', () => Dump.scheduleDexDump(0));
-
-// Interceptor.attach(Libc.system, {
-//     onEnter(args) {
-//         logger.info({ tag: 'system' }, `system(${args[0].readCString()})`);
-//     },
-// });
+Interceptor.attach(Libc.system, {
+    onEnter(args) {
+        logger.info({ tag: 'system' }, `system(${args[0].readCString()})`);
+    },
+});
 
 // Native.Inject.attachRelativeTo('libil2cpp.so', gPtr(0x160e2dc), {
 //     onEnter([__this, value, methodInfo]: [NativePointer, boolean, any]) {
@@ -704,19 +721,33 @@ Interceptor.replace(
     ),
 );
 
-// const fgetsPtr = Module.getExportByName('libc.so', 'fgets');
-// const fgets = new NativeFunction(fgetsPtr, 'pointer', ['pointer', 'int', 'pointer']);
-// Interceptor.replace(
-//     fgetsPtr,
-//     new NativeCallback(
-//         function (buffer, size, fp) {
-//             const retval = fgets(buffer, size, fp);
-//             logger.info(
-//                 { tag: 'fgets' },
-//                 `${buffer.readCString()?.trimEnd()} ${DebugSymbol.fromAddress(this.returnAddress)}`,
-//             );
-//             return retval;
-//         },
-//         'pointer',
-//         ['pointer', 'int', 'pointer'],
-//     ),
+const fgetsPtr = Module.getExportByName('libc.so', 'fgets');
+const fgets = new NativeFunction(fgetsPtr, 'pointer', ['pointer', 'int', 'pointer']);
+Interceptor.replace(
+    fgetsPtr,
+    new NativeCallback(
+        (buffer, size, fp) => {
+            const retval = fgets(buffer, size, fp);
+            // logger.info(
+            //     { tag: 'fgets' },
+            //     `${buffer.readCString()?.trimEnd()} ${DebugSymbol.fromAddress(this.returnAddress)}`,
+            // );
+            return retval;
+        },
+        'pointer',
+        ['pointer', 'int', 'pointer'],
+    ),
+);
+
+const dir = `/data/data/${getSelfProcessName()}/files`;
+const diuPtr = Memory.allocUtf8String(`mkdir -p ${dir}`);
+Libc.system(diuPtr);
+diuPtr.
+]
+//@ts-expect-error
+File.writeAllText(`$
+{
+    dir;
+}
+/fake_maps`, File.readAllText('/copr / self / maps;
+'));

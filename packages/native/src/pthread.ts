@@ -21,7 +21,7 @@ function hookPthread_create() {
                 const fMethod = `[${gray(`${method.moduleName}`)} ${black(`${name}`)}] ${gray(`${method.address}`)}`;
                 logger.info(
                     { tag: 'pthread_create' },
-                    `${gray('tid:')} ${fTid}, ${attr}${fThreadName}${fMethod}, ${arg.readPointer()}`,
+                    `${gray('tid:')} ${fTid}, ${attr}${fThreadName}${fMethod}, ${arg !== NULL ? arg.readPointer() : arg}`,
                 );
                 return ret;
             },
