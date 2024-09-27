@@ -1,5 +1,6 @@
+import type { NativeCallbackPredicate } from '@clockwork/hooks';
 import type { JavaMethod } from './javaMethod';
-import type { jclass, jMethodID, jobject } from './jni';
+import type { jMethodID, jclass, jobject } from './jni';
 import type { JNIEnvInterceptor } from './jniEnvInterceptor';
 import { resolveMethod } from './tracer.js';
 
@@ -39,18 +40,15 @@ interface JniInvokeCallback {
     javaArgs: NativePointer[];
 }
 
-function LimitedCallback(
-    predicate: (thisRef: InvocationContext) => boolean,
-    callback: ScriptInvocationListenerCallbacks,
-) {
+function LimitedCallback(predicate: NativeCallbackPredicate, callback: ScriptInvocationListenerCallbacks) {
     const cb: ScriptInvocationListenerCallbacks = {
         onEnter(args) {
-            if (predicate(this)) {
+            if (predicate.call(this)) {
                 callback?.onEnter?.call(this, args);
             }
         },
         onLeave(retval) {
-            if (predicate(this)) {
+            if (predicate.call(this)) {
                 callback?.onLeave?.call(this, retval);
             }
         },
@@ -119,4 +117,4 @@ function JniInvokeCallbacks(
     return cb;
 }
 
-export { LimitedCallback, JniInvokeCallbacks, JniInvokeMode, type JniInvokeScriptListenerCallbacks };
+export { JniInvokeCallbacks, JniInvokeMode, LimitedCallback, type JniInvokeScriptListenerCallbacks };

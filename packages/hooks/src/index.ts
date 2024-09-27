@@ -1,6 +1,7 @@
-import { findHook, getHookUnique, hook } from './hook.js';
 import { ClassLoader } from './classloader.js';
+import { findHook, getHookUnique, hook } from './hook.js';
 export * from './addons.js';
 export * from './filter.js';
+export type * from './types.js';
 
-export { hook, findHook, getHookUnique, ClassLoader };
+export { ClassLoader, findHook, getHookUnique, hook };

@@ -1,6 +1,6 @@
 import { Classes, ClassesString, enumerateMembers, findClass } from '@clockwork/common';
 import { ClassLoader, hook } from '@clockwork/hooks';
-import type { MethodOverload } from '@clockwork/hooks/dist/types';
+import type { MethodHookPredicate } from '@clockwork/hooks/dist/types';
 import { Color, subLogger } from '@clockwork/logging';
 const logger = subLogger('installreferrer');
 
@@ -73,14 +73,14 @@ function performReplace(
 
                 let msg = Color.method(startMethod);
                 msg += Color.bracket('(');
-                msg += Color.className(listener.$className);
+                msg += Color.className(listener?.$className);
                 msg += Color.bracket(')');
                 msg += ' -> ';
                 msg += Color.method(onFinishedMethod);
                 msg += `${Color.bracket('(')}${Color.number('0')}${Color.bracket(')')}`;
                 logger.info(msg);
 
-                listener[onFinishedMethod](0);
+                listener?.[onFinishedMethod]?.(0);
             },
         });
 
@@ -118,15 +118,15 @@ function matchReferrerClientMethods(clazz: Java.Wrapper): [string, string] {
         clazz,
         {
             onMatchMethod(clazz, member) {
-                const def = clazz[member];
+                const def: Java.MethodDispatcher = clazz[member];
                 if (!def) return;
-                for (const overload of def.overloads) {
-                    if (startConnectionPredicate(overload)) {
+                for (const [i, overload] of def.overloads.entries()) {
+                    if (startConnectionPredicate(overload, i)) {
                         startMethod ??= member;
                         continue;
                     }
 
-                    if (getInstallReferrerPredicate(overload)) {
+                    if (getInstallReferrerPredicate(overload, i)) {
                         getMethod ??= member;
                     }
                 }
@@ -144,10 +144,10 @@ function matchStateListenerMethod(clazz: Java.Wrapper): string {
         clazz,
         {
             onMatchMethod(clazz, member) {
-                const def = clazz[member];
+                const def: Java.MethodDispatcher = clazz[member];
                 if (!def) return;
-                for (const overload of def.overloads) {
-                    if (onInstallReferrerSetupFinishedPredicate(overload)) {
+                for (const [i, overload] of def.overloads.entries()) {
+                    if (onInstallReferrerSetupFinishedPredicate(overload, i)) {
                         found ??= member;
                         return;
                     }
@@ -160,23 +160,17 @@ function matchStateListenerMethod(clazz: Java.Wrapper): string {
     return found ?? 'onInstallReferrerSetupFinished';
 }
 
-const startConnectionPredicate: (overload: MethodOverload) => boolean = ({ returnType, argumentTypes }) => {
+const startConnectionPredicate: MethodHookPredicate = ({ returnType, argumentTypes }) => {
     return (
         returnType.className === 'void' &&
         argumentTypes.length === 1 &&
         argumentTypes[0].className === ClassesString.InstallReferrerStateListener
     );
 };
-const getInstallReferrerPredicate: (overload: MethodOverload) => boolean = ({
-    returnType,
-    argumentTypes,
-}) => {
+const getInstallReferrerPredicate: MethodHookPredicate = ({ returnType, argumentTypes }) => {
     return returnType.className === ClassesString.ReferrerDetails && argumentTypes.length === 0;
 };
-const onInstallReferrerSetupFinishedPredicate: (overload: MethodOverload) => boolean = ({
-    returnType,
-    argumentTypes,
-}) => {
+const onInstallReferrerSetupFinishedPredicate: MethodHookPredicate = ({ returnType, argumentTypes }) => {
     return (
         returnType.className === 'void' && argumentTypes.length === 1 && argumentTypes[0].className === 'int'
     );

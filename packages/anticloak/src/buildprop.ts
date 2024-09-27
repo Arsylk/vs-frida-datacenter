@@ -54,7 +54,7 @@ function buildMapper(key: string): string | undefined {
             return 'Xiaomi';
         // case 'DEVICE':
         // case 'PRODUCT': // this can be problematic for EGLConfig
-        // return 'nya_arm64';
+        //     return 'nya_arm64';
         case 'HARDWARE':
             return 'qcom';
         case 'BOARD':

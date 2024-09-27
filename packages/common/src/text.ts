@@ -78,4 +78,4 @@ function base64(input: string) {
     return output;
 }
 
-export { maxLengh, noLines, toHex, toByteSize, toPrettyType, stringNumber, base64, uuid };
+export { base64, maxLengh, noLines, stringNumber, toByteSize, toHex, toPrettyType, uuid };

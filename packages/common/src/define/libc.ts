@@ -30,8 +30,19 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'mkdir');
         return new NativeFunction(ptr, 'int', ['pointer', 'int']);
     },
+    // DIR *opendir(const char *name);
     opendir: () => {
         const ptr = Module.getExportByName('libc.so', 'opendir');
+        return new NativeFunction(ptr, 'pointer', ['pointer']);
+    },
+    // DIR *fdopendir(int fd);
+    fdopendir: () => {
+        const ptr = Module.getExportByName('libc.so', 'fdopendir');
+        return new NativeFunction(ptr, 'pointer', ['int']);
+    },
+    // struct dirent *readdir(DIR *dirp);
+    readdir: () => {
+        const ptr = Module.getExportByName('libc.so', 'readdir');
         return new NativeFunction(ptr, 'pointer', ['pointer']);
     },
     closedir: () => {
@@ -334,7 +345,11 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'strtoull');
         return new NativeFunction(ptr, 'uint64', ['pointer', 'pointer', 'int']);
     },
-
+    // int memcmp (const void * ptr1, const void * ptr2, size_t num);
+    memcmp: () => {
+        const ptr = Module.getExportByName('libc.so', 'memcmp');
+        return new NativeFunction(ptr, 'int', ['pointer', 'pointer', 'int']);
+    },
     // char * __cxa_demangle (const char *mangled_name, char *output_buffer, size_t *length, int *status)
     __cxa_demangle: () => {
         // const pt  = Module.getExportByName('libunwindstack.so', '__cxa_demangle');

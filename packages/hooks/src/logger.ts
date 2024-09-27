@@ -1,4 +1,4 @@
-import { Classes, ClassesString, Text, stacktraceList } from '@clockwork/common';
+import { Classes, ClassesString, Text, stacktraceList, vs } from '@clockwork/common';
 import type { OmitFirstArg } from '@clockwork/common/src/types.js';
 import { Color, logger } from '@clockwork/logging';
 import type { LoggerOptions } from './types.js';
@@ -13,12 +13,13 @@ type ILogger = {
         className: string,
         methodName: string,
         argValues: any[],
+        argTypes: string[],
         returnType: string,
         logId: string,
         isReplaced: boolean,
     ): void;
 
-    printReturn(returnValue: any, logId: string): void;
+    printReturn(returnValue: any, returnType: string, logId: string): void;
 };
 
 const DEFAULT_LOGGER_OPTIONS: LoggerOptions = {
@@ -50,30 +51,19 @@ const HOOK_LOGGER = {
         return splits.map(Color.className).join('.') + array;
     },
 
-    mapValue(arg: any): string {
-        if (typeof arg === 'string' || arg?.$className === ClassesString.String) {
-            return Color.string(arg);
-        }
-        if (typeof arg === 'boolean' || typeof arg === 'number') {
-            return Color.number(`${arg}`);
-        }
-        if (arg === null || arg === undefined) {
-            return Color.number(`${null}`);
-        }
-        try {
-            //@ts-ignore
-            return Classes.String.valueOf(arg);
-        } catch (e) {
-            return `${arg}@${typeof arg}`;
-        }
+    mapValue(arg: any, type?: string): string {
+        return vs(arg, type);
     },
 
-    mapArgs(config: LoggerOptions, args: any[]): string {
+    mapArgs(config: LoggerOptions, args: any[], types?: string[]): string {
         if (args.length === 0) return '';
         if (!config.arguments) return gray('...');
         const joinBy = config.multiline ? ', \n' : ', ';
         const joined = args
-            .map((arg: any) => `${config.multiline ? config.spacing : ''}${this.mapValue(arg)}`)
+            .map(
+                (arg: any, i: number) =>
+                    `${config.multiline ? config.spacing : ''}${this.mapValue(arg, types?.[i])}`,
+            )
             .join(joinBy);
 
         return config.multiline ? `\n${joined}\n` : joined;
@@ -116,6 +106,7 @@ const HOOK_LOGGER = {
         className: string,
         methodName: string,
         argValues: any[],
+        argTypes: string[],
         returnType: string,
         logId: string,
         isReplaced = false,
@@ -130,7 +121,7 @@ const HOOK_LOGGER = {
             sb += '::';
             sb += this.mapMethod(config, methodName);
             sb += Color.bracket('(');
-            sb += this.mapArgs(config, argValues);
+            sb += this.mapArgs(config, argValues, argTypes);
             sb += Color.bracket(')');
             sb += ': ';
             sb += this.mapClass(config, returnType);
@@ -139,20 +130,20 @@ const HOOK_LOGGER = {
             sb += ' ';
             sb += this.mapClass(config, className);
             sb += Color.bracket('(');
-            sb += this.mapArgs(config, argValues);
+            sb += this.mapArgs(config, argValues, argTypes);
             sb += Color.bracket(')');
         }
 
         this.logInfo(sb, logId);
     },
 
-    printReturn(config: LoggerOptions, returnValue: any, logId: string) {
+    printReturn(config: LoggerOptions, returnValue: any, returnType: string, logId: string) {
         if (!config.return) return;
 
         let sb = '';
         sb += dim('return');
         sb += ' ';
-        sb += `${this.mapValue(returnValue)}`;
+        sb += `${this.mapValue(returnValue, returnType)}`;
 
         this.logInfo(sb, logId);
     },
@@ -242,6 +233,7 @@ const HOOK_LOGGER_JSON = {
         className: string,
         methodName: string,
         argValues: any[],
+        argTypes: string[],
         returnType: string,
         logId: string,
         isReplaced = false,
@@ -257,7 +249,7 @@ const HOOK_LOGGER_JSON = {
         logger.info(msg);
     },
 
-    printReturn(returnValue: any, logId: string) {
+    printReturn(returnValue: any, returnType: string, logId: string) {
         const msg = JSON.stringify({
             t: 'jvmreturn',
             id: logId,

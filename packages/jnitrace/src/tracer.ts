@@ -38,14 +38,14 @@ function resolveMethod(
     methodID: jMethodID,
     isStatic: boolean,
 ): JavaMethod | null {
-    let method = Cache.get(methodID, isStatic);
+    const method = Cache.get(methodID, isStatic);
     if (method) return method;
 
     // fallback to frida getEnv()
     env ??= Java.vm.tryGetEnv()?.handle;
     if (!env) return null;
 
-    if (FindClass === null && env) FindClass = asFunction(env, JNI.FindClass);
+    if (FindClass === null && env) FindClass = envWrapper.asFunction(env, JNI.FindClass);
     if (ToReflectedMethod === null && env) ToReflectedMethod = asFunction(env, JNI.ToReflectedMethod);
 
     if (ToReflectedMethod) {
@@ -107,20 +107,23 @@ function resolveMethod(
     const cls = thisSig ? findClass(thisSig) : null;
     if (!thisSig || !cls) return null;
 
-    let matched: Java.Wrapper | null = null;
+    let matched: Java.Method | null = null;
     enumerateMembers(cls, {
         onMatchMethod(clazz, member) {
-            for (const overload of clazz[member]._o) {
+            const method: Java.MethodDispatcher = clazz[member];
+            for (const overload of method.overloads) {
                 if (`${overload.handle}` === `${methodID}`) {
                     matched = overload;
-                    method = new JavaMethod(
-                        thisSig ?? '',
-                        member,
-                        overload.argumentTypes.map((x: any) => x.className),
-                        overload.returnType.className,
-                        isStatic,
+                    return Cache.set(
+                        methodID,
+                        new JavaMethod(
+                            thisSig ?? '',
+                            member,
+                            overload.argumentTypes.map((x) => x.className ?? x.name),
+                            overload.returnType.className ?? overload.returnType.name,
+                            isStatic,
+                        ),
                     );
-                    return Cache.set(methodID, method);
                 }
             }
         },

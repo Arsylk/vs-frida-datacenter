@@ -32,7 +32,7 @@
         "il2cpphooker": "axhlzy/Il2CppHookScripts.git"
     },
     "devDependencies": {
-        "@biomejs/biome": "1.9.1",
+        "@biomejs/biome": "1.9.2",
         "@types/frida-gum": "^18.7.0",
         "frida-il2cpp-bridge": "^0.9.1",
         "ts-loader": "^9.5.1",

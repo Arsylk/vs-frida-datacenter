@@ -167,7 +167,7 @@ function dump_from_maps() {
 function initSoDump() {
     const self = getSelfProcessName() ?? '';
     Inject.afterInitArrayModule(({ path, name }) => {
-        if (path.startsWith('/data/app') && !path.endsWith('/base.odex') && !path.includes('libdumpfixer')) {
+        if ((path.includes(self) || path.startsWith('/data/app')) && !path.endsWith('/base.odex') && !path.includes('libdumpfixer')) {
             if (Libc.pthread_mutex_lock(mutex_addr) === 0x0) {
                 try {
                     if (hash_dumped_libs.get(name) === undefined) {

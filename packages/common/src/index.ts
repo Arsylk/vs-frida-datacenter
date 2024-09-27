@@ -6,6 +6,7 @@ export * as Std from './define/std.js';
 export * as Struct from './define/struct.js';
 export * as Text from './text.js';
 export * from './types.js';
+export * from './visualize.js';
 
 function tryNull<T>(fn: () => T): T | null {
     try {
@@ -15,7 +16,7 @@ function tryNull<T>(fn: () => T): T | null {
 }
 
 function isJWrapper(clazzOrName: Java.Wrapper | string): clazzOrName is Java.Wrapper {
-    return Object.hasOwn(clazzOrName as any, '$className');
+    return typeof clazzOrName === 'object' ? Reflect.has(clazzOrName, '$className') : false;
 }
 
 function stacktrace(e?: Java.Wrapper): string {

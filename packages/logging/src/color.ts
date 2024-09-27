@@ -48,8 +48,12 @@ const string: (string: any) => string = (string: any) => {
     return yellow(`"${string}"`);
 };
 
+const char: (char: any) => string = (char: any) => {
+    return yellow(`'${string}'`);
+};
+
 const number: (number: any) => string = (number: any) => {
     return magenta(`${number}`);
 };
 
-export { args, bracket, className, field, keyword, method, number, string, url, use };
+export { args, bracket, char, className, field, keyword, method, number, string, url, use };
