@@ -45,7 +45,7 @@ function resolveMethod(
     env ??= Java.vm.tryGetEnv()?.handle;
     if (!env) return null;
 
-    if (FindClass === null && env) FindClass = envWrapper.asFunction(env, JNI.FindClass);
+    if (FindClass === null && env) FindClass = asFunction(env, JNI.FindClass);
     if (ToReflectedMethod === null && env) ToReflectedMethod = asFunction(env, JNI.ToReflectedMethod);
 
     if (ToReflectedMethod) {

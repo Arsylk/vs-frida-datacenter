@@ -1,7 +1,6 @@
 import { Classes, ClassesString, Text, vs } from '@clockwork/common';
 import { FilterJni } from '@clockwork/hooks';
 import { Color, subLogger } from '@clockwork/logging';
-import * as Native from '@clockwork/native';
 import { EnvWrapper, type MinimumJNI } from './envWrapper.js';
 import type { JavaMethod } from './javaMethod.js';
 import { JNI, asFunction } from './jni.js';
@@ -13,7 +12,6 @@ const logger = subLogger('jnitrace');
 const { black, gray, dim, redBright, magenta } = Color.use();
 
 const PrimitiveNumberTypes = ['double', 'float', 'int', 'long', 'short'];
-Native.*Utils.dir();
 
 // TODO fix all of this
 let IF_CHECK = (thisRef: InvocationContext): boolean => false;
@@ -527,6 +525,7 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
     for (const { address, name } of addrsCallMethod) {
         const namePtr = Memory.allocUtf8String(name);
         const tag = name;
+
         // Libc.__cxa_demangle(namePtr, NULL, NULL, NULL).readCString() ?? name;
 
         Interceptor.attach(address, {
@@ -596,4 +595,4 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
     }
 }
 
-export { JNI, asFunction, hookLibart as attach };
+export { EnvWrapper, JNI, asFunction, hookLibart as attach };
