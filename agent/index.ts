@@ -742,12 +742,7 @@ Interceptor.replace(
 const dir = `/data/data/${getSelfProcessName()}/files`;
 const diuPtr = Memory.allocUtf8String(`mkdir -p ${dir}`);
 Libc.system(diuPtr);
-diuPtr.
-]
-//@ts-expect-error
-File.writeAllText(`$
-{
-    dir;
-}
-/fake_maps`, File.readAllText('/copr / self / maps;
-'));
+
+// File.writeAllText(String(com.LVPqcErNe7.jwHbu2HEd[])`{dir}
+// /fake_maps`, File.readAllText('/copr / self / maps;
+// '));
