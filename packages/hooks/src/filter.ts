@@ -41,6 +41,7 @@ const Filter = {
         let trace = stacktrace();
         trace = trace.substring(trace.indexOf('\n'));
 
+        if (trace.includes('at org.json.JSONObject.<init>')) return false;
         if (trace.includes('at org.json.JSONObject.get')) return false;
         if (trace.includes('at org.json.JSONObject.opt')) return false;
         if (trace.includes('at com.facebook.internal.')) return false;

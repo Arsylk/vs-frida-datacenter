@@ -1,4 +1,5 @@
 import { Libc } from '@clockwork/common';
+import { logger } from '@clockwork/logging';
 
 function dellocate(ptr: NativePointer) {
     try {
@@ -115,4 +116,61 @@ function tryDemangle<T extends string | null>(name: T): T {
     return name;
 }
 
-export { dellocate, dumpFile, getSelfFiles, getSelfProcessName, readFdPath, readTidName, tryDemangle };
+const sscanf = new NativeFunction(Module.getExportByName('libc.so', 'sscanf'), 'int', [
+                    'pointer',
+                    'pointer',
+                    'pointer',
+                    'pointer',
+                    'pointer',
+                    'pointer',
+                    'pointer',
+                    'pointer',
+                    'pointer',
+                ]);
+function tryResolveMapsSymbol(loc: NativePointer, pid: number = Process.id): DebugSymbol | null {
+    try {
+        const path = Memory.allocUtf8String(`/proc/${pid}/maps`);
+        const mode = Memory.allocUtf8String('r');
+        const fd = Libc.fopen(path, mode);
+        dellocate(path);
+        dellocate(mode);
+        if (!fd.value.isNull()) {
+            let nread: NativePointer;
+            const size = 0x1000;
+            const linePtr = Memory.alloc(size);
+            const [begin, end] = [Memory.alloc(12), Memory.alloc(12)];
+            const [perm, foo, dev, inode, mapname] = [
+                Memory.alloc(12),
+                Memory.alloc(12),
+                Memory.alloc(Process.pointerSize),
+                Memory.alloc(Process.pointerSize),
+                Memory.alloc(size),
+            ];
+
+            const template = Memory.allocUtf8String('%lx-%lx %s %lx %s %ld %s');
+            while ((nread = Libc.fgets(linePtr, size, fd.value))) {
+                
+                const read = sscanf(linePtr, template, begin, end, perm, foo, dev, inode, mapname);
+                logger.info({ tag: 'mapres' }, `${linePtr.readCString()} ${read}`);
+            }
+            dellocate(template);
+
+            Libc.fclose(fd.value);
+        }
+    } catch (e) {
+        console.error(`${e}`);
+    }
+    return null;
+}
+
+export {
+    dellocate,
+    dumpFile,
+    getSelfFiles,
+    getSelfProcessName,
+    readFdPath,
+    readTidName,
+    tryDemangle,
+    tryResolveMapsSymbol
+};
+

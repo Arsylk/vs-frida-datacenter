@@ -1,6 +1,12 @@
 import type { JavaArgument } from '@clockwork/common';
 import type { ReturnOptional } from '@clockwork/common/src/types';
 
+type LoggerValueTransform = (
+    value: any,
+    type: string | null,
+    id: number,
+) => [value?: any, type?: string | null] | null | undefined;
+
 type LoggerOptions = {
     spacing: string;
     arguments: boolean;
@@ -10,6 +16,7 @@ type LoggerOptions = {
     call: boolean;
     hook: boolean;
     enable: boolean;
+    transform?: LoggerValueTransform;
 };
 
 type HookParameters = {
@@ -22,7 +29,7 @@ type HookParameters = {
 };
 
 type MethodHookPredicate = (overload: Java.Method, index: number) => boolean;
-type NativeCallbackPredicate = (this: InvocationContext) => boolean;
+type NativeCallbackPredicate = (thisRef: InvocationContext) => boolean;
 
 type LoggingPredicate = (this: Java.Wrapper, method: Java.Method, ...args: JavaArgument[]) => boolean;
 

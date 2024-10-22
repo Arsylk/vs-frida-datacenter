@@ -21,6 +21,11 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'close');
         return new NativeFunction(ptr, 'int', ['int']);
     },
+    // int close(int fd);
+    fclose: () => {
+        const ptr = Module.getExportByName('libc.so', 'fclose');
+        return new NativeFunction(ptr, 'int', ['pointer']);
+    },
     // int shutdown(int sockfd, int how);
     shutdown: () => {
         const ptr = Module.getExportByName('libc.so', 'shutdown');
@@ -250,6 +255,11 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'localtime');
         return new NativeFunction(ptr, 'pointer', ['pointer']);
     },
+    // ssize_t getline(char **restrict lineptr, size_t *restrict n, FILE *restrict stream);
+    getline: () => {
+        const ptr = Module.getExportByName('libc.so', 'getline');
+        return new NativeFunction(ptr, 'int', ['pointer', 'pointer', 'int']);
+    },
     // int sscanf(const char *restrict str, const char *restrict format, ...);
     sscanf: () => {
         const ptr = Module.getExportByName('libc.so', 'sscanf');
@@ -349,6 +359,25 @@ const LibcFinder = {
     memcmp: () => {
         const ptr = Module.getExportByName('libc.so', 'memcmp');
         return new NativeFunction(ptr, 'int', ['pointer', 'pointer', 'int']);
+    },
+    // unsigned long getauxval(unsigned long type);
+    getauxval: () => {
+        const ptr = Module.getExportByName('libc.so', 'getauxval');
+        return new NativeFunction(ptr, 'uint32', ['uint32']);
+    },
+    // int posix_spawn(pid_t *restrict pid, const char *restrict path,
+    //                 const posix_spawn_file_actions_t *restrict file_actions,
+    //                 const posix_spawnattr_t *restrict attrp, 
+    //                 char *const argv[restrict], 
+    //                 char *const envp[restrict]);
+    posix_spawn: () => {
+        const ptr = Module.getExportByName('libc.so', 'posix_spawn');
+        return new NativeFunction(ptr, 'int', ['int', 'pointer', 'pointer', 'pointer', 'pointer']);
+    },
+    // long syscall(long number, ...);
+    syscall: () => {
+        const ptr = Module.getExportByName('libc.so', 'syscall');
+        return new NativeFunction(ptr, 'int32', ['int32', '...']);
     },
     // char * __cxa_demangle (const char *mangled_name, char *output_buffer, size_t *length, int *status)
     __cxa_demangle: () => {

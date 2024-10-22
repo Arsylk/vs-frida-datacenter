@@ -67,7 +67,7 @@ function hookInstallerPackage() {
 
 function hookLocationHardware() {
     hook(Classes.LocationManager, 'getGnssHardwareModelName', {
-        replace: always('Model Name Unknown'),
+        replace: always('Model Name Nya'),
     });
 }
 
@@ -95,11 +95,29 @@ function hookVerify() {
     });
 }
 
+function hookHasFeature() {
+    const HARDWARE_FEATURES = ['android.hardware.camera.flash', 'android.hardware.nfc'];
+    hook(Classes.ApplicationPackageManager, 'hasSystemFeature', {
+        logging: { short: true, multiline: false },
+        predicate(_, i) { return i !== 0 },
+        replace(method, ...args) {
+            const feature = `${args[0]}`;
+            for (const key of HARDWARE_FEATURES) {
+                if (feature.startsWith(key)) {
+                    return true;
+                }
+            }
+            return method.call(this, ...args);
+        },
+    });
+}
+
 function generic() {
     hookInstallerPackage();
     hookLocationHardware();
     hookSensor();
     hookVerify();
+    hookHasFeature();
 }
 
 export { generic, hookAdId, hookDevice, hookInstallerPackage, hookSettings };

@@ -19,28 +19,6 @@ type JniMethodRetTypeString =
     | 'uint16'
     | 'uint8'
     | 'void';
-type JniMethodTypeMapper<T extends JniMethodRetTypeString> = T extends 'void'
-    ? // biome-ignore lint/suspicious/noConfusingVoidType: <explanation>
-      void
-    : T extends 'uint8'
-      ? boolean
-      : T extends 'int8'
-        ? number // byte
-        : T extends 'uint16'
-          ? number // char
-          : T extends 'int16'
-            ? number // short
-            : T extends 'int32'
-              ? number
-              : T extends 'int64'
-                ? Int64 // long ?
-                : T extends 'float'
-                  ? number
-                  : T extends 'double'
-                    ? NativePointer
-                    : T extends 'pointer'
-                      ? NativePointer
-                      : never;
 
 type JniMethodDefinition = {
     retType: JniMethodRetTypeString;
@@ -53,39 +31,6 @@ type jMethodID = NativePointer;
 type jFieldID = NativePointer;
 type jclass = NativePointer;
 type jobject = NativePointer;
-
-const T = {
-    double() {
-        return 'double';
-    },
-    float() {
-        return 'float';
-    },
-    int16() {
-        return 'int16';
-    },
-    int32() {
-        return 'int32';
-    },
-    int64() {
-        return 'int64';
-    },
-    int8() {
-        return 'int8';
-    },
-    pointer() {
-        return 'pointer';
-    },
-    uint16() {
-        return 'uint16';
-    },
-    uint8() {
-        return 'uint8';
-    },
-    void() {
-        return 'void';
-    },
-};
 
 const JNI = {
     NULL0: {
@@ -2557,7 +2502,7 @@ const JNI = {
         name: 'DeleteWeakGlobalRef',
         offset: 227,
     },
-    mmptionCheck: {
+    ExceptionCheck: {
         jni: { ret: 'jboolean', args: ['JNIEnv*'] },
         retType: 'uint8' as const,
         argTypes: ['pointer'] as ['pointer'],
@@ -2634,42 +2579,7 @@ function convertToFrida(type: string): string {
     throw new Error(`convert: illegal type ${type}`);
 }
 
-function asFunction<T extends NativeFunctionReturnType, R extends [] | NativeFunctionArgumentType[]>(
-    env: Java.Env,
-    def: { offset: number; retType: T; argTypes: R },
-) {
-    const vaTable: NativePointer = env.readPointer();
-    const ptrPos = vaTable.add(def.offset * Process.pointerSize);
-    const ptr = ptrPos.readPointer();
-    return new NativeFunction(ptr, def.retType, def.argTypes);
-}
-
-function asLocalRef<T>(ptr: NativePointer, fn: (ptr: NativePointer) => T): T | null {
-    const env = Java.vm.tryGetEnv()?.handle;
-
-    let ref: NativePointer | null = null;
-    try {
-        const NewLocalRef = asFunction(env, JNI.NewLocalRef);
-        ref = NewLocalRef(env, ptr);
-        return fn(ref);
-    } catch (error) {
-    } finally {
-        if (ref) {
-            const DeleteLocalRef = asFunction(env, JNI.DeleteLocalRef);
-            DeleteLocalRef(env, ref);
-            ref = null;
-        }
-    }
-    return null;
-}
-
 export {
-    JNI,
-    asFunction,
-    asLocalRef,
-    type JniMethodDefinition,
-    type jFieldID,
-    type jMethodID,
-    type jclass,
-    type jobject,
+    JNI, type JniMethodDefinition, type jFieldID,
+    type jMethodID, type jclass, type jobject
 };

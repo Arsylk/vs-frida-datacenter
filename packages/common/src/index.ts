@@ -2,6 +2,7 @@ import { EventEmitter } from 'events';
 import { ClassesProxy, ClassesString, type ClassesType } from './define/java.js';
 import { LibcFinderProxy, type LibcType } from './define/libc.js';
 import { enumerateMembers, findChoose, findClass, getFindUnique } from './search.js';
+export * as Enum from './define/enum.js';
 export * as Std from './define/std.js';
 export * as Struct from './define/struct.js';
 export * as Text from './text.js';
@@ -76,5 +77,6 @@ export {
     LibcFinderProxy as Libc,
     stacktrace,
     stacktraceList,
-    tryNull,
+    tryNull
 };
+
