@@ -7,8 +7,8 @@ function noLines(message: any): string {
     return `${message}`.replaceAll('\n', '\\n');
 }
 
-function toHex(decimal: any): string {
-    return `0${Number(decimal).toString(16)}`.slice(-2);
+function toHex(decimal: any, length = 2): string {
+    return `${'0'.repeat(length - 1)}${Number(decimal).toString(16)}`.slice(-length);
 }
 
 function toByteSize(size: number): string {

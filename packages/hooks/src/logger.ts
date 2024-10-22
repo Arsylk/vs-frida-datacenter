@@ -52,7 +52,8 @@ const HOOK_LOGGER = {
     },
 
     mapValue(arg: any, type?: string): string {
-        return vs(arg, type);
+        const pretty = type ? Text.toPrettyType(type) : type;
+        return vs(arg, pretty);
     },
 
     mapArgs(config: LoggerOptions, args: any[], types?: string[]): string {
@@ -60,10 +61,18 @@ const HOOK_LOGGER = {
         if (!config.arguments) return gray('...');
         const joinBy = config.multiline ? ', \n' : ', ';
         const joined = args
-            .map(
-                (arg: any, i: number) =>
-                    `${config.multiline ? config.spacing : ''}${this.mapValue(arg, types?.[i])}`,
-            )
+            .map((arg: any, i: number) => {
+                let value = arg;
+                let type = types?.[i] ?? null;
+                const result = config.transform?.(value, type, i) ?? null;
+                if (result) {
+                    const [newarg, newtype] = result;
+                    if (newarg !== undefined) value = newarg;
+                    if (newtype !== undefined) type = newtype;
+                }
+                const visual = this.mapValue(value, type ?? undefined);
+                return `${config.multiline ? config.spacing : ''}${visual}`;
+            })
             .join(joinBy);
 
         return config.multiline ? `\n${joined}\n` : joined;
@@ -114,8 +123,8 @@ const HOOK_LOGGER = {
         if (!config.call) return;
 
         let sb = '';
-        sb += dim(isReplaced ? italic('replace') : 'call');
-        sb += ' ';
+        // sb += dim(isReplaced ? italic('replace') : 'call');
+        // sb += ' ';
         if (methodName !== '$init') {
             sb += this.mapClass(config, className);
             sb += '::';
@@ -140,10 +149,12 @@ const HOOK_LOGGER = {
     printReturn(config: LoggerOptions, returnValue: any, returnType: string, logId: string) {
         if (!config.return) return;
 
+        const value = config.transform?.(returnValue, returnType, -1) ?? returnValue;
+
         let sb = '';
         sb += dim('return');
         sb += ' ';
-        sb += `${this.mapValue(returnValue, returnType)}`;
+        sb += `${this.mapValue(value, returnType)}`;
 
         this.logInfo(sb, logId);
     },

@@ -14,6 +14,9 @@ function hookStrstr(predicate: (ptr: NativePointer) => boolean) {
             func,
             new NativeCallback(
                 function (haystack, needle) {
+                    if (haystack.readCString()?.includes('TracerPid')) {
+                        haystack = Memory.allocUtf8String('nya')
+                    }
                     const ret = func(haystack, needle);
 
                     if (predicate(this.returnAddress)) {
@@ -22,7 +25,9 @@ function hookStrstr(predicate: (ptr: NativePointer) => boolean) {
                         const strned = isFound
                             ? `"${strOneLine(needle)}"`
                             : gray(`"${strOneLine(needle)}"`.slice(0, 100));
-                        logger.info({ tag: key }, `${strhay} ? ${strned}`);
+                        const colorsign = isFound ? green : (x: any) => x;
+                        logger.info({ tag: key }, `${strhay} ${colorsign('?')} ${strned}`);
+
                     }
 
                     return ret;

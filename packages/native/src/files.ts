@@ -2,14 +2,10 @@ import { Libc } from '@clockwork/common';
 import { Color, logger } from '@clockwork/logging';
 import { unbox } from './index.js';
 import { readFdPath } from './utils.js';
+// import { constants } from 'frida-fs';
+const [R_OK, W_OK, X_OK] = [1, 2, 4];
 const { bold, dim, green, red, gray, bgRed } = Color.use();
 
-enum Mode {
-    F_OK = 0,
-    X_OK = 1,
-    W_OK = 2,
-    R_OK = 4,
-}
 
 function ofResultColor(path: NativePointer | string | number, ret: NativePointer | number) {
     if (typeof path === 'number') path = `<fd:${path}>`;
@@ -24,13 +20,13 @@ function hookAccess(predicate: (ptr: NativePointer) => boolean) {
     function log(
         this: InvocationContext | CallbackContext,
         path: string | null,
-        mode: Mode | null,
+        mode: number | null,
         ret: number,
         tag: string,
     ) {
         const isOk = ret !== -1;
         mode ??= 0;
-        const mask = `?${mode & Mode.R_OK ? 'R' : empty}${mode & Mode.W_OK ? 'W' : empty}${mode & Mode.X_OK ? 'X' : empty}`;
+        const mask = `?${mode & R_OK ? 'R' : empty}${mode & W_OK ? 'W' : empty}${mode & X_OK ? 'X' : empty}`;
         const uri = isOk ? dim(green(`${path}`)) : dim(red(`${path}`));
 
         logger.info({ tag: tag }, `${uri} ${mask} ${DebugSymbol.fromAddress(this.returnAddress)}`);
@@ -48,7 +44,7 @@ function hookAccess(predicate: (ptr: NativePointer) => boolean) {
                         pathname = Memory.allocUtf8String('/nya');
                     }
                     ret = Libc.access(pathname, mode);
-                    log.call(this, pathname.readCString(), mode as Mode, ret, 'access');
+                    log.call(this, pathname.readCString(), mode, ret, 'access');
                 }
                 return (ret ??= Libc.access(pathname, mode));
             },
@@ -62,19 +58,19 @@ function hookAccess(predicate: (ptr: NativePointer) => boolean) {
             function (fd, path, mode, flag) {
                 if (predicate(this.returnAddress)) {
                     const strPath = path.readCString();
-                    // const nrmlPath = `${strPath}`.toLowerCase()
-                    // if (nrmlPath.endsWith('bin/su') || nrmlPath.includes('termux') || nrmlPath.includes('magisk') || nrmlPath.includes('supersu')) {
-                    //     return -1;
-                    // }
-
-                    const regExp = /^\/apex\/com.android.conscrypt\/cacerts\/[a-f0-9]{8}\.0/;
-                    if (regExp.test(strPath ?? '')) {
-                        Memory.protect(path, Process.pageSize, 'rw-');
-                        path.writeUtf8String('/data/local/tmp/9a5ba575.0');
+                    const iPath = `${strPath}`.toLowerCase()
+                    if (iPath.endsWith('bin/su') || iPath.includes('termux') || iPath.includes('magisk') || iPath.includes('supersu')) {
+                        return -1;
                     }
 
+                    // const regExp = /^\/apex\/com.android.conscrypt\/cacerts\/[a-f0-9]{8}\.0/;
+                    // if (regExp.test(strPath ?? '')) {
+                    //     Memory.protect(path, Process.pageSize, 'rw-');
+                    //     path.writeUtf8String('/data/local/tmp/9a5ba575.0');
+                    // }
+
                     const ret = Libc.faccessat(fd, path, mode, flag);
-                    log.call(this, strPath, mode as Mode, ret, 'faccessat');
+                    log.call(this, strPath, mode, ret, 'faccessat');
                     return ret;
                 }
                 const ret = Libc.faccessat(fd, path, mode, flag);

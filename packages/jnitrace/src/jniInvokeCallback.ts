@@ -1,7 +1,7 @@
 import type { NativeCallbackPredicate } from '@clockwork/hooks';
-import type { JavaMethod } from './javaMethod';
-import type { jMethodID, jclass, jobject } from './jni';
-import type { JNIEnvInterceptor } from './jniEnvInterceptor';
+import type { JavaMethod } from './javaMethod.js';
+import { type jMethodID, type jclass, type jobject } from './jni.js';
+import type { JNIEnvInterceptor } from './jniEnvInterceptor.js';
 import { resolveMethod } from './tracer.js';
 
 enum JniInvokeMode {
@@ -43,13 +43,13 @@ interface JniInvokeCallback {
 function LimitedCallback(predicate: NativeCallbackPredicate, callback: ScriptInvocationListenerCallbacks) {
     const cb: ScriptInvocationListenerCallbacks = {
         onEnter(args) {
-            if (predicate.call(this)) {
-                callback?.onEnter?.call(this, args);
+            if (callback?.onEnter && predicate(this)) {
+                callback.onEnter.call(this, args);
             }
         },
         onLeave(retval) {
-            if (predicate.call(this)) {
-                callback?.onLeave?.call(this, retval);
+            if (callback?.onLeave && predicate(this)) {
+                callback.onLeave.call(this, retval);
             }
         },
     };
@@ -58,20 +58,22 @@ function LimitedCallback(predicate: NativeCallbackPredicate, callback: ScriptInv
 
 type Optional<Type> = { [Property in keyof Type]+?: Type[Property] };
 
-type JniInvokeContext = InvocationContext & {
+type JniInvokeContext = PortableInvocationContext & {
     env: NativePointer;
     clazz: jclass;
     obj?: jobject;
     methodID: jMethodID;
-    argStruct: NativePointer[];
-    method: JavaMethod;
-    jArgs?: NativeCallbackArgumentValue[];
+    argStruct: NativePointer;
+    method: JavaMethod | null;
+    jArgs: NativeCallbackArgumentValue[] | null;
 };
 
 type JniInvokeScriptListenerCallbacks = {
-    onEnter?: ((this: JniInvokeContext) => void) | undefined;
+    onEnter?: ((this: InvocationContext, context: JniInvokeContext) => void) | undefined;
 
-    onLeave?: ((this: JniInvokeContext, retval: InvocationReturnValue) => void) | undefined;
+    onLeave?:
+        | ((this: InvocationContext, context: JniInvokeContext, retval: InvocationReturnValue) => void)
+        | undefined;
 };
 
 function JniInvokeCallbacks(
@@ -80,38 +82,36 @@ function JniInvokeCallbacks(
     mode: JniInvokeMode,
     callback: JniInvokeScriptListenerCallbacks,
 ) {
-    const cb: ScriptInvocationListenerCallbacks & {
-        env?: NativePointer;
-        clazz?: jclass;
-        obj?: jobject;
-        methodID?: jMethodID;
-        argsPtr?: NativePointer[];
-        method?: JavaMethod;
-        jArgs?: NativeCallbackArgumentValue[];
-    } = {
-        onEnter(rawargs) {
-            const isStatic = mode === JniInvokeMode.Static;
+    const cb: ScriptInvocationListenerCallbacks = {
+        onEnter({ 0: env, 1: clazz, 2: methodID, 3: args }) {
+            const context: JniInvokeContext = {
+                ...this,
+                env: env,
+                clazz: clazz,
+                methodID: methodID,
+                argStruct: args,
+                method: null,
+                jArgs: null,
+            };
+            const isStatic = (context.isStatic = mode === JniInvokeMode.Static);
+            const method = (context.method = resolveMethod(env, clazz, methodID, isStatic));
+            context.jArgs = jniIntercept.getCallMethodArgs(name, [env, clazz, methodID, args], method);
 
-            const env = (this.env = rawargs[0]);
-            const clazz = (this.clazz = rawargs[1]);
-            const methodID = (this.methodID = rawargs[2]);
-            const argsPtr = (this.argsPtr = rawargs[3]);
-            const method = (this.method = resolveMethod(env, clazz, methodID, isStatic));
-            this.jArgs = jniIntercept.getCallMethodArgs(
-                name,
-                [env, clazz, methodID, argsPtr],
-                method ?? null,
-            );
-            callback.onEnter?.call(this as any);
+            this._key = context;
+            callback.onEnter?.call(this, context);
         },
         onLeave(retval) {
-            callback?.onLeave?.call(this as any, retval);
-            // this.env = null
-            // this.clazz = null
-            // this.methodID = null
-            // this.argsPtr = null
-            // this.method = null
-            // this._args = null
+            const context: JniInvokeContext = this._key;
+            callback?.onLeave?.call(this, context, retval);
+            try {
+                this._key = null;
+                (context as any).env = null;
+                (context as any).clazz = null;
+                (context as any).methodID = null;
+                (context as any).argStruct = null;
+                (context as any).method = null;
+                (context as any).jArgs = null;
+            } catch (e) {}
         },
     };
     return cb;

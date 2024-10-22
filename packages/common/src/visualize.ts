@@ -1,9 +1,11 @@
-import { asLocalRef } from '@clockwork/jnitrace/dist/jni.js';
+import { asLocalRef } from '@clockwork/jnitrace';
 import { Color } from '@clockwork/logging';
 import { ClassesString } from './define/java.js';
+import { toHex } from './text.js';
 const { black, gray, red, green, cyan, dim, italic, bold, yellow, hidden } = Color.use();
 
-function vs(value: any, type?: string): string {
+
+function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv()?.handle): string {
     if (value === undefined) return Color.number(undefined);
     if (value === null) return Color.number(null);
 
@@ -11,12 +13,13 @@ function vs(value: any, type?: string): string {
     if (type?.endsWith('[]')) {
         const itemType = type.substring(type.length - 3);
         const items = [];
+        const size = value.size ?? value.length;6
         let messageSize = 0;
-        for (let i = 0; i < value.size; i += 1) {
+        for (let i = 0; i < size; i += 1) {
             const mapped = `${value[i]}`;
             items.push(mapped);
             messageSize += mapped.length;
-            if ((messageSize > 200 || i >= 16) && i + 1 < value.size) {
+            if ((messageSize > 200 || i >= 16) && i + 1 < size) {
                 items.push(gray(' ... '));
                 break;
             }
@@ -30,9 +33,8 @@ function vs(value: any, type?: string): string {
         case 'boolean':
             return Color.number(value ? 'true' : 'false');
         case 'byte': {
-            //@ts-ignore
-            const strByte = Classes.String.format.bind(Classes.String, '0x%02x');
-            return Color.number(strByte(value));
+            const strByte = `0x${toHex(value)}`;
+            return Color.number(strByte);
         }
         case 'char': {
             //@ts-ignore
@@ -47,7 +49,7 @@ function vs(value: any, type?: string): string {
         case 'int': {
             //@ts-ignore
             const strInt = Classes.String.valueOf.overload('int').bind(Classes.String);
-            return Color.number(strInt(value));
+            return Color.number(strInt(Number(value)));
         }
         case 'float': {
             //@ts-ignore
@@ -76,11 +78,10 @@ function vs(value: any, type?: string): string {
 
     // * should only have java objects in here
     const classHandle = value.$h ?? value;
-    const env = Java.vm.tryGetEnv()?.handle;
     // console.log(value, type, typeof value, value.$h, value instanceof NativePointer);
 
     if (classHandle) {
-        const text = asLocalRef(classHandle, (ptr) => visualObject(ptr, type));
+        const text = asLocalRef(jniEnv, classHandle, (ptr: NativePointer) => visualObject(ptr, type));
         if (text) return text;
     }
 
@@ -97,6 +98,21 @@ function visualObject(value: NativePointer, type?: string): string {
             return Color.string(str);
         }
 
+        if (type === ClassesString.InputDevice) {
+            const dev = Java.cast(value, Classes.InputDevice);
+            return `${ClassesString.InputDevice}(name=${dev.getName()})`;
+        }
+
+        if (type === ClassesString.OpenSSLX509Certificate) {
+            const win = Java.cast(value, Classes.OpenSSLX509Certificate);
+            return `${ClassesString.OpenSSLX509Certificate}(frame=${win.getFrame()})`;
+        }
+
+        if (type === ClassesString.WindowInsets) {
+            const win = Java.cast(value, Classes.WindowInsets);
+            return `${ClassesString.WindowInsets}(frame=${win.getFrame()})`;
+        }
+
         const object = Java.cast(value, Classes.Object);
         //@ts-ignore
         return Classes.String.valueOf(object);
@@ -107,72 +123,4 @@ function visualObject(value: NativePointer, type?: string): string {
     }
 }
 
-function visualNative(value: NativePointer, type?: string) {
-    let text: string | null = null;
-
-    // * anti crashes yey
-    if (value !== null && value !== undefined) {
-        try {
-            // handle primitive types
-            switch (type) {
-                case 'boolean':
-                    text = Color.number(value ? 'true' : 'false');
-                    break;
-                case 'int': {
-                    //@ts-ignore
-                    const strInt = Classes.String.valueOf.overload('int').bind(Classes.String);
-                    text = Color.number(strInt(value));
-                    break;
-                }
-                case 'float': {
-                    //@ts-ignore
-                    const strFloat = Classes.String.valueOf.overload('float').bind(Classes.String);
-                    text = Color.number(strFloat(value));
-                    break;
-                }
-                case 'double': {
-                    //@ts-ignore
-                    const strDoubke = Classes.String.valueOf.overload('double').bind(Classes.String);
-                    text = Color.number(strDoubke(value));
-                    break;
-                }
-                case 'long':
-                    text = Color.number(`${new Int64(value.toString())}`);
-                    break;
-            }
-
-            if (text !== null) {
-                return text;
-            }
-
-            // ? do not ask, i have no idea why this prevents crashes
-            String(value) + String(value.readByteArray(8));
-
-            if (type === ClassesString.String) {
-                const str = Java.cast(value, Classes.String);
-                text = Color.string(str);
-            } else if (type?.endsWith('[]')) {
-                const any = Java.cast(value, Classes.Object);
-                const className = any.$className.endsWith(';') ? '[Ljava.lang.Object;' : any.$className;
-                const real = Java.cast(value, Java.use(className));
-                //@ts-expect-error
-                const array = Classes.Arrays.toString.overload(className).call(Classes.Arrays, real);
-                return array;
-            } else {
-                const any = Java.cast(value, Classes.Object);
-                //@ts-ignore
-                text = Classes.String.valueOf(any);
-            }
-        } catch (e: any) {
-            return black(
-                `${e.message}${black('<')}${dim(`${value}`)}${black('>')}${black(`${type}:${typeof value}`)}`,
-            );
-        }
-    } else {
-        text = `${Color.number(`${value}`)} ${black(`${type}`)}`;
-    }
-    // * help
-    return (text ??= `ripme: ${value}`);
-}
-
-export { visualNative, vs };
+export { visualObject, vs };

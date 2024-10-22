@@ -23,6 +23,7 @@ function hookPthread_create() {
                     { tag: 'pthread_create' },
                     `${gray('tid:')} ${fTid}, ${attr}${fThreadName}${fMethod}, ${arg !== NULL ? arg.readPointer() : arg}`,
                 );
+
                 return ret;
             },
             'int',

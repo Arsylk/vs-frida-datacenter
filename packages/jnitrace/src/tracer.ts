@@ -1,6 +1,7 @@
 import { Classes, ClassesString, enumerateMembers, findClass } from '@clockwork/common';
+import { asFunction } from './envWrapper.js';
 import { JavaMethod } from './javaMethod.js';
-import { JNI, asFunction, type jMethodID, type jclass } from './jni.js';
+import { JNI, type jMethodID, type jclass } from './jni.js';
 
 const Cache = {
     storage: new Map<string, JavaMethod>(),
@@ -182,7 +183,7 @@ function fastpathMethod(
 }
 
 let thunkPage: NativePointer | null = null;
-let thunkOffset: NativePointer;
+let thunkOffset: NativePointer = null as any;
 function makeThunk(size: number, write: (writer: Arm64Writer) => void) {
     if (!thunkPage) {
         thunkPage = Memory.alloc(Process.pageSize);

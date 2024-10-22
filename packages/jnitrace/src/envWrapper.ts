@@ -1,49 +1,68 @@
 import { JNI } from './jni.js';
 
-type MinimumJNI = {
+type JniDefinition<T extends NativeFunctionReturnType, R extends [] | NativeFunctionArgumentType[]> = {
     offset: number;
-    retType: NativeFunctionReturnType;
-    argTypes: [] | NativeFunctionArgumentType[];
+    retType: T;
+    argTypes: R;
 };
 
 class EnvWrapper {
     #env: Java.Env;
-    #handle: NativePointer;
-    vaTable: NativePointer;
+    jniEnv: NativePointer;
 
     #functions: { [key: number]: NativeFunction<any, any> } = {};
 
     constructor(env: Java.Env) {
         this.#env = env;
-        this.vaTable = (this.#handle = env.handle).readPointer();
+        this.jniEnv = env.handle
     }
 
     public getFunction<T extends NativeFunctionReturnType, R extends [] | NativeFunctionArgumentType[]>(
-        def: MinimumJNI,
-    ) {
+        def: JniDefinition<T, R>,
+    ): ReturnType<typeof asFunction<T, R>> {
         const cached = this.#functions[def.offset];
         if (cached) return cached;
-        const vaTable: NativePointer = this.#handle.readPointer();
-        const ptrPos = vaTable.add(def.offset * Process.pointerSize);
-        const ptr: NativePointer = ptrPos.readPointer();
-        return (this.#functions[def.offset] = new NativeFunction<T, R>(
-            ptr,
-            def.retType as any,
-            def.argTypes as any,
-        ));
+        return (this.#functions[def.offset] = asFunction(this.jniEnv, def));
     }
 
-    localRef<T>(ptr: NativePointer, fn: (ptr: NativePointer) => T): T {
+    getLocalRef<T>(ptr: NativePointer, fn: (ptr: NativePointer) => T): T {
         let ref: NativePointer | null = null;
         try {
             const NewLocalRef = this.getFunction(JNI.NewLocalRef);
-            return fn((ref = NewLocalRef(this.#handle, ptr)));
+            return fn((ref = NewLocalRef(this.jniEnv, ptr)));
         } finally {
-            const DeleteLocalRef = this.getFunction(JNI.DeleteLocalRef);
-            DeleteLocalRef(this.#handle, ref);
+            if (ref) {
+                const DeleteLocalRef = this.getFunction(JNI.DeleteLocalRef);
+                DeleteLocalRef(this.jniEnv, ref);
+                ref = null;
+            }
+        }
+    }
+}
+
+function asFunction<T extends NativeFunctionReturnType, R extends [] | NativeFunctionArgumentType[]>(
+    jniEnv: NativePointer,
+    def: JniDefinition<T, R>,
+) {
+    const vaTable: NativePointer = jniEnv.readPointer();
+    const ptrPos = vaTable.add(def.offset * Process.pointerSize);
+    const ptr = ptrPos.readPointer();
+    return new NativeFunction(ptr, def.retType, def.argTypes);
+}
+
+function asLocalRef<T>(jniEnv: NativePointer, ptr: NativePointer, fn: (ptr: NativePointer) => T): T {
+    let ref: NativePointer | null = null;
+    try {
+        const NewLocalRef = asFunction(jniEnv, JNI.NewLocalRef);
+        return fn((ref = NewLocalRef(jniEnv, ptr)));
+    } finally {
+        if (ref) {
+            const DeleteLocalRef = asFunction(jniEnv, JNI.DeleteLocalRef);
+            DeleteLocalRef(jniEnv, ref);
             ref = null;
         }
     }
 }
 
-export { EnvWrapper, type MinimumJNI };
+export { asFunction, asLocalRef, EnvWrapper, type JniDefinition };
+

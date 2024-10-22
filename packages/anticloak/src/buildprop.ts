@@ -1,3 +1,4 @@
+
 function propMapper(key: string): string | undefined {
     if (key.includes('qemu') || key.includes('goldfish') || key.includes('ranchu')) return '';
 
@@ -10,8 +11,10 @@ function propMapper(key: string): string | undefined {
             return '0';
         case 'ro.build.characteristics':
             return 'default';
-        case 'ro.build.display.id':
+        case 'ro.build.id':
             return 'SQ1D.220205.003';
+        case 'ro.build.type':
+            return 'release';
         case 'ro.build.tags':
             return 'release-keys';
         case 'ro.build.flavor':
@@ -29,17 +32,25 @@ function propMapper(key: string): string | undefined {
         case 'ro.soc.model':
             return 'hi6250';
         case 'ro.hardware.egl':
-            return 'adreno';
+            // return 'emulation';
+            return 'qcom'
         case 'ro.build.product':
             return 'nya64a';
+        case 'ro.bootloader':
+        case 'ro.bootmode':
+            return 'secure';
         case 'gsm.version.baseband':
             return '4.0.2.c8-00047-0722+1520_40cbe21,4.0.2.c8-00047-0722_1520_40cbe21';
         case 'ro.build.fingerprint':
             return 'Xiaomi/raven/raven:14/SQ1D.220205.003/8069835:user/release-keys';
         case 'ro.build.description':
+        case 'ro.build.display.id':
             return 'xiaomi-raven 14 SQ1D.220205.003 8069835 release-keys';
         case 'persist.sys.timezone':
         case 'ro.hardware.power':
+        case 'init.svc.adbd': 
+        case 'sys.usb.controller':
+        case 'sys.usb.state':
             return '';
     }
 }
@@ -52,9 +63,9 @@ function buildMapper(key: string): string | undefined {
         case 'MANUFACTURER':
         case 'SOC_MANUFACTURER':
             return 'Xiaomi';
-        // case 'DEVICE':
-        // case 'PRODUCT': // this can be problematic for EGLConfig
-        //     return 'nya_arm64';
+        case 'DEVICE':
+        case 'PRODUCT': // this can be problematic for EGLConfig
+            return 'nya_arm64';
         case 'HARDWARE':
             return 'qcom';
         case 'BOARD':
