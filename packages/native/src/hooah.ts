@@ -140,7 +140,7 @@ export namespace HooahTrace {
     let sessionPrintOptions: HooahPrintOptions;
     let sessionPrevSepCount = 0;
 
-    export function trace(params: HooahOptions = {}, callback: HooahCallback | undefined) {
+    export function trace(params: HooahOptions = {}, callback: HooahCallback | undefined = undefined) {
         if (targetTid > 0) {
             console.log(`Hooah is already tracing thread: ${targetTid}`);
             return 1;
@@ -179,11 +179,11 @@ export namespace HooahTrace {
             }
 
             let found = false;
-            filterModules.forEach((filter) => {
+            for (const filter of filterModules) {
                 if (module.name.indexOf(filter) >= 0) {
                     found = true;
                 }
-            });
+            }
             return found;
         });
 
@@ -210,7 +210,7 @@ export namespace HooahTrace {
                         continue;
                     }
 
-                    if (filtersModuleMap && filtersModuleMap.has(instruction.address)) {
+                    if (filtersModuleMap?.has(instruction?.address)) {
                         moduleFilterLocker = true;
                     }
 
@@ -528,9 +528,9 @@ export namespace HooahTrace {
             insn = instruction as X86Instruction;
         }
         if (insn != null) {
-            insn.operands.forEach((op: Arm64Operand | X86Operand) => {
+            for (const op of insn.operands) {
                 let reg: Arm64Register | X86Register | undefined;
-                let value = null;
+                let value: NativePointer | null = null;
                 let adds = 0;
                 if (op.type === 'mem') {
                     adds = op.value.disp;
@@ -558,7 +558,7 @@ export namespace HooahTrace {
                         }
                     } catch (e) {}
                 }
-            });
+            }
         }
 
         const applyColor = (what: string, color: string | null): string => {
@@ -569,7 +569,7 @@ export namespace HooahTrace {
         };
 
         const lines: PrintInfo[] = [];
-        data.forEach((row) => {
+        for (const row of data) {
             let line = Utils.getSpacer(spaceAtOpStr);
             let lineLength = spaceAtOpStr + row[0].length + row[1].toString().length + 3;
             line += `${applyColor(row[0], 'blue')} = ${applyColor(row[1], 'filter')}`;
@@ -581,7 +581,7 @@ export namespace HooahTrace {
                 }
             }
             lines.push({ data: line, lineLength: lineLength });
-        });
+        }
         return lines;
     }
 

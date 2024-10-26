@@ -451,7 +451,7 @@ function bypassReceiverFlags() {
     });
 
     hook('android.app.AlarmManager', 'setExact', {
-        replace: function(method) {
+        replace: function (method) {
             method.call(this, false);
         },
         logging: { call: false, return: false },
@@ -589,7 +589,6 @@ Java.performNow(() => {
             if (mPackage === returnValue?.packageName?.value) {
             }
         },
-
     });
 
     Anticloak.Debug.hookVMDebug();
@@ -630,7 +629,11 @@ Java.performNow(() => {
     });
 
     // hook(Classes.Runtime, 'loadLibrary0', { logging: { short: true, multiline: false } });
-    ClassLoader.perform(() => {});
+
+    uniqHook('org.chromium.net.NetworkActiveNotifier', 'build');
+    ClassLoader.perform(() => {
+        uniqHook('org.chromium.net.NetworkActiveNotifier', 'build');
+    });
 });
 
 Network.injectSsl();
@@ -667,9 +670,9 @@ Native.initLibart();
 // });
 
 // Unity.setVersion('2022.1.10f1');
-Unity.patchSsl();
+// Unity.patchSsl();
 // Unity.attachStrings();
-Unity.attachScenes();
+// Unity.attachScenes();
 
 emitter.on('il2cpp', Unity.listGameObjects);
 let enable = true;
@@ -687,7 +690,7 @@ const predicate = (r) => {
     if (!isNativeEnabled) return false;
     if (!r) return false;
     if (isWithinOwnRange(r)) return true;
-    return true && Native.Inject.modules.find(r) === null;
+    return false && Native.Inject.modules.find(r) === null;
 };
 
 JniTrace.attach(({ returnAddress }) => {
@@ -714,7 +717,6 @@ Native.TheEnd.hook(predicate);
 Native.System.hookSystem();
 Native.System.hookGetauxval();
 
-
 // Native.Time.hookDifftime(predicate);
 // Native.Time.hookTime(predicate);
 // Native.Time.hookLocaltime(predicate);
@@ -725,23 +727,23 @@ Native.Pthread.hookPthread_create();
 Anticloak.Jigau.memoryPatch();
 
 Interceptor.attach(Libc.sprintf, {
-   onEnter(args) {
-       this.dst = args[0];
-   },
-   onLeave(retval) {
-       const text = this.dst.readCString();
-       logger.info({ tag: 'sprintf' }, `${text}`);
-   },
+    onEnter(args) {
+        this.dst = args[0];
+    },
+    onLeave(retval) {
+        const text = this.dst.readCString();
+        logger.info({ tag: 'sprintf' }, `${text}`);
+    },
 });
 
 Interceptor.attach(Libc.posix_spawn, {
-    onEnter({0: pid, 1: path, 2: action}) {
+    onEnter({ 0: pid, 1: path, 2: action }) {
         const pathStr = path.readCString();
-        logger.info({tag: 'posix_spawn'}, `${pathStr} ${action}`)
+        logger.info({ tag: 'posix_spawn' }, `${pathStr} ${action}`);
     },
     onLeave(retval) {
-        logger.info({tag: 'posix_spawn'} ,`${retval}`)
-    }
+        logger.info({ tag: 'posix_spawn' }, `${retval}`);
+    },
 });
 
 // Dump.initSoDump();
@@ -771,7 +773,6 @@ Interceptor.attach(Module.getExportByName(null, 'glGetString'), {
         logger.info({ tag: 'opengl' }, `${label}(${dim(`${this.name}`)}) -> ${retval.readCString()}`);
     },
 });
-
 // Native.Inject.attachRelativeTo('libil2cpp.so', gPtr(0x160e2dc), {
 //     onEnter([__this, value, methodInfo]: [NativePointer, boolean, any]) {
 //         const _o = __this.readPointer();
@@ -804,7 +805,7 @@ Interceptor.attach(Module.getExportByName(null, 'glGetString'), {
 //     'vprintf',
 //     '__android_log_print',
 //     'sprintf',
-;//     'statvfs',
+//     'statvfs',
 //     'pthread_kill',
 //     'killpg',
 //     'tgkill',
@@ -867,7 +868,7 @@ Interceptor.replace(
 //     ),
 // );
 
-// setTimeout(() => { 
+// setTimeout(() => {
 // const dir = `/data/data/insure.cable.estate/files`;
 // Libc.system(Memory.allocUtf8String(`mkdir -p ${dir}`));
 

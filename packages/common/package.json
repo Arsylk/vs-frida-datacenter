@@ -8,6 +8,7 @@
     "author": "Arsylk",
     "license": "ISC",
     "dependencies": {
-        "@clockwork/logging": "^1.0.0"
+        "@clockwork/logging": "^1.0.0",
+        "@clockwork/jnitrace": "^1.0.0"
     }
 }
