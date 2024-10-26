@@ -4,7 +4,6 @@ import { ClassesString } from './define/java.js';
 import { toHex } from './text.js';
 const { black, gray, red, green, cyan, dim, italic, bold, yellow, hidden } = Color.use();
 
-
 function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv()?.handle): string {
     if (value === undefined) return Color.number(undefined);
     if (value === null) return Color.number(null);
@@ -12,8 +11,9 @@ function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv
     //loop over array until max length
     if (type?.endsWith('[]')) {
         const itemType = type.substring(type.length - 3);
-        const items = [];
-        const size = value.size ?? value.length;6
+        const items: string[] = [];
+        const size = value.size ?? value.length;
+        6;
         let messageSize = 0;
         for (let i = 0; i < size; i += 1) {
             const mapped = `${value[i]}`;

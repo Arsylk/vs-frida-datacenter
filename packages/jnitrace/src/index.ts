@@ -30,12 +30,18 @@ function ColorMethod(jMethodId: NativePointer, method: JavaMethod): string {
 }
 
 function ColorMethodInvoke(method: JavaMethod, args: string[]): string {
+    const isConstructor = method.name === '<init>';
     let sb = '';
-    sb += dim('call');
-    sb += ' ';
-    sb += Color.className(method.className);
-    sb += '::';
-    sb += Color.method(method.name);
+    if (isConstructor) {
+        sb += Color.keyword('new');
+        sb += ' ';
+        sb += Color.className(method.className);
+    } else {
+        sb += Color.className(method.className);
+        sb += '::';
+        sb += Color.method(method.name);
+    }
+
     sb += Color.bracket('(');
     if (args.length > 0) {
         sb += '\n';
@@ -43,8 +49,11 @@ function ColorMethodInvoke(method: JavaMethod, args: string[]): string {
         sb += '\n';
     }
     sb += Color.bracket(')');
-    sb += ': ';
-    sb += Color.className(method.javaRet);
+
+    if (!isConstructor) {
+        sb += ': ';
+        sb += Color.className(method.javaRet);
+    }
 
     return sb;
 }
@@ -76,7 +85,7 @@ function formatCallMethod(
     args: NativeCallbackArgumentValue[] | null,
 ): string {
     // better than nothing ...
-    if (!method || args === null) {
+    if (!method) {
         return `${jniEnv}::${jMethodId}(${args})`;
     }
 
@@ -84,7 +93,7 @@ function formatCallMethod(
     const mappedArgs = new Array<string>(method.parameters.length);
     for (const i in method.parameters) {
         const param = method.parameters[i];
-        const arg = args[i];
+        const arg = args?.[i] ?? undefined;
         mappedArgs[i] = vs(arg, param);
     }
     return ColorMethodInvoke(method, mappedArgs);
@@ -120,7 +129,13 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
     ];
     const addrsCallMethod: JNIMethod[] = [
         ...Object.values(JNI)
-            .filter((x) => x.name.startsWith('CallMethod'))
+            .filter(
+                (x) =>
+                    x.name.startsWith('Call') &&
+                    x.name.includes('Method') &&
+                    !x.name.includes('Static') &&
+                    !x.name.includes('Nonvirtual'),
+            )
             .map((x: JniMethodDefinition) => new JNIMethod(x.name, envWrapper.getFunction(x))),
     ];
     const addrsNewObject: JNIMethod[] = [jfn(JNI.NewObject), jfn(JNI.NewObjectV), jfn(JNI.NewObjectA)];
@@ -155,13 +170,13 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
             } else if (name.includes('NewObject') && !name.includes('Array')) {
                 logger.trace(`NewObject is at ${name} ${address}`);
             } else if (name.includes('CallStatic')) {
-                addrsCallStatic.push(new JNIMethod(name, address));
+                // addrsCallStatic.push(new JNIMethod(name, address));
                 logger.trace(`CallStatic is at ${name} ${address}`);
             } else if (name.includes('CallNonvirtual')) {
-                addrsCallNonvirtual.push(new JNIMethod(name, address));
+                // addrsCallNonvirtual.push(new JNIMethod(name, address));
                 logger.trace(`CallNonvirtual is at ${name} ${address}`);
             } else if (name.includes('Call') && name.includes('Method')) {
-                addrsCallMethod.push(new JNIMethod(name, address));
+                // addrsCallMethod.push(new JNIMethod(name, address));
                 logger.trace(`Call<>Method is at ${name} ${address}`);
             } else if (name.includes('ToReflectedMethod')) {
                 logger.trace(`ToReflectedMethod is at ${name} ${address}`);
@@ -194,23 +209,23 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
             }
         }
     }
-    
+
     Interceptor.attach(fn(JNI.GetObjectArrayElement), {
-        onEnter({0: env, 1: array, 2: index}) {
+        onEnter({ 0: env, 1: array, 2: index }) {
             this.env = env;
             this.array = array;
             this.index = index;
         },
         onLeave(retval) {
-            const symbol = DebugSymbol.fromAddress(this.returnAddress)
-            const symbolStr = `${symbol}`
+            const symbol = DebugSymbol.fromAddress(this.returnAddress);
+            const symbolStr = `${symbol}`;
             if (symbolStr.includes('libopenjdk.so!')) return;
 
-            const obj = tryNull(() => Java.cast(retval, Classes.Object).$className) ?? undefined
-            const i = this.index ?? -1
+            const obj = tryNull(() => Java.cast(retval, Classes.Object).$className) ?? undefined;
+            const i = this.index ?? -1;
             // logger.info({tag: 'GetObjectArrayElement'}, `[${Color.number(i.toInt32())}] = ${vs(retval, obj, this.env)} ${symbolStr}`)
         },
-    })
+    });
 
     false &&
         Interceptor.attach(fn(JNI.IsSameObject), {
@@ -377,39 +392,30 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
     // if (1 === 1) return;
 
     for (const { address, name } of addrsCallStatic) {
-        Interceptor.attach(address, {
-            // std::enable_if_t<!std::is_void< R >::value, R > 	CallStaticMethod (JNIEnv &env, jclass &clazz, jmethodID &method, Args &&... args)
-            onEnter: hookIfTag('CallStatic', function (rawargs) {
-                const env = (this.env = rawargs[0]);
-                const jclass = rawargs[1];
-                const jMethodId = rawargs[2];
-                const args = rawargs[3];
-                const method = (this.method = resolveMethod(env, jclass, jMethodId, true));
-                const callArgs = jniInterceptor.getCallMethodArgs(name, [env, jclass, jMethodId, args], method);
-                const result = formatCallMethod(env, name, jMethodId, method, callArgs);
-                if (result?.includes('CocosHelper') && result?.includes('flushTasksOnGameThread')) {
-                    this.ignore = true;
-                    return;
-                }
-                if (result?.includes('System') && result?.includes('nanoTime')) {
-                    this.ignore = true;
-                    return;
-                }
-                return result;
-            }),
-            onLeave: hookIfTag('CallStatic', function (retval) {
-                const ExceptionCheck = envWrapper.getFunction(JNI.ExceptionCheck);
-                if (ExceptionCheck(this.env)) {
-                    const ExceptionOccurred = envWrapper.getFunction(JNI.ExceptionOccurred);
-                    logger.info({ tag: 'ExceptionOccurred' }, `${ExceptionOccurred(this.env)}`);
-                    return;
-                }
+        Interceptor.attach(
+            address,
+            JniInvokeCallbacks(jniInterceptor, name, JniInvokeMode.Static, {
+                onEnter({ method, env, methodID, jArgs }) {
+                    if (!predicate(this)) return;
 
-                const method: JavaMethod | undefined | null = this.method;
-                if (!method || method.isVoid || this.ignore) return;
-                return formatMethodReturn(this.env, retval, method.returnType);
+                    if (
+                        method?.className?.includes('CocosHelper') &&
+                        method?.name?.includes('flushTasksOnGameThread')
+                    ) {
+                        this.ignore = true;
+                        return;
+                    }
+
+                    const msg = formatCallMethod(env, name, methodID, method, jArgs);
+                    gLogger.info(`[${dim(name)}] ${msg} ${DebugSymbol.fromAddress(this.returnAddress)}`);
+                },
+                onLeave({ env, method }, retval) {
+                    if (!predicate(this) || method?.isVoid || this.ignore) return;
+                    const msg = formatMethodReturn(env, retval, method?.returnType);
+                    gLogger.info(`[${dim(name)}] ${msg} ${DebugSymbol.fromAddress(this.returnAddress)}`);
+                },
             }),
-        });
+        );
     }
 
     for (const { address, name } of addrsCallNonvirtual) {
@@ -444,93 +450,72 @@ function hookLibart(predicate: (thisRef: InvocationContext) => boolean) {
         });
     }
 
-    for (const obj of Object.values(JNI)) {
-        if (
-            !obj.name.includes('Call') ||
-            !obj.name.includes('Method') ||
-            obj.name.includes('Static') ||
-            obj.name.includes('Nonvirtual') || true
-        )
-            continue;
+    for (const { address, name } of addrsCallMethod) {
+        Interceptor.attach(address, {
+            // std::enable_if_t<!std::is_void< R >::value, R > 	CallMethod (JNIEnv &env, jobject *obj, jmethodID &method, Args &&... args)
+            onEnter: hookIfTag('CallObject', function (rawargs) {
+                const env = (this.env = rawargs[0]);
+                const jobject = rawargs[1];
+                const jMethodId = rawargs[2];
+                const args = rawargs[3];
+                const method = (this.method = resolveMethod(env, jobject, jMethodId, false));
+                const callArgs = jniInterceptor.getCallMethodArgs(
+                    name,
+                    [env, jobject, jMethodId, args],
+                    method,
+                );
+
+                // TODO this logging api
+                // const cn = Java.vm.tryGetEnv().getObjectClassName(jobject);
+                // if (cn.includes('.')) oiai{
+                //     const str = Java.cast(jobject, Java.use('java.lang.Object'));
+                //     console.warn(str['toString']());
+                // }
+                const result = formatCallMethod(env, name, jMethodId, method, callArgs);
+                if (result?.includes('ClassLoader') && result?.includes('loadClass')) {
+                    if (
+                        result?.includes('com/cocos/lib/CocosHelper') ||
+                        result?.includes('org/cocos2dx/lib/CanvasRenderingContext2DImpl') ||
+                        result?.includes('com/cocos/lib/CanvasRenderingContext2DImpl')
+                    ) {
+                        this.ignore = true;
+                        return;
+                    }
+                }
+                if (
+                    (result?.includes('UnityPlayer') && result?.includes('executeMainThreadJobs')) ||
+                    (result?.includes('Choreographer') && result?.includes('postFrameCallback'))
+                ) {
+                    this.ignore = true;
+                    return;
+                }
+                if (
+                    result?.includes('longValue') &&
+                    `${DebugSymbol.fromAddress(this.returnAddress)}`?.includes('libunity.so')
+                ) {
+                    this.ignore = true;
+                    return;
+                }
+                if (
+                    (this.method?.className === 'android.media.AudioDeviceInfo' ||
+                        this.method?.className === 'android.media.AudioManager' ||
+                        this.method?.className === 'android.view.MotionEvent') &&
+                    `${DebugSymbol.fromAddress(this.returnAddress)}`?.includes('libunity.so')
+                ) {
+                    this.ignore = true;
+                    return;
+                }
+
+                return result;
+            }),
+            onLeave: hookIfTag('CallObject', function (retval) {
+                const method: JavaMethod | undefined | null = this.method;
+                if (method?.isVoid) return;
+                if (this.ignore) return;
+                return formatMethodReturn(retval, method?.returnType);
+            }),
+        });
     }
-
-    // for (const { address, name } of addrsCallMethod) {
-    //     const namePtr = Memory.allocUtf8String(name);
-    //     const tag = name;
-
-    //     // Libc.__cxa_demangle(namePtr, NULL, NULL, NULL).readCString() ?? name;
-    //     Interceptor.attach(address, {
-    //         // std::enable_if_t<!std::is_void< R >::value, R > 	CallMethod (JNIEnv &env, jobject *obj, jmethodID &method, Args &&... args)
-    //         onEnter: hookIfTag('CallObject', function (rawargs) {
-    //             const env = (this.env = rawargs[0]);
-    //             const jobject = rawargs[1];
-    //             const jMethodId = rawargs[2];
-    //             const args = rawargs[3];
-    //             const method = (this.method = resolveMethod(env, jobject, jMethodId, false));
-    //             const callArgs = jniInterceptor.getCallMethodArgs(
-    //                 name,
-    //                 [env, jobject, jMethodId, args],
-    //                 method,
-    //             );
-
-    //             // TODO this logging api
-    //             // const cn = Java.vm.tryGetEnv().getObjectClassName(jobject);
-    //             // if (cn.includes('.')) oiai{
-    //             //     const str = Java.cast(jobject, Java.use('java.lang.Object'));
-    //             //     console.warn(str['toString']());
-    //             // }
-    //             const result = formatCallMethod(name, jMethodId, method, callArgs);
-    //             if (result?.includes('ClassLoader') && result?.includes('loadClass')) {
-    //                 if (
-    //                     result?.includes('com/cocos/lib/CocosHelper') ||
-    //                     result?.includes('org/cocos2dx/lib/CanvasRenderingContext2DImpl') ||
-    //                     result?.includes('com/cocos/lib/CanvasRenderingContext2DImpl')
-    //                 ) {
-    //                     this.ignore = true;
-    //                     return;
-    //                 }
-    //             }
-    //             if (
-    //                 (result?.includes('UnityPlayer') && result?.includes('executeMainThreadJobs')) ||
-    //                 (result?.includes('Choreographer') && result?.includes('postFrameCallback'))
-    //             ) {
-    //                 this.ignore = true;
-    //                 return;
-    //             }
-    //             if (
-    //                 result?.includes('longValue') &&
-    //                 `${DebugSymbol.fromAddress(this.returnAddress)}`?.includes('libunity.so')
-    //             ) {
-    //                 this.ignore = true;
-    //                 return;
-    //             }
-    //             if (
-    //                 (this.method?.className === 'android.media.AudioDeviceInfo' ||
-    //                     this.method?.className === 'android.media.AudioManager' ||
-    //                     this.method?.className === 'android.view.MotionEvent') &&
-    //                 `${DebugSymbol.fromAddress(this.returnAddress)}`?.includes('libunity.so')
-    //             ) {
-    //                 this.ignore = true;
-    //                 return;
-    //             }
-
-    //             return result;
-    //         }),
-    //         onLeave: hookIfTag('CallObject', function (retval) {
-    //             const ExceptionCheck = envWrapper.getFunction(JNI.ExceptionCheck)
-    //             if (ExceptionCheck(this.env)) {
-    //                 const ExceptionOccurred = envWrapper.getFunction(JNI.ExceptionOccurred)
-    //                 logger.info({tag: 'ExceptionOccurred'}, `${ExceptionOccurred(this.env)}`)
-    //                 return;
-    //             }
-
-    //             const method: JavaMethod | undefined | null = this.method;
-    //             if (method?.isVoid) return;
-    //             if (this.ignore) return;
-    //             return formatMethodReturn(retval, method?.returnType);
-    //         }),
-    //     });
-    // }
 }
 
 export { EnvWrapper, JNI, asFunction, asLocalRef, hookLibart as attach };

@@ -14,14 +14,14 @@ abstract class JNIEnvInterceptor {
     ): NativeCallbackArgumentValue[] | null {
         // instant skip when method is missing
         if (!method) return [];
+        //
+        //// simplified by a lot over previous flow
+        //if (caller.endsWith('jmethodIDz')) return [];
+        //if (!caller.endsWith('va_list') && !caller.endsWith('jvalue')) {
+        //    return null;
+        //}
 
-        // simplified by a lot over previous flow
-        if (caller.endsWith('jmethodIDz')) return [];
-        if (!caller.endsWith('va_list') && !caller.endsWith('jvalue')) {
-            return null;
-        }
-
-        const isVaList = caller.endsWith('va_list');
+        const isVaList = caller.endsWith('va_list') || caller.endsWith('V');
 
         const callArgs: NativeCallbackArgumentValue[] = [];
         const callArgsPtr = args[args.length - 1] as NativePointer;
