@@ -82,49 +82,66 @@ function hookAccess(predicate: (ptr: NativePointer) => boolean) {
     );
 }
 
-function hookOpen(predicate: (ptr: NativePointer) => boolean) {
+function hookOpen(
+    predicate: (ptr: NativePointer) => boolean,
+    fn?: (this: InvocationContext | CallbackContext, path: string | null) => any,
+) {
     function log(
         this: InvocationContext | CallbackContext,
         uri: string | null,
         flags: number | null,
         mode: number | null,
-        ret: number,
+        errno: number,
         key: string,
     ) {
-        const isOk = ret !== -1;
+        const isOk = errno === 0;
+        const errstr = !isOk ? ` ${gray(dim(`{${errno}: "${Libc.strerror(errno).readCString()}}"`))}` : '';
         const struri = !isOk ? red(gray(`${uri}`)) : gray(`${uri}`);
         const flagsEnum = flags ? `0b${flags?.toString(2).padStart(16, '0')}` : null;
 
         logger.info(
             { tag: key },
-            `${struri} flags: ${flagsEnum}, ${mode ? `mode: ${mode}` : ''} ${DebugSymbol.fromAddress(this.returnAddress)}`,
+            `${struri} flags: ${flagsEnum}, ${mode ? `mode: ${mode} ${errstr}` : ''} ${DebugSymbol.fromAddress(this.returnAddress)}`,
         );
     }
-    // Interceptor.replace(
-    //     Libc.open,
-    //     new NativeCallback(
-    //         function (pathname, flags) {
-    //             const ret = Libc.open(pathname, flags);
-    //             if (predicate(this.returnAddress)) {
-    //                 log.call(this, pathname.readCString(), flags, null, ret, 'open');
-    //             }
-    //             return ret;
-    //         },
-    //         'int',
-    //         ['pointer', 'int'],
-    //     ),
-    // );
-    Interceptor.attach(Libc.open, {
-        onEnter(args) {
-            this.pathname = args[0];
-            this.flags = args[1].toInt32();
-        },
-        onLeave(retval) {
-            if (predicate(this.returnAddress)) {
-                log.call(this, this.pathname.readCString(), this.flags, retval.toInt32(), 0, 'open');
-            }
-        },
-    });
+    Interceptor.replace(
+        Libc.open,
+        new NativeCallback(
+            function (pathname, flags) {
+                if (predicate(this.returnAddress)) {
+                    const pathnameStr = pathname.readCString();
+                    const replaceStr = fn?.call(this, pathnameStr);
+                    const pathArg = replaceStr ? Memory.allocUtf8String(replaceStr) : pathname;
+                    const ret = Libc.open(pathArg, flags);
+                    log.call(
+                        this,
+                        replaceStr ? `${pathnameStr} -> ${replaceStr}` : pathnameStr,
+                        flags,
+                        null,
+                        //@ts-ignore
+                        ret.errno,
+                        'open',
+                    );
+                    return ret.value;
+                }
+                const ret = Libc.open(pathname, flags);
+                return ret.value;
+            },
+            'int',
+            ['pointer', 'int'],
+        ),
+    );
+    // Interceptor.attach(Libc.open, {
+    //     onEnter(args) {
+    //         this.pathname = args[0];
+    //         this.flags = args[1].toInt32();
+    //     },
+    //     onLeave(retval) {
+    //         if (predicate(this.returnAddress)) {
+    //             log.call(this, this.pathname.readCString(), this.flags, retval.toInt32(), 0, 'open');
+    //         }
+    //     },
+    // });
     Interceptor.replace(
         Libc.creat,
         new NativeCallback(
@@ -174,7 +191,7 @@ function hookFopen(
 
         if (isFd && statfd) {
             const infs = readFdPath(uri);
-            strpath += `-> "${infs}"`;
+            strpath += ` -> "${infs}"`;
         }
 
         const struri = isOk ? dim(`${strpath}`) : dim(red(`${strpath}`));
@@ -338,7 +355,7 @@ function hookRemove(predicate: (ptr: NativePointer) => boolean, ignore?: (path: 
         const func = Libc[key];
         Interceptor.replace(
             func,
-            
+
             new NativeCallback(
                 function (pathname) {
                     let ret: number;

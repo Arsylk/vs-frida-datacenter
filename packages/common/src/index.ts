@@ -38,6 +38,8 @@ function getApplicationContext(): Java.Wrapper {
     return Classes.ActivityThread.currentApplication().getApplicationContext();
 }
 
+const isNully = (ptr: NativePointerValue) => !ptr || ptr == NULL || `${ptr}` === '0x0' 
+
 const emitter = new EventEmitter();
 declare global {
     const Classes: ClassesType;
@@ -73,8 +75,7 @@ export {
     findClass,
     getApplicationContext,
     getFindUnique,
-    isJWrapper,
-    LibcFinderProxy as Libc,
+    isJWrapper, isNully, LibcFinderProxy as Libc,
     stacktrace,
     stacktraceList,
     tryNull

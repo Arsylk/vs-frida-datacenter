@@ -1,4 +1,7 @@
 import { JNI } from './jni.js';
+import { JNIEnvInterceptor } from './jniEnvInterceptor.js';
+import { JNIEnvInterceptorARM64 } from './jniEnvInterceptorArm64.js';
+import { Fields, Methods } from './model.js';
 
 type JniDefinition<T extends NativeFunctionReturnType, R extends [] | NativeFunctionArgumentType[]> = {
     offset: number;
@@ -6,20 +9,31 @@ type JniDefinition<T extends NativeFunctionReturnType, R extends [] | NativeFunc
     argTypes: R;
 };
 
+type JniField<T extends NativePointerValue> = {
+    set(value: T): void
+    get(): T
+}
+
 class EnvWrapper {
     #env: Java.Env;
     jniEnv: NativePointer;
+    jniInterceptor: JNIEnvInterceptor;
+
+    Fields = Fields;
+    Methods = Methods;;
 
     #functions: { [key: number]: NativeFunction<any, any> } = {};
+    #fields: { [key: number]: JniField<any> } = {};
 
     constructor(env: Java.Env) {
         this.#env = env;
         this.jniEnv = env.handle
+        this.jniInterceptor = new JNIEnvInterceptorARM64()
     }
 
     public getFunction<T extends NativeFunctionReturnType, R extends [] | NativeFunctionArgumentType[]>(
         def: JniDefinition<T, R>,
-    ): ReturnType<typeof asFunction<T, R>> {
+    ) {
         const cached = this.#functions[def.offset];
         if (cached) return cached;
         return (this.#functions[def.offset] = asFunction(this.jniEnv, def));

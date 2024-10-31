@@ -1,4 +1,4 @@
-import type { JavaMethod } from './javaMethod.js';
+import type { JavaMethod } from './model.js';
 
 const UNION_SIZE = 8;
 const METHOD_ID_INDEX = 2;
@@ -27,8 +27,8 @@ abstract class JNIEnvInterceptor {
         const callArgsPtr = args[args.length - 1] as NativePointer;
         if (isVaList) this.setUpVaListArgExtract(callArgsPtr);
 
-        for (let i = 0; i < method.javaParams.length; i++) {
-            const type = method.javaParams[i];
+        for (let i = 0; i < method.jParameterTypes.length; i++) {
+            const type = method.jParameterTypes[i];
             let value: NativeCallbackArgumentValue;
             if (isVaList) {
                 const currentPtr = this.extractVaListArgValue(method, i);

@@ -57,6 +57,7 @@ function initLibart() {
                 ? new NativeFunction(address, 'pointer', ['pointer', 'pointer', 'int', 'pointer', 'pointer'])
                 : undefined;
     }
+    anyJava.api['art::DexFile::OpenMemory'] = module.findExportByName('_ZN3art7DexFile10OpenMemoryEPKhjRKNSt3__112basic_stringIcNS3_11char_traitsIcEENS3_9allocatorIcEEEEjPNS_6MemMapEPKNS_10OatDexFileEPS9_')
 }
 
 // * pointless ? no idea what could be the use case for this

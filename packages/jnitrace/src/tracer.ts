@@ -1,23 +1,8 @@
 import { Classes, ClassesString, enumerateMembers, findClass } from '@clockwork/common';
 import { asFunction } from './envWrapper.js';
-import { JavaMethod } from './javaMethod.js';
 import { JNI, type jMethodID, type jclass } from './jni.js';
+import { JavaMethod, Methods } from './model.js';
 
-const Cache = {
-    storage: new Map<string, JavaMethod>(),
-    staticStorage: new Map<string, JavaMethod>(),
-    get(jMethodId: jMethodID, isStatic: boolean): JavaMethod | null {
-        const key = typeof jMethodId === 'string' ? jMethodId : jMethodId.toString();
-        return (isStatic ? this.staticStorage : this.storage).get(key) ?? null;
-    },
-    set(jMethodId: jMethodID, method: JavaMethod): JavaMethod {
-        const key = typeof jMethodId === 'string' ? jMethodId : jMethodId.toString();
-        (method.isStatic ? this.staticStorage : this.storage).set(key, method);
-        return method;
-    },
-};
-
-const cachedBase: NativePointer | null = null;
 let FindClass: NativeFunction<any, any> | null = null;
 let ToReflectedMethod: any = null;
 let getDeclaringClassDesc: NativeFunction<any, any> | null = null;
@@ -39,17 +24,13 @@ function resolveMethod(
     methodID: jMethodID,
     isStatic: boolean,
 ): JavaMethod | null {
-    const method = Cache.get(methodID, isStatic);
+    const method = Methods.get(methodID, isStatic);
     if (method) return method;
-
-    // fallback to frida getEnv()
-    env ??= Java.vm.tryGetEnv()?.handle;
-    if (!env) return null;
 
     if (FindClass === null && env) FindClass = asFunction(env, JNI.FindClass);
     if (ToReflectedMethod === null && env) ToReflectedMethod = asFunction(env, JNI.ToReflectedMethod);
 
-    if (ToReflectedMethod) {
+    if (ToReflectedMethod && clazz && methodID && `${clazz}` !== '0x0' && `${methodID}` !== '0x0') {
         const jniMethod = ToReflectedMethod(env, clazz, methodID, isStatic ? 1 : 0);
         const javaExecutable = Java.cast(jniMethod, Classes.Executable);
 
@@ -77,12 +58,12 @@ function resolveMethod(
             isStatic,
         );
 
-        declaringClass.$dispose();
-        for (const parameterType of parameterTypes) {
-            parameterType.$dispose();
-        }
+        // declaringClass.$dispose();
+        // for (const parameterType of parameterTypes) {
+        //     parameterType.$dispose();
+        // }
 
-        return Cache.set(methodID, method);
+        return Methods.set(methodID, isStatic, method);
     }
 
     if (getDeclaringClassDesc === null) {
@@ -115,11 +96,12 @@ function resolveMethod(
             for (const overload of method.overloads) {
                 if (`${overload.handle}` === `${methodID}`) {
                     matched = overload;
-                    return Cache.set(
+                    return Methods.set(
                         methodID,
+                        isStatic,
                         new JavaMethod(
                             thisSig ?? '',
-                            member,
+                            method.methodName,
                             overload.argumentTypes.map((x) => x.className ?? x.name),
                             overload.returnType.className ?? overload.returnType.name,
                             isStatic,
@@ -179,15 +161,13 @@ function fastpathMethod(
     const arr = signatureToPrettyTypes(sig);
     const ret = arr.pop() ?? 'void';
     const method = new JavaMethod(className, name, arr, ret, isStatic);
-    return Cache.set(methodId, method);
+    return global.set(methodId, method);
 }
 
 let thunkPage: NativePointer | null = null;
-let thunkOffset: NativePointer = null as any;
+let thunkOffset: NativePointer = ptr(0x0)
 function makeThunk(size: number, write: (writer: Arm64Writer) => void) {
-    if (!thunkPage) {
-        thunkPage = Memory.alloc(Process.pageSize);
-    }
+    thunkPage ??= Memory.alloc(Process.pageSize);
 
     const thunk = thunkPage.add(thunkOffset);
 
@@ -218,14 +198,8 @@ function makeCxxMethodWrapperReturningStdStringByValue(impl: any, argTypes: any)
         writer.putBrReg('x7');
     });
 
-    const invokeThunk = new NativeFunction(
-        thunk,
-        'void',
-        ['pointer'].concat(argTypes) as NativeFunctionArgumentType[],
-        {
-            exceptions: 'propagate',
-        },
-    );
+    const argumentsTypes = ['pointer'] + argTypes as NativeFunctionArgumentType[]
+    const invokeThunk = new NativeFunction(thunk, 'void', argumentsTypes);
     const wrapper = (...args: NativeFunctionArgumentValue[]) => {
         //@ts-ignore
         invokeThunk(...args);

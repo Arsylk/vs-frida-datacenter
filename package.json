@@ -27,7 +27,7 @@
         "il2cpp-hooker": "^1.0.7"
     },
     "devDependencies": {
-        "@biomejs/biome": "1.9.3",
+        "@biomejs/biome": "1.9.4",
         "@types/frida-gum": "^18.7.1",
         "frida-il2cpp-bridge": "^0.9.1",
         "ts-loader": "^9.5.1",

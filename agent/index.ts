@@ -1,4 +1,5 @@
 import * as Anticloak from '@clockwork/anticloak';
+import * as Cocos2dx from '@clockwork/cocos2dx';
 import {
     Classes,
     ClassesString,
@@ -14,10 +15,8 @@ import { toHex } from '@clockwork/common/dist/text';
 import * as Dump from '@clockwork/dump';
 import { ClassLoader, Filter, always, compat, getHookUnique, hook, ifKey } from '@clockwork/hooks';
 import type { FridaMethodThisCompat } from '@clockwork/hooks/dist/types';
-import * as JniTrace from '@clockwork/jnitrace';
 import { Color, logger } from '@clockwork/logging';
 import * as Native from '@clockwork/native';
-import { getSelfProcessName } from '@clockwork/native/dist/utils';
 import * as Network from '@clockwork/network';
 import * as Unity from '@clockwork/unity';
 const { red, green, redBright, magentaBright: pink, gray, dim, black } = Color.use();
@@ -143,8 +142,8 @@ function hookNetwork() {
 function hookRuntimeExec() {
     const mReplace = (sArg: string) => {
         sArg = sArg.replace(/su$/g, 'nya');
-        sArg = sArg.replace(/which/g, 'yhich');
         sArg = sArg.replace(/^rm -r/g, 'file ');
+        sArg = sArg.replace(/^getprop/g, 'ls');
         return Classes.String.$new(`${sArg}`);
     };
 
@@ -176,7 +175,7 @@ function hookRuntimeExec() {
                 this._command.value.set(i, newvalue);
                 newlist.push(newvalue);
             }
-            logger.info({ tag: 'exec' }, `${newlist}`);
+            logger.info({ tag: 'exec' }, `${newlist} ${pink(stacktrace())}`);
         },
     });
 }
@@ -533,7 +532,7 @@ Java.performNow(() => {
                 return 'BR';
         }
     });
-    hookPreferences(() => {});
+    hookPreferences(() => { });
     hookFirestore();
     hookCrypto();
     hookRuntimeExec();
@@ -630,9 +629,7 @@ Java.performNow(() => {
 
     // hook(Classes.Runtime, 'loadLibrary0', { logging: { short: true, multiline: false } });
 
-    uniqHook('org.chromium.net.NetworkActiveNotifier', 'build');
     ClassLoader.perform(() => {
-        uniqHook('org.chromium.net.NetworkActiveNotifier', 'build');
     });
 });
 
@@ -656,7 +653,7 @@ Process.setExceptionHandler((exception: ExceptionDetails) => {
     return exception.type === 'abort';
 });
 Native.initLibart();
-// Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x00bd953c), fn_key: ptr(0x01ac2a10) });
+Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x00bd953c), fn_key: ptr(0x01ac2a10) });
 // Cocos2dx.hookLocalStorage((key) => {
 //     switch (key) {
 //         case '__FirstLanuchTime':
@@ -670,9 +667,9 @@ Native.initLibart();
 // });
 
 // Unity.setVersion('2022.1.10f1');
-// Unity.patchSsl();
+Unity.patchSsl();
 // Unity.attachStrings();
-// Unity.attachScenes();
+Unity.attachScenes();
 
 emitter.on('il2cpp', Unity.listGameObjects);
 let enable = true;
@@ -690,18 +687,21 @@ const predicate = (r) => {
     if (!isNativeEnabled) return false;
     if (!r) return false;
     if (isWithinOwnRange(r)) return true;
-    return false && Native.Inject.modules.find(r) === null;
+    return !true && Native.Inject.modules.find(r) === null;
 };
 
-JniTrace.attach(({ returnAddress }) => {
-    return enable && predicate(returnAddress);
-});
+// JniTrace.attach(({ returnAddress }) => {
+//     return enable && predicate(returnAddress);
+// });
 
 Native.Files.hookAccess(predicate);
-// Native.Files.hookOpen(predicate);
+// Native.Files.hookOpen(predicate);6
 Native.Files.hookFopen(predicate, true, (path) => {
-    if (path === '/proc/self/maps' || path === `/proc/${Process.id}/maps`) {
-        return `/data/data/${getSelfProcessName()}/files/fake_maps`;
+    // if (path === '/proc/self/maps' || path === `/proc/${Process.id}/maps`) {
+    //     return `/data/data/${getSelfProcessName()}/files/fake_maps`;
+    // }
+    if (path?.endsWith('/su')) {
+        return path.replace(/\/su$/, '/nya')
     }
 });
 Native.Files.hookOpendir(predicate);
@@ -712,6 +712,7 @@ Native.Files.hookRemove(predicate);
 // Native.Strings.hookStrcmp(predicate);
 // Native.Strings.hookStrstr(predicate);
 // Native.Strings.hookStrtoLong(predicate);
+
 Native.TheEnd.hook(predicate);
 
 Native.System.hookSystem();
@@ -746,7 +747,7 @@ Interceptor.attach(Libc.posix_spawn, {
     },
 });
 
-// Dump.initSoDump();
+emitter.on('so', () => Dump.initSoDump())
 emitter.on('dex', () => Dump.scheduleDexDump(0));
 
 const GL_ENUM = {
@@ -773,6 +774,9 @@ Interceptor.attach(Module.getExportByName(null, 'glGetString'), {
         logger.info({ tag: 'opengl' }, `${label}(${dim(`${this.name}`)}) -> ${retval.readCString()}`);
     },
 });
+
+
+
 // Native.Inject.attachRelativeTo('libil2cpp.so', gPtr(0x160e2dc), {
 //     onEnter([__this, value, methodInfo]: [NativePointer, boolean, any]) {
 //         const _o = __this.readPointer();
@@ -852,27 +856,27 @@ Interceptor.replace(
     ),
 );
 
-// Interceptor.replace(
-//     Libc.fgets,
-//     new NativeCallback(
-//         function(buffer, size, fp) {
-//             const retval = Libc.fgets(buffer, size, fp);
-//             if (predicate(this)) {
-//                 const endUserMssg = buffer.readCString(size)?.trimEnd();
-//                 logger.info({ tag: 'fgets' }, `${endUserMssg}`);
-//             }
-//             return retval;
-//         },
-//         'pointer',
-//         ['pointer', 'int', 'pointer'],
-//     ),
-// );
+Interceptor.replace(
+    Libc.fgets,
+    new NativeCallback(
+        function (buffer, size, fp) {
+            const retval = Libc.fgets(buffer, size, fp);
+            // if (predicate(this.returnAddress)) {
+            //     const endUserMssg = buffer.readCString(size)?.trimEnd();
+            //     logger.info({ tag: 'fgets' }, `${endUserMssg}`);
+            // }
+            return retval;
+        },
+        'pointer',
+        ['pointer', 'int', 'pointer'],
+    ),
+);
 
-// setTimeout(() => {
-// const dir = `/data/data/insure.cable.estate/files`;
+// // setTimeout(() => {
+// const dir = `/data/data/com.scoutant.shorttv/files`;
 // Libc.system(Memory.allocUtf8String(`mkdir -p ${dir}`));
 
 // // @ts-ignore
 // File.writeAllText(`${dir}/fake_maps`, File.readAllText('/proc/self/maps'));
 // })
-// // '));
+// '));

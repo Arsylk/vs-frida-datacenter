@@ -1,2 +1,3 @@
-export { scheduleDexDump } from './dexDump.js';
-export { initSoDump } from './soDump.js';
+export * from './dexDump.js';
+export * from './soDump.js';
+

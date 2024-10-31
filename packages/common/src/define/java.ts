@@ -2,6 +2,7 @@ import { type PropertyJavaUseMapper, proxyJavaUse } from '../internal/proxy.js';
 
 const ClassesString = {
     String: 'java.lang.String',
+    Long: 'java.lang.Long',
     Boolean: 'java.lang.Boolean',
     ArrayList: 'java.util.ArrayList',
     System: 'java.lang.System',
@@ -95,6 +96,8 @@ const ClassesString = {
     InputDevice: 'android.view.InputDevice',
     WindowInsets: 'android.view.WindowInsets',
     OpenSSLX509Certificate: 'com.android.org.conscrypt.OpenSSLX509Certificate',
+    Certificate: 'java.security.cert.Certificate',
+    UUID: 'java.util.UUID',
 };
 
 type ClassesType = PropertyJavaUseMapper<typeof ClassesString>;

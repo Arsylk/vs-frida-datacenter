@@ -1,53 +1,82 @@
-import { Text } from '@clockwork/common';
-import { EnvWrapper, JNI, asFunction } from '@clockwork/jnitrace';
+import * as Anticloak from '@clockwork/anticloak';
+import { emitter } from '@clockwork/common';
+import { dumpLibSync, initSoDump, scheduleDexDump } from '@clockwork/dump';
+import * as JniTrace from '@clockwork/jnitrace';
 import { Color, logger } from '@clockwork/logging';
+import * as Native from '@clockwork/native';
+import { getSelfProcessName, traceInModules } from '@clockwork/native/dist/utils';
 const { white, gray } = Color.use();
 
-let wEnv: EnvWrapper;
-Java.perform(() => {
-    wEnv = new EnvWrapper(Java.vm.getEnv());
 
-    const NewGlobalRef = wEnv.getFunction(JNI.NewGlobalRef);
-    Interceptor.attach(NewGlobalRef, {
-        onEnter({ 0: env, 1: nonGlobalRef }) {
-            this.env = env;
-            this.nonGlobalRef = nonGlobalRef;
-        },
-        onLeave(retval) {
-            const env: NativePointer = this.env;
-            const nonGlobalRef: NativePointer = this.nonGlobalRef;
-            if (env && nonGlobalRef && retval && !retval.isNull() && retval !== ptr(0x0)) {
-                const getObjectClass = asFunction(env, JNI.GetObjectClass);
-                const refClass = getObjectClass(env, nonGlobalRef);
-                const type = Text.toPrettyType(Java.cast(refClass, Classes.Class).getName());
-                const tryerr = (fn: () => any) => {
-                    try {
-                        return `${fn()}`;
-                    } catch (e) {
-                        return `${{ err: e.message }}`;
-                    }
-                };
-                const run = (ref) => {
-                    return Classes.String.format(
-                        '%s',
-                        tryerr(() => ref),
-                        tryerr(() => Java.cast(ref, Classes.Object)),
-                        //@ts-ignore
-                        tryerr(() => Classes.String.valueOf(ref)),
-                        //@ts-ignore
-                        tryerr(() =>
-                            Classes.String.format.overload('java.lang.String', '[Ljava.lang.Object;')(
-                                Classes.String.$enw('%s'),
-                                Java.array(Classes.String.$new('%s'), [ref]),
-                            ),
-                        ),
-                    );
-                };
+const predicate = (r: NativePointer) => {
+    function isWithinOwnRange(ptr: NativePointer) {
+        const path = Native.Inject.modules.findPath(ptr);
+        return path?.includes('/data') === true && !path.includes('/com.google.android.trichromelibrary');
+    }
+    return isWithinOwnRange(r);
+}
 
-                logger.info({ tag: 'global' }, run(retval));
-                logger.info({ tag: ' local' }, run(nonGlobalRef));
-                logger.info('');
-            }
-        },
-    });
+
+JniTrace.attach((thisRef) => predicate(thisRef.returnAddress))
+
+Native.Files.hookAccess(predicate);
+Native.Files.hookOpen(predicate, function (path) {
+    if (path?.includes('.dex')) {
+        logger.info({ tag: 'dex' }, Thread.backtrace(this.context, Backtracer.FUZZY).map(traceInModules).join('\n'))
+        dumpLibSync('libjiagu_64.so')
+    }
 });
+Native.Files.hookFopen(predicate, true, (path) => {
+    if (path === '/proc/self/maps' || path === `/proc/${Process.id}/maps`) {
+        return `/data/data/${getSelfProcessName()}/files/fake_maps`;
+    }
+    if (path?.endsWith('/su')) {
+        return path.replace(/\/su$/, '/nya')
+    }
+});
+Native.Files.hookOpendir(predicate);
+// Native.Files.hookStat(predicate);
+Native.Files.hookRemove(predicate);
+// Native.Strings.hookStrlen(predicate);
+// Native.Strings.hookStrcpy(predicate);
+// Native.Strings.hookStrcmp(predicate);
+// Native.Strings.hookStrstr(predicate);
+// Native.Strings.hookStrtoLong(predicate);
+
+Native.TheEnd.hook(predicate);
+
+Native.System.hookSystem();
+Native.System.hookGetauxval();
+
+// Native.Time.hookDifftime(predicate);
+// Native.Time.hookTime(predicate);
+// Native.Time.hookLocaltime(predicate);
+// Native.Time.hookGettimeofday(predicate);
+Native.Pthread.hookPthread_create();
+// Native.Logcat.hookLogcat();
+
+Anticloak.Debug.hookPtrace();
+
+
+Interceptor.attach(Libc.sprintf, {
+    onEnter(args) {
+        this.dst = args[0];
+    },
+    onLeave(retval) {
+        const text = this.dst.readCString();
+        logger.info({ tag: 'sprintf' }, `${text}`);
+    },
+});
+
+Interceptor.attach(Libc.posix_spawn, {
+    onEnter({ 0: pid, 1: path, 2: action }) {
+        const pathStr = path.readCString();
+        logger.info({ tag: 'posix_spawn' }, `${pathStr} ${action}`);
+    },
+    onLeave(retval) {
+        logger.info({ tag: 'posix_spawn' }, `${retval}`);
+    },
+});
+
+emitter.on('so', initSoDump)
+emitter.on('dex', scheduleDexDump.bind(0));

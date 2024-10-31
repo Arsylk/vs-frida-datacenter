@@ -1,5 +1,4 @@
-import { ClassLoader, findHook, getHookUnique } from '@clockwork/hooks';
-import { getFindUnique } from '@clockwork/common';
+import { ClassLoader } from '@clockwork/hooks';
 
 setImmediate(() => {
     send({ type: 'setImmediate' });
@@ -27,7 +26,7 @@ setImmediate(() => {
 function mainloop(message: any, rawData: ArrayBuffer | null) {
     const tape = message?.payload?.type;
     if (tape === 'perform-resolve') {
-        if (!focus) {
+        if (!(focus)) {
             send({ type: 'error-not-found' });
             return recv(mainloop);
         }

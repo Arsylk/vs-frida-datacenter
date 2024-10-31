@@ -1,5 +1,5 @@
-import type { JavaMethod } from './javaMethod.js';
 import { JNIEnvInterceptor } from './jniEnvInterceptor.js';
+import type { JavaMethod } from './model.js';
 
 class JNIEnvInterceptorARM64 extends JNIEnvInterceptor {
     private stack: NativePointer = NULL;
@@ -31,7 +31,7 @@ class JNIEnvInterceptorARM64 extends JNIEnvInterceptor {
         const MAX_GR_REG_NUM = 4;
         let currentPtr = NULL;
 
-        if (method.javaParams[paramId] === 'float' || method.javaParams[paramId] === 'double') {
+        if (method.jParameterTypes[paramId] === 'float' || method.jParameterTypes[paramId] === 'double') {
             if (this.vrOffsIndex < MAX_VR_REG_NUM) {
                 currentPtr = this.vrTop
                     .add(this.vrOffs)

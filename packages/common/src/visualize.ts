@@ -54,7 +54,7 @@ function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv
         case 'float': {
             //@ts-ignore
             const strFloat = Classes.String.valueOf.overload('float').bind(Classes.String);
-            return Color.number(strFloat(value));
+            return Color.number(strFloat(Number(value)));
         }
         case 'double': {
             //@ts-ignore
@@ -78,10 +78,16 @@ function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv
 
     // * should only have java objects in here
     const classHandle = value.$h ?? value;
+    const handleStr = `${classHandle}`
     // console.log(value, type, typeof value, value.$h, value instanceof NativePointer);
+    // return `${classHandle}`;
+
+    if (handleStr === '0x0') {
+        return Color.number(null)
+    }
 
     if (classHandle) {
-        const text = asLocalRef(jniEnv, classHandle, (ptr: NativePointer) => visualObject(ptr, type));
+        const text = (handleStr.length === 12) ? asLocalRef(jniEnv, classHandle, (ptr: NativePointer) => visualObject(ptr, type)) : visualObject(classHandle, type)
         if (text) return text;
     }
 
@@ -90,7 +96,7 @@ function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv
 
 function visualObject(value: NativePointer, type?: string): string {
     // ? do not ask, i have no idea why this prevents crashes
-    String(value) + String(value.readByteArray(8));
+    // String(value) + String(value.readByteArray(8));
 
     try {
         if (type === ClassesString.String) {
@@ -105,7 +111,12 @@ function visualObject(value: NativePointer, type?: string): string {
 
         if (type === ClassesString.OpenSSLX509Certificate) {
             const win = Java.cast(value, Classes.OpenSSLX509Certificate);
-            return `${ClassesString.OpenSSLX509Certificate}(frame=${win.getFrame()})`;
+            return `${ClassesString.OpenSSLX509Certificate}(issuer=${win.getIssuerX500Principal()})`;
+        }
+
+        if (type === ClassesString.Certificate) {
+            const win = Java.cast(value, Classes.Certificate);
+            return `${ClassesString.Certificate}(issuer=${win.getType()})`;
         }
 
         if (type === ClassesString.WindowInsets) {

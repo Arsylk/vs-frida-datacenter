@@ -1,10 +1,10 @@
 import { type PropertyCallbackMapper, proxyCallback } from '../internal/proxy.js';
 
 const LibcFinder = {
-    // int open(const char *pathname, int flags, mode_t mode);
+    // int open(const char *pathname, int flags);
     open: () => {
         const ptr = Module.getExportByName('libc.so', 'open');
-        return new NativeFunction(ptr, 'int', ['pointer', 'int', '...']);
+        return new SystemFunction(ptr, 'int', ['pointer', 'int']);
     },
     // int creat(const char *pathname, mode_t mode);
     creat: () => {
@@ -155,6 +155,11 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'fork');
         return new NativeFunction(ptr, 'int', []);
     },
+    // int execv(const char *path, char *const argv[]);
+    execv: () => {
+        const ptr = Module.getExportByName('libc.so', 'execv');
+        return new NativeFunction(ptr, 'int', ['pointer', 'pointer']);
+    },
     // int gettimeofday(struct timeval *restrict tv, struct timezone *_Nullable restrict tz);
     gettimeofday: () => {
         const ptr = Module.getExportByName('libc.so', 'gettimeofday');
@@ -265,6 +270,16 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'sscanf');
         return new NativeFunction(ptr, 'int', ['pointer', 'pointer', '...']);
     },
+    // FILE *popen(const char *command, const char *type);
+    popen: () => {
+        const ptr = Module.getExportByName('libc.so', 'popen');
+        return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer']);
+    },
+    // FILE *pclose(FD);
+    pclose: () => {
+        const ptr = Module.getExportByName('libc.so', 'pclose');
+        return new NativeFunction(ptr, 'int', ['pointer']);
+    },
     // pid_t getpid(void);
     getpid: () => {
         const ptr = Module.getExportByName('libc.so', 'getpid');
@@ -367,7 +382,7 @@ const LibcFinder = {
     },
     // int posix_spawn(pid_t *restrict pid, const char *restrict path,
     //                 const posix_spawn_file_actions_t *restrict file_actions,
-    //                 const posix_spawnattr_t *restrict attrp, 
+    //                 const po six_spawnattr_t *restrict attrp, 
     //                 char *const argv[restrict], 
     //                 char *const envp[restrict]);
     posix_spawn: () => {

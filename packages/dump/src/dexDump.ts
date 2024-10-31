@@ -222,4 +222,5 @@ function scheduleDexDump(delay = 10_000) {
     }, delay);
 }
 
-export { scheduleDexDump, verify as dexBytesVerify };
+export { verify as dexBytesVerify, scheduleDexDump };
+
