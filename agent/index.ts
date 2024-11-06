@@ -545,18 +545,6 @@ Java.performNow(() => {
     bypassIntentFlags();
     bypassReceiverFlags();
 
-    // uniqFind('android.opengl.GLSurfaceView', (clazz) =>
-    //     enumerateMembers(
-    //         clazz,
-    //         {
-    //             onMatchMethod(clazz, member, depth) {
-    //                 hook(clazz, member);
-    //             },
-    //         },
-    //         1,
-    //     ),
-    // );
-
     // hook('android.content.ContextWrapper', 'getSharedPreferences', {
     //     logging: { multiline: false, short: true, return: false },
     // });
@@ -867,10 +855,10 @@ Interceptor.replace(
     new NativeCallback(
         function (buffer, size, fp) {
             const retval = Libc.fgets(buffer, size, fp);
-            // if (predicate(this.returnAddress)) {
-            //     const endUserMssg = buffer.readCString(size)?.trimEnd();
-            //     logger.info({ tag: 'fgets' }, `${endUserMssg}`);
-            // }
+            if (predicate(this.returnAddress)) {
+                //     const endUserMssg = buffer.readCString(size)?.trimEnd();
+                //     logger.info({ tag: 'fgets' }, `${endUserMssg}`);
+            }
             return retval;
         },
         'pointer',

@@ -49,16 +49,13 @@ function replace(details: ReferrerDetails = {}) {
         if (!client) return;
         isHooked = true;
 
-        const [startMethod, getMethod] = matchReferrerClientMethods(client);
-        performReplace(details, client, startMethod, getMethod);
+        performReplace(details, client);
     });
 }
 
 function performReplace(
     details: ReferrerDetails,
     client: Java.Wrapper,
-    startMethod: string,
-    getMethod: string,
 ) {
     const beforeInit = function (this: Java.Wrapper) {
         const paretnClass = findClass(this.$className);
@@ -66,17 +63,18 @@ function performReplace(
             logger.warn(`missing parent class: ${this.$className}`);
             return;
         }
+        const [startMethod, getMethod] = matchReferrerClientMethods(paretnClass);
 
         hook(paretnClass, startMethod, {
             predicate: startConnectionPredicate,
             replace(method, listener) {
-                const baseClass = findClass(ClassesString.InstallReferrerStateListener);
-                if (!baseClass) {
-                    logger.warn(`missing base class: ${ClassesString.InstallReferrerStateListener}`);
+                const listenerClass = findClass(listener.$className);
+                if (!listenerClass) {
+                    logger.warn(`missing listener class: ${listener.$className}`);
                     return method.call(this, listener);
                 }
 
-                const onFinishedMethod = matchStateListenerMethod(baseClass);
+                const onFinishedMethod = matchStateListenerMethod(listenerClass);
 
                 let msg = Color.method(startMethod);
                 msg += Color.bracket('(');
@@ -168,10 +166,12 @@ function matchStateListenerMethod(clazz: Java.Wrapper): string {
 }
 
 const startConnectionPredicate: MethodHookPredicate = ({ returnType, argumentTypes }) => {
-    return (
+    const listener = findClass(ClassesString.InstallReferrerStateListener)
+    const argClass = argumentTypes[0]?.className && findClass(argumentTypes[0].className)
+    return (listener && argClass) && (
         returnType.className === 'void' &&
         argumentTypes.length === 1 &&
-        argumentTypes[0].className === ClassesString.InstallReferrerStateListener
+        listener.class.isAssignableFrom(argClass.class)
     );
 };
 const getInstallReferrerPredicate: MethodHookPredicate = ({ returnType, argumentTypes }) => {
