@@ -15,6 +15,7 @@ import { toHex } from '@clockwork/common/dist/text';
 import * as Dump from '@clockwork/dump';
 import { ClassLoader, Filter, always, compat, getHookUnique, hook, ifKey } from '@clockwork/hooks';
 import type { FridaMethodThisCompat } from '@clockwork/hooks/dist/types';
+import * as JniTrace from '@clockwork/jnitrace';
 import { Color, logger } from '@clockwork/logging';
 import * as Native from '@clockwork/native';
 import * as Network from '@clockwork/network';
@@ -292,7 +293,7 @@ function hookPrefs(fn?: (this: FridaMethodThisCompat, key: string, method: strin
     for (const item of keyFns) {
         hook(Classes.SharedPreferencesImpl, item, {
             loggingPredicate: Filter.prefs,
-            logging: { multiline: false, short: true, return: false, call: false },
+            logging: { multiline: false, short: true },
             replace: compat(function () {
                 const result = fn?.call(this, this.originalArgs[0], item);
                 return result !== undefined ? result : this.fallback();
@@ -530,6 +531,10 @@ Java.performNow(() => {
             case 'KEY_LOCALE':
             case 'key_country':
                 return 'BR';
+            case 'ro.aliyun.clouduuid':
+            case 'ro.sys.aliyun.clouduuid':
+            case 'loginID':
+                return '4102978102398';
         }
     });
     hookPreferences(() => { });
@@ -653,7 +658,7 @@ Process.setExceptionHandler((exception: ExceptionDetails) => {
     return exception.type === 'abort';
 });
 Native.initLibart();
-Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x00bd953c), fn_key: ptr(0x01ac2a10) });
+Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x0080004c), fn_key: ptr(0x006f9170) });
 // Cocos2dx.hookLocalStorage((key) => {
 //     switch (key) {
 //         case '__FirstLanuchTime':
@@ -667,9 +672,9 @@ Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x00bd953c), fn_key: ptr(0
 // });
 
 // Unity.setVersion('2022.1.10f1');
-Unity.patchSsl();
+// Unity.patchSsl();
 // Unity.attachStrings();
-Unity.attachScenes();
+// Unity.attachScenes();
 
 emitter.on('il2cpp', Unity.listGameObjects);
 let enable = true;
@@ -681,6 +686,7 @@ const predicate = (r) => {
     // if (1 === 1) return false;
     function isWithinOwnRange(ptr: NativePointer) {
         const path = Native.Inject.modules.findPath(ptr);
+
         return path?.includes('/data') === true && !path.includes('/com.google.android.trichromelibrary');
     }
 
@@ -690,12 +696,12 @@ const predicate = (r) => {
     return !true && Native.Inject.modules.find(r) === null;
 };
 
-// JniTrace.attach(({ returnAddress }) => {
-//     return enable && predicate(returnAddress);
-// });
+JniTrace.attach(({ returnAddress }) => {
+    return enable && predicate(returnAddress);
+});
 
 Native.Files.hookAccess(predicate);
-// Native.Files.hookOpen(predicate);6
+// Native.Files.hookOpen(predicate);
 Native.Files.hookFopen(predicate, true, (path) => {
     // if (path === '/proc/self/maps' || path === `/proc/${Process.id}/maps`) {
     //     return `/data/data/${getSelfProcessName()}/files/fake_maps`;

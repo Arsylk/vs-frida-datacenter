@@ -1,14 +1,13 @@
-import { Classes, ClassesString, isNully, Text, vs } from '@clockwork/common';
+import { Classes, ClassesString, Text, isNully, vs } from '@clockwork/common';
 import { Color, logger as gLogger, subLogger } from '@clockwork/logging';
-import { asFunction, asLocalRef, EnvWrapper, type JniDefinition } from './envWrapper.js';
-import { JNI, type JniMethodDefinition } from './jni.js';
-import type { JavaMethod } from './model.js';
-import { JNIMethod } from "./model.js";
+import { traceInModules } from '@clockwork/native';
+import { EnvWrapper, type JniDefinition, asFunction, asLocalRef, getClassName } from './envWrapper.js';
+import { JNI } from './jni.js';
+import { JniInvokeCallbacks } from './jniInvokeCallback.js';
+import { JNIMethod, type JavaMethod, JniInvokeMode } from './model.js';
 import { resolveMethod, signatureToPrettyTypes } from './tracer.js';
 const logger = subLogger('jnitrace');
 const { black, gray, dim, redBright, magenta, orange, lavender } = Color.use();
-
-
 
 function ColorMethod(jMethodId: NativePointer, method: JavaMethod): string {
     let sb = '';
@@ -105,14 +104,14 @@ let envWrapper: EnvWrapper;
 function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) => boolean) {
     envWrapper ??= new EnvWrapper(Java.vm.getEnv());
 
-    repl(envWrapper, JNI.GetStringUTFChars, function(retval, env, str, smth) {
-        if (!predicate(this)) return 
+    repl(envWrapper, JNI.GetStringUTFChars, function (retval, env, str, smth) {
+        if (!predicate(this)) return;
         const msg = Color.string(retval.readCString());
         gLogger.info(`[${dim('GetStringUTFChars')}] ${msg}`);
-    })
-    repl(envWrapper, JNI.NewStringUTF, function(retval, env, str) {
-        if (!predicate(this)) return
-        const text = (str as NativePointer).readCString()
+    });
+    repl(envWrapper, JNI.NewStringUTF, function (retval, env, str) {
+        if (!predicate(this)) return;
+        const text = (str as NativePointer).readCString();
         switch (text) {
             case 'com/cocos/lib/CocosHelper':
             case 'org/cocos2dx/lib/CanvasRenderingContext2DImpl':
@@ -121,143 +120,160 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
         }
         const msg = Color.string(text);
         gLogger.info(`[${dim('NewStringUTF')}] ${msg}`);
-    })
-    repl(envWrapper, JNI.FindClass, function(retval, env, str) {
-        if (!predicate(this)) return
-        const msg = lavender(`${(str as NativePointer).readCString()}`)
+    });
+    repl(envWrapper, JNI.FindClass, function (retval, env, str) {
+        if (!predicate(this)) return;
+        const msg = lavender(`${(str as NativePointer).readCString()}`);
         gLogger.info(`[${dim('FindClass')}] ${msg} ${retval}`);
-    })
-    repl(envWrapper, JNI.NewGlobalRef, function(retval, env, obj) {
-        if (!predicate(this) || isNully(obj) || isNully(retval)) return
+    });
+    repl(envWrapper, JNI.NewGlobalRef, function (retval, env, obj) {
+        if (!predicate(this) || isNully(obj) || isNully(retval)) return;
         const getObjectClass = asFunction(env as NativePointer, JNI.GetObjectClass);
         const refClass = getObjectClass(env, obj);
         const typeName = Java.cast(refClass, Classes.Class).getName();
         if (typeName.match(/^\$Proxy[0-9]+$/) || typeName === ClassesString.Long) {
-            return
+            return;
         }
 
         const type = Text.toPrettyType(typeName);
         const value = vs(obj, type, env as NativePointer);
         const msg = `${Color.className(type)}: ${value}`;
         gLogger.info(`[${dim('NewGlobalRef')}] ${msg}`);
-    })
+    });
 
     const GetMethodText = (retval: NativePointer, name: NativePointer, sig: NativePointer) => {
         let sigText = `${sig.readCString()}`;
-        const types = signatureToPrettyTypes(sigText)
+        const types = signatureToPrettyTypes(sigText);
         if (types) {
-            sigText = `${types[0]}(${types.splice(0, 1).join(', ')})`;
+            sigText = `(${types.splice(0, 1).join(', ')})${types[0] !== 'void' ? `: ${types[0]}` : ''}`;
         }
-        return `${name.readCString()}${sigText} ? ${retval}`
-    }
-    repl(envWrapper, JNI.GetMethodID, function(retval, env, clazz, name, sig) {
-        if (!predicate(this)) return
+        return `${name.readCString()}${sigText} ? ${retval}`;
+    };
+    repl(envWrapper, JNI.GetMethodID, function (retval, env, clazz, name, sig) {
+        if (!predicate(this) || isNully(clazz) || isNully(name) || isNully(sig)) return;
         const method = resolveMethod(env as NativePointer, clazz as NativePointer, retval, false);
-        if (method?.className === 'com.cocos.lib.CocosHelper') return;
-        if (method?.className === 'com.cocos.lib.CanvasRenderingContext2DImpl') return;
-        
+        switch (method?.className) {
+            case 'com.cocos.lib.CocosHelper':
+            case 'org.cocos2dx.lib.CanvasRenderingContext2DImpl':
+            case 'com.cocos.lib.CanvasRenderingContext2DImpl':
+                return
+        }
+
         const msg = `${method ? ColorMethod(retval, method) : GetMethodText(retval, name as NativePointer, sig as NativePointer)}`;
         gLogger.info(`[${dim('GetMethodID')}] ${msg}`);
-    })
-    repl(envWrapper, JNI.GetStaticMethodID, function(retval, env, clazz, name, sig) {
-        if (!predicate(this)) return
+    });
+    repl(envWrapper, JNI.GetStaticMethodID, function (retval, env, clazz, name, sig) {
+        if (!predicate(this) || isNully(clazz) || isNully(name) || isNully(sig)) return;
         const method = resolveMethod(env as NativePointer, clazz as NativePointer, retval, true);
         if (method?.className === 'com.cocos.lib.CocosHelper') return;
         if (method?.className === 'com.cocos.lib.CanvasRenderingContext2DImpl') return;
-        
+
         const msg = `${method ? ColorMethod(retval, method) : GetMethodText(retval, name as NativePointer, sig as NativePointer)}`;
         gLogger.info(`[${dim('GetStaticMethodID')}] ${msg}`);
-    })
+    });
 
-
-    const GetFieldText = (retval: NativePointer, env: NativePointer, clazz: NativePointer, name: NativePointer, sig: NativePointer) => {
-        const clazzName = (`${clazz}`.length === 12) 
-            ? asLocalRef(env, clazz, (ptr) => Java.cast(ptr, Classes.Class).getName())
-            : Java.cast(clazz, Classes.Class).getName()
-        const sigName = `${sig.readCString()}`
-        const typeName = signatureToPrettyTypes(sigName)?.[0] ?? sigName
-        const fieldName = `${name.readCString()}`
+    const GetFieldText = (
+        retval: NativePointer,
+        env: NativePointer,
+        clazz: NativePointer,
+        name: NativePointer,
+        sig: NativePointer,
+    ) => {
+        const clazzName = getClassName(env, clazz)
+        const sigName = `${sig.readCString()}`;
+        const typeName = signatureToPrettyTypes(sigName)?.[0] ?? sigName;
+        const fieldName = `${name.readCString()}`;
         const id = redBright(`${retval} -${dim('>')}`);
         return `${id}${Color.className(clazzName)}${Color.bracket('.')}${Color.field(fieldName)}: ${Color.className(typeName)}`;
-    }
-    repl(envWrapper, JNI.GetFieldID, function(retval, env, clazz, name, sig) {
-        if (!predicate(this) || isNully(clazz) || isNully(name)) return
-        
-        const msg = GetFieldText(retval, env as NativePointer, clazz as NativePointer, name as NativePointer, sig as NativePointer)
-        gLogger.info(`[${dim('GetFieldID')}] ${msg}`)
-    })
-    repl(envWrapper, JNI.GetStaticFieldID, function(retval, env, clazz, name, sig) {
-        if (!predicate(this) || isNully(clazz) || isNully(name)) return
+    };
+    repl(envWrapper, JNI.GetFieldID, function (retval, env, clazz, name, sig) {
+        if (!predicate(this) || isNully(clazz) || isNully(name)) return;
 
-        const msg = GetFieldText(retval, env as NativePointer, clazz as NativePointer, name as NativePointer, sig as NativePointer)
-        gLogger.info(`[${dim('GetStaticFieldID')}] ${msg}`)
-    })
+        const msg = GetFieldText(
+            retval,
+            env as NativePointer,
+            clazz as NativePointer,
+            name as NativePointer,
+            sig as NativePointer,
+        );
+        gLogger.info(`[${dim('GetFieldID')}] ${msg}`);
+    });
+    repl(envWrapper, JNI.GetStaticFieldID, function (retval, env, clazz, name, sig) {
+        if (!predicate(this) || isNully(clazz) || isNully(name)) return;
 
-    repl(envWrapper, JNI.DefineClass, function(retval, env, name, obj, bytes, size) {
-        if (!predicate(this) || isNully(name) || isNully(obj)) return
+        const msg = GetFieldText(
+            retval,
+            env as NativePointer,
+            clazz as NativePointer,
+            name as NativePointer,
+            sig as NativePointer,
+        );
+        gLogger.info(`[${dim('GetStaticFieldID')}] ${msg}`);
+    });
 
-        const msg = `${orange(`${obj}`)} ${name} ${size} `
-        gLogger.info(`[${dim('DefineClass')}] ${msg}`)
-    })
-    repl(envWrapper, JNI.RegisterNatives, function(retval, env, clazz, jMethodDef, i) {
-        if (!predicate(this) || isNully(clazz) || isNully(jMethodDef)) return
-        
-        const clazzName = (`${clazz}`.length === 12) 
-            ? asLocalRef(env as NativePointer, clazz as NativePointer, (ptr) => Java.cast(ptr, Classes.Class).getName())
-            : Java.cast(clazz, Classes.Class).getName()
-        const msg = `${orange(`${jMethodDef}`)} ${clazzName} ${i} `
-        gLogger.info(`[${dim('RegisterNatives')}] ${msg}`)
-    })
+    repl(envWrapper, JNI.DefineClass, function (retval, env, name, obj, bytes, size) {
+        if (!predicate(this) || isNully(name) || isNully(obj)) return;
 
-    repl(envWrapper, JNI.GetObjectArrayElement, function(retval, env, jarray, i) {
-        if (!predicate(this) || isNully(jarray) || !i) return
+        const msg = `${orange(`${obj}`)} ${name} ${size} `;
+        gLogger.info(`[${dim('DefineClass')}] ${msg}`);
+    });
+    repl(envWrapper, JNI.RegisterNatives, function (retval, env, clazz, jMethodDef, count) {
+        if (!predicate(this) || isNully(clazz) || isNully(jMethodDef)) return;
+
+        const methods: string[] = []
+        for (let i = 0; i < count; i++) {
+            const namePtr = (jMethodDef as NativePointer).add(i * Process.pointerSize * 3).readPointer();
+            const sigPtr = (jMethodDef as NativePointer).add(i * Process.pointerSize * 3 + Process.pointerSize).readPointer();
+            const fnPtrPtr = (jMethodDef as NativePointer).add(i * Process.pointerSize * 3 + Process.pointerSize * 2).readPointer();
+
+            let sigText = `${sigPtr.readCString()}`;
+            const types = signatureToPrettyTypes(sigText);
+            if (types) {
+                sigText = `(${types.splice(0, 1).join(', ')})${types[0] && types[0] !== 'void' ? `: ${types[0]}` : ''}`;
+            }
+            const text = `    ${black(dim('  >'))}${orange(`${namePtr.readCString()}`)}${sigText} ? ${gray(`${traceInModules(fnPtrPtr)}`)}`;
+            methods.push(text)
+        }
+
+        const clazzName = getClassName(env as NativePointer, clazz as NativePointer)
+        const msg = `${orange(`${jMethodDef}`)} ${clazzName}\n${methods.join('\n')}`;
+        gLogger.info(`[${dim('RegisterNatives')}] ${msg}`);
+    });
+
+    repl(envWrapper, JNI.GetObjectArrayElement, function (retval, env, jarray, i) {
+        if (!predicate(this) || isNully(jarray) || !i) return;
         const getObjectClass = asFunction(env as NativePointer, JNI.GetObjectClass);
-        const refClass = !isNully(retval) ? getObjectClass(env, retval) : null
+        const refClass = !isNully(retval) ? getObjectClass(env, retval) : null;
         const typeName = refClass ? Java.cast(refClass, Classes.Class).getName() : null;
         const type = typeName ? Text.toPrettyType(typeName) : null;
 
         const value = vs(retval, type ?? undefined, env as NativePointer);
-        const msg = `${type ?? jarray}[${i}] ${value}`
-        gLogger.info(`[${dim('GetObjectArrayElement')}] ${msg}`)
-    })
+        const msg = `${type ?? jarray}[${i}] ${value}`;
+        gLogger.info(`[${dim('GetObjectArrayElement')}] ${msg}`);
+    });
 
-    // for(const NewObject of [JNI.NewObject, JNI.NewObjectA, JNI.NewObjectV]) {
-    //     repl(envWrapper, NewObject, function(retval, env, clazz, methodID, args) {
-    //         if (!predicate(this)) return
-    //         const method = resolveMethod(env as NativePointer, clazz as NativePointer, methodID as NativePointer, false);
-    //         const jArgs = jniInterceptor.getCallMethodArgs(NewObject.name, [env as NativePointer, clazz as NativePointer, methodID as NativePointer, args as NativePointer], method);
-    //         const msg = formatCallMethod(env as NativePointer, NewObject.name, methodID as NativePointer, method, jArgs);
-    //         // const msg = `${methodID} ${jArgs}`
+    // const NewObjectV = envWrapper.getFunction(JNI.NewObjectV)
+    // const ExceptionCheck = envWrapper.getFunction(JNI.ExceptionCheck)
+    // Interceptor.replace(NewObjectV, new NativeCallback(function (env, clazz, methodID, rawargs) {
+    //     logger.info({ tag: 'check' }, `${ExceptionCheck(env)} ${env} ${clazz} ${methodID} ${rawargs}`)
+
+    //     return NewObjectV(...arguments)
+    // }, JNI.NewObjectV.retType, JNI.NewObjectV.argTypes))
+
+
+    // for (const NewObject of [JNI.NewObject, JNI.NewObjectA, JNI.NewObjectV]) {
+    //     repl(envWrapper, NewObject, function (retval, env, clazz, methodID, args) {
+    //         if (!predicate(this) || isNully(clazz) || isNully(methodID) || isNully(retval) || isNully(env)) return;
+    //         // const method = resolveMethod(env as NativePointer, clazz as NativePointer, methodID as NativePointer, false);
+    //         // const jArgs = envWrapper.jniInterceptor.getCallMethodArgs(NewObject.name, [env as NativePointer, clazz as NativePointer, methodID as NativePointer, args as NativePointer], method);
+    //         // const msg = formatCallMethod(env as NativePointer, NewObject.name, methodID as NativePointer, method, jArgs);
+    //         const msg = `${methodID} ${retval}`
     //         gLogger.info(`[${dim(NewObject.name)}] ${msg}`);
     //     })
     // };
 
     const fn = (arg: JniDefinition<any, any>) => envWrapper.getFunction(arg);
     const jfn = (arg: JniDefinition<any, any> & { name: string }) => new JNIMethod(arg.name, fn(arg));
-
-    const addrsCallStatic: JNIMethod[] = [
-        ...Object.values(JNI)
-            .filter((x) => x.name.startsWith('CallStatic'))
-            .map((x: JniMethodDefinition) => new JNIMethod(x.name, envWrapper.getFunction(x))),
-    ];
-    const addrsCallNonvirtual: JNIMethod[] = [
-        ...Object.values(JNI)
-            .filter((x) => x.name.startsWith('CallNonvirtual'))
-            .map((x: JniMethodDefinition) => new JNIMethod(x.name, envWrapper.getFunction(x))),
-    ];
-    const addrsCallMethod: JNIMethod[] = [
-        ...Object.values(JNI)
-            .filter(
-                (x) =>
-                    x.name.startsWith('Call') &&
-                    x.name.includes('Method') &&
-                    !x.name.includes('Static') &&
-                    !x.name.includes('Nonvirtual'),
-            )
-            .map((x: JniMethodDefinition) => new JNIMethod(x.name, envWrapper.getFunction(x))),
-    ];
-    const addrsNewObject: JNIMethod[] = [jfn(JNI.NewObject), jfn(JNI.NewObjectV), jfn(JNI.NewObjectA)];
-
     // for (const { name, address } of symbols) {
     //     if (
     //         name.includes('art') &&
@@ -334,14 +350,35 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
             }),
         });
 
-    for (const NewObject of [JNI.NewObject, JNI.NewObjectA, JNI.NewObjectV]) {
-        repl(envWrapper, NewObject, function(retval, env, clazz, methodID, args) {
-            if (!predicate(this) || isNully(clazz) || isNully(methodID) || isNully(retval)) return
-            
-            const method = resolveMethod(env as NativePointer, clazz as NativePointer, methodID as NativePointer, false)
-            const jArgs = envWrapper.jniInterceptor.getCallMethodArgs(NewObject.name, [env as NativePointer, clazz as NativePointer, methodID as NativePointer, args as NativePointer], method);
-            const msg = formatCallMethod(env as NativePointer, NewObject.name, methodID as NativePointer, method, jArgs)
-            gLogger.info(`[${dim('NewObject')}] ${msg}`)
+    for (const Obj of [JNI.NewObject, JNI.NewObjectA, JNI.NewObjectV]) {
+        continue
+        repl(envWrapper, Obj, function (retval, env, clazz, methodID, args) {
+            if (!predicate(this) || isNully(clazz) || isNully(methodID) || isNully(retval) || isNully(args)) return;
+
+            const method = resolveMethod(
+                env as NativePointer,
+                clazz as NativePointer,
+                methodID as NativePointer,
+                false,
+            );
+            const jArgs = envWrapper.jniInterceptor.getCallMethodArgs(
+                Obj.name,
+                [
+                    env as NativePointer,
+                    clazz as NativePointer,
+                    methodID as NativePointer,
+                    args as NativePointer,
+                ],
+                method,
+            );
+            const msg = formatCallMethod(
+                env as NativePointer,
+                Obj.name,
+                methodID as NativePointer,
+                method,
+                jArgs,
+            );
+            gLogger.info(`[${dim('NewObject')}] ${msg}`);
         });
     }
 
@@ -386,56 +423,106 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
     //     Interceptor.attach(address, cb);
     // }
 
-    // for (const { address, name } of addrsCallMethod) {
-    //     const cb = JniInvokeCallbacks(envWrapper, name, JniInvokeMode.Normal, predicate, {
-    //         onEnter({ method, env, methodID, jArgs }) {
-    //             const msg = formatCallMethod(env, name, methodID, method, jArgs);
-    //             if (method?.className === ClassesString.ClassLoader && method?.name === 'loadClass') {
-    //                 for (const skip of [
-    //                     'org/cocos2dx/lib/CanvasRenderingContext2DImpl',
-    //                     'com/cocos/lib/CanvasRenderingContext2DImpl',
-    //                     'com/cocos/lib/CocosHelper',
-    //                 ]) {
-    //                     if(msg.includes(skip)) {
-    //                         this.ignore = true;
-    //                         return;
-    //                     }
-    //                 }
-    //             }
-    //             if (method?.className === 'com.cocos.lib/CocosHelper' || method?.className === 'com.cocos.lib.CanvasRenderingContext2DImpl') {
-    //                 this.ignore = true;
-    //                 return;
-    //             }
-    //             gLogger.info(`[${dim(name)}] ${msg} ${DebugSymbol.fromAddress(this.returnAddress)}`);
-    //         },
-    //         onLeave({ env, method }, retval) {
-    //             if (this.ignore || method?.isVoid) return
-    //             const msg = formatMethodReturn(env, retval, method?.returnType);
-    //             gLogger.info(`[${dim(name)}] ${msg} ${DebugSymbol.fromAddress(this.returnAddress)}`);
-    //         },
-    //     });
-    //     Interceptor.attach(address, cb)   
-    // }
+    const CallObjects = [
+        JNI.CallObjectMethod,
+        JNI.CallObjectMethodA,
+        JNI.CallObjectMethodV,
+        JNI.CallIntMethod,
+        JNI.CallIntMethodA,
+        JNI.CallIntMethodV,
+        JNI.CallBooleanMethod,
+        JNI.CallBooleanMethodA,
+        JNI.CallBooleanMethodV,
+        JNI.CallDoubleMethod,
+        JNI.CallDoubleMethodA,
+        JNI.CallDoubleMethodV,
+        JNI.CallFloatMethod,
+        JNI.CallFloatMethodA,
+        JNI.CallFloatMethodV,
+        JNI.CallLongMethod,
+        JNI.CallLongMethodA,
+        JNI.CallLongMethodV,
+        JNI.CallVoidMethod,
+        JNI.CallVoidMethodA,
+        JNI.CallVoidMethodV,
+    ]
+    for (const j of CallObjects) {
+        const { address, name } = jfn(j)
+        const cb = JniInvokeCallbacks(envWrapper, j, JniInvokeMode.Normal, predicate, {
+            onEnter({ method, env, methodID, jArgs }) {
+                const msg = formatCallMethod(env, name, methodID, method, jArgs);
+                if (method?.className === ClassesString.ClassLoader && method?.name === 'loadClass') {
+                    for (const skip of [
+                        'org/cocos2dx/lib/CanvasRenderingContext2DImpl',
+                        'com/cocos/lib/CanvasRenderingContext2DImpl',
+                        'com/cocos/lib/CocosHelper',
+                    ]) {
+                        if (msg.includes(skip)) {
+                            this.ignore = true;
+                            return;
+                        }
+                    }
+                }
+                switch (method?.className) {
+                    case 'com.cocos.lib/CocosHelper':
+                    case 'com.cocos.lib.CanvasRenderingContext2DImpl':
+                        this.ignore = true;
+                        if (this.ignore) return;
+                        break;
+                    case "android.view.Choreographer":
+                        this.ignore = method?.name === 'postFrameCallback'
+                        if (this.ignore) return
+                        break;
+                    case "java.lang.Long":
+                        this.ignore = method?.name === 'longValue'
+                        if (this.ignore) return
+                        break;
+                }
+                gLogger.info(`[${dim(name)}] ${msg} ${DebugSymbol.fromAddress(this.returnAddress)}`);
+            },
+            onLeave({ env, method }, retval) {
+                if (this.ignore || method?.isVoid) return
+                const msg = formatMethodReturn(env, retval, method?.returnType);
+                gLogger.info(`[${dim(name)}] ${msg} ${DebugSymbol.fromAddress(this.returnAddress)}`);
+            },
+        });
+        Interceptor.attach(address, cb)
+    }
 }
 
 function repl<T extends NativeFunctionReturnType, R extends [] | NativeFunctionArgumentType[]>(
     envWrapper: EnvWrapper,
     def: JniDefinition<T, R>,
-    log: (this: InvocationContext | CallbackContext, retval: mFunctionReturn<T>, ...args: mFunctionParameters<R>) => void,
+    log: (
+        this: InvocationContext | CallbackContext,
+        retval: mFunctionReturn<T>,
+        ...args: mFunctionParameters<R>
+    ) => void,
 ) {
-    const fn = envWrapper.getFunction<T, R>(def)
-    const cb: NativeCallbackImplementation<any, any> = function(this, ...args: mFunctionParameters<R>): mFunctionReturn<T> {
+    const fn = envWrapper.getFunction<T, R>(def);
+    const cb: NativeCallbackImplementation<any, any> = function (
+        this,
+        ...args: mFunctionParameters<R>
+    ): mFunctionReturn<T> {
         const retval: mFunctionReturn<T> = fn(...args);
-        log.call(this, retval, ...args)
+        log.call(this, retval, ...args);
         return retval;
-    }
-    Interceptor.replace(fn, new NativeCallback(cb, def.retType as NativeCallbackReturnType, def.argTypes as [] | NativeCallbackArgumentType[]))
+    };
+    Interceptor.replace(
+        fn,
+        new NativeCallback(
+            cb,
+            def.retType as NativeCallbackReturnType,
+            def.argTypes as [] | NativeCallbackArgumentType[],
+        ),
+    );
 }
 
-type mFunction<T extends NativeFunctionReturnType, R extends [] | NativeFunctionArgumentType[]> = ReturnType<typeof asFunction<T, R>>
-type mFunctionReturn<T extends NativeFunctionReturnType> = ReturnType<mFunction<T, any>>
-type mFunctionParameters<R extends [] | NativeFunctionArgumentType[]> = Parameters<mFunction<any, R>>
+type mFunction<T extends NativeFunctionReturnType, R extends [] | NativeFunctionArgumentType[]> = ReturnType<
+    typeof asFunction<T, R>
+>;
+type mFunctionReturn<T extends NativeFunctionReturnType> = ReturnType<mFunction<T, any>>;
+type mFunctionParameters<R extends [] | NativeFunctionArgumentType[]> = Parameters<mFunction<any, R>>;
 
-
-export { asFunction, asLocalRef, hookLibart as attach, EnvWrapper, JNI };
+export { EnvWrapper, JNI, asFunction, asLocalRef, hookLibart as attach };
 

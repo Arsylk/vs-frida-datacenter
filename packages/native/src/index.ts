@@ -12,7 +12,7 @@ export * as Syscall from './syscall.js';
 export * as System from './system.js';
 export * as TheEnd from './theEnd.js';
 export * as Time from './time.js';
-export { dumpFile, getSelfFiles, tryResolveMapsSymbol } from './utils.js';
+export { dumpFile, getSelfFiles, traceInModules, tryResolveMapsSymbol } from './utils.js';
 
 function gPtr(value: string | number): NativePointer {
     return ptr(value).sub('0x100000');
@@ -51,9 +51,9 @@ function initLibart() {
             : undefined;
         anyJava.api['art::ArtMethod::Invoke'] ??=
             name.includes('Invoke') &&
-            name.includes('_ZN3art9ArtMethod') &&
-            name.includes('Thread') &&
-            name.includes('JValue')
+                name.includes('_ZN3art9ArtMethod') &&
+                name.includes('Thread') &&
+                name.includes('JValue')
                 ? new NativeFunction(address, 'pointer', ['pointer', 'pointer', 'int', 'pointer', 'pointer'])
                 : undefined;
     }

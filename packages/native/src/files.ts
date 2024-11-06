@@ -363,7 +363,7 @@ function hookRemove(predicate: (ptr: NativePointer) => boolean, ignore?: (path: 
                         const strpath = pathname.readCString();
                         const replace = ignore?.(`${pathname}`) === true;
                         const fmt = replace ? bgRed : String;
-                        logger.info({ tag: key }, `${fmt(bold(gray(`${strpath}`)))}`);
+                        logger.info({ tag: key }, `${fmt(bold(gray(`${strpath}`)))}` + ` ${DebugSymbol.fromAddress(this.returnAddress)}`);
                     }
                     return (ret ??= func(pathname));
                 },

@@ -78,5 +78,12 @@ function asLocalRef<T>(jniEnv: NativePointer, ptr: NativePointer, fn: (ptr: Nati
     }
 }
 
-export { asFunction, asLocalRef, EnvWrapper, type JniDefinition };
+function getClassName(env: NativePointer, handle: NativePointer) {
+    const getName = (ptr: NativePointer) => Java.cast(ptr, Classes.Class).getName()
+    return `${handle}`.length === 12
+        ? asLocalRef(env, handle, getName)
+        : getName(handle)
+}
+
+export { asFunction, asLocalRef, EnvWrapper, getClassName, type JniDefinition };
 

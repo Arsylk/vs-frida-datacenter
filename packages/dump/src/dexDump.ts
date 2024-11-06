@@ -1,37 +1,14 @@
-import { getApplicationContext } from '@clockwork/common';
 import { subLogger } from '@clockwork/logging';
+import { getSelfFiles } from '@clockwork/native';
+import { mkdir } from '@clockwork/native/dist/utils.js';
 const logger = subLogger('dexdump');
 
 const FLAG_ENABLE_DEEP_SEARCH = false;
 
 function dump() {
     let enable_deep_search = FLAG_ENABLE_DEEP_SEARCH;
-    const know_paths = ['.js', '.html', '.xml'];
-    const AppClassLoader = Java.use('android.app.ActivityThread')
-        .currentApplication()
-        .getApplicationContext()
-        .getClassLoader();
-    const currentApplication = Java.use('android.app.ActivityThread').currentApplication();
-    const context = getApplicationContext();
-
-    const file = Java.use('java.io.File');
-    const string = Java.use('java.lang.String');
-    const BufferedInputStream = Java.use('java.io.BufferedInputStream');
-    const FileOutputStream = Java.use('java.io.FileOutputStream');
-    const OutputStreamWriter = Java.use('java.io.BufferedOutputStream');
-    const files_path = 'widget';
-    const listFile = context.getAssets().list(files_path);
-    const strClass = Java.use('java.lang.String');
-    logger.trace(listFile);
-
-    // For Device
-    const dir_to_write = file.$new(`${context.getFilesDir()}/frida_dumped_files/`);
-    dir_to_write.mkdirs();
+    mkdir(`${getSelfFiles()}/frida_dumped_files/`);
     const scandexVar = scandex();
-    // logger.trace(JSON.stringify(scandexconst))
-
-    // missing cleanup
-
     scandexVar.forEach((scandex) => {
         try {
             const buf = memorydump(scandex.addr, scandex.size);
@@ -57,7 +34,7 @@ function dump() {
             //@ts-ignore
             const file: any = new File(
                 //@ts-ignore
-                `${context.getFilesDir()}/frida_dumped_files/${scandex.addr}.dex`,
+                `${getSelfFiles()}/frida_dumped_files/${scandex.addr}.dex`,
                 'wb',
             );
             file.write(buffer);
@@ -142,7 +119,7 @@ function dump() {
                         result.push({ addr: range.base, size: dex_size });
                     }
                 }
-            } catch (e) {}
+            } catch (e) { }
         });
 
         return result;
