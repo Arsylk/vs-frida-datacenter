@@ -1,5 +1,6 @@
 import { Libc } from '@clockwork/common';
 import { logger } from '@clockwork/logging';
+import { traceInModules } from './utils.js';
 
 function hookExit(predicate: (ptr: NativePointer) => boolean) {
     const array: ('exit' | '_exit' | 'abort')[] = ['exit', '_exit', 'abort'];
@@ -28,9 +29,8 @@ function hookExit(predicate: (ptr: NativePointer) => boolean) {
         new NativeCallback(
             function (err) {
                 const stacktrace = Thread.backtrace(this.context, Backtracer.ACCURATE)
-                    .map(DebugSymbol.fromAddress)
-                    .join('\n');
-                logger.info({ tag: 'raise' }, `err: ${err} ${stacktrace}`);
+                    .join('\n\t');
+                logger.info({ tag: 'raise' }, `err: ${err} ${traceInModules(this.returnAddress)} ${stacktrace}`);
                 return 0;
             },
             'int',
@@ -44,7 +44,9 @@ function hookKill(predicate: (ptr: NativePointer) => boolean) {
         Libc.kill,
         new NativeCallback(
             (pid, code) => {
-                logger.info({ tag: 'kill' }, `kill(${pid}, ${code}) called !`);
+                const stacktrace = Thread.backtrace(this.context, Backtracer.ACCURATE)
+                    .join('\n\t');
+                logger.info({ tag: 'kill' }, `kill(${pid}, ${code}) ${traceInModules(this.returnAddress)} ${stacktrace}`);
                 return 0;
             },
             'int',

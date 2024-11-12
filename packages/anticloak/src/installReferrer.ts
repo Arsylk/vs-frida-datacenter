@@ -64,6 +64,7 @@ function performReplace(
             return;
         }
         const [startMethod, getMethod] = matchReferrerClientMethods(paretnClass);
+        logger.info({ tag: 'ref' }, `startConnection:  ${startMethod} getInstallReferrer: ${getMethod}`)
 
         hook(paretnClass, startMethod, {
             predicate: startConnectionPredicate,
@@ -75,6 +76,7 @@ function performReplace(
                 }
 
                 const onFinishedMethod = matchStateListenerMethod(listenerClass);
+                logger.info({ tag: 'ref' }, `onInstallReferrerSetupFinished:  ${onFinishedMethod}`)
 
                 let msg = Color.method(startMethod);
                 msg += Color.bracket('(');
@@ -126,12 +128,15 @@ function matchReferrerClientMethods(clazz: Java.Wrapper): [string, string] {
                 const def: Java.MethodDispatcher = clazz[member];
                 if (!def) return;
                 for (const [i, overload] of def.overloads.entries()) {
+                    logger.info({ tag: 'ref start and get' }, `${overload}`)
                     if (startConnectionPredicate(overload, i)) {
+                        logger.info({ tag: 'ref start connection' }, 'found')
                         startMethod ??= member;
                         continue;
                     }
 
                     if (getInstallReferrerPredicate(overload, i)) {
+                        logger.info({ tag: 'ref get isntall referrer' }, 'found')
                         getMethod ??= member;
                     }
                 }
@@ -152,7 +157,9 @@ function matchStateListenerMethod(clazz: Java.Wrapper): string {
                 const def: Java.MethodDispatcher = clazz[member];
                 if (!def) return;
                 for (const [i, overload] of def.overloads.entries()) {
+                    logger.info({ tag: 'ref setupfinished' }, `${overload}`)
                     if (onInstallReferrerSetupFinishedPredicate(overload, i)) {
+                        logger.info({ tag: 'ref setupfinished' }, 'found')
                         found ??= member;
                         return;
                     }

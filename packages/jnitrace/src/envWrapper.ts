@@ -85,5 +85,10 @@ function getClassName(env: NativePointer, handle: NativePointer) {
         : getName(handle)
 }
 
-export { asFunction, asLocalRef, EnvWrapper, getClassName, type JniDefinition };
+function getObjectClassName(env: NativePointer, handle: NativePointer) {
+    const clazz = asFunction(env, JNI.GetObjectClass)(env, handle)
+    return getClassName(env, clazz)
+}
+
+export { asFunction, asLocalRef, EnvWrapper, getClassName, getObjectClassName, type JniDefinition };
 

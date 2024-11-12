@@ -1,5 +1,6 @@
 import { Libc } from '@clockwork/common';
 import { logger } from '@clockwork/logging';
+import { Inject } from './inject.js';
 
 function dellocate(ptr: NativePointer) {
     try {
@@ -43,7 +44,7 @@ function getSelfFiles(): string {
 }
 
 function traceInModules(ptr: NativePointer) {
-    for (const { base, name, size } of Process.enumerateModules()) {
+    for (const { base, name, size } of Inject.modules.values()) {
         if (ptr > base && ptr < base.add(size)) {
             return `${ptr.toString(16)} at ${name}!0x${ptr.sub(base).toString(16)}`
         }

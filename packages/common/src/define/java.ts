@@ -1,6 +1,9 @@
 import { type PropertyJavaUseMapper, proxyJavaUse } from '../internal/proxy.js';
 
 const ClassesString = {
+    Map: 'java.util.Map',
+    HashMap: 'java.util.HashMap',
+    CharSequence: 'java.lang.CharSequence',
     String: 'java.lang.String',
     Long: 'java.lang.Long',
     Boolean: 'java.lang.Boolean',

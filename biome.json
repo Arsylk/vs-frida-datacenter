@@ -46,6 +46,7 @@
     },
     "files": {
         "ignore": ["dist/**", "node_modules/**"],
-        "include": ["*.ts"]
+        "include": ["*.ts"],
+        "maxSize": 10485760
     }
 }

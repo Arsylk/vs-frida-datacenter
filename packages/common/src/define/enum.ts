@@ -1,3 +1,15 @@
+const JavaPrimitive = {
+    boolean: 'Z',
+    byte: 'B',
+    char: 'C',
+    double: 'D',
+    float: 'F',
+    int: 'I',
+    long: 'J',
+    short: 'S',
+    void: 'V',
+} as const;
+
 enum mode {
     F_OK = 0,
     X_OK = 1,
@@ -31,8 +43,7 @@ enum a_type {
     AT_RSEQ_FEATURE_SIZE = 27,
     AT_RSEQ_ALIGN = 28,
     AT_EXECFN = 31,
-    AT_MINSIGSTKSZ = 51
+    AT_MINSIGSTKSZ = 51,
 }
 
-export { a_type, mode };
-
+export { JavaPrimitive, a_type, mode };

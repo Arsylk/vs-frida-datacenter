@@ -1,8 +1,8 @@
-import { asLocalRef } from '@clockwork/jnitrace';
+import { JNI, asFunction, asLocalRef } from '@clockwork/jnitrace';
 import { Color } from '@clockwork/logging';
 import { ClassesString } from './define/java.js';
 import { toHex } from './text.js';
-const { black, gray, red, green, cyan, dim, italic, bold, yellow, hidden } = Color.use();
+const { black, gray, red, green, orange, dim, italic, bold, yellow, hidden } = Color.use();
 
 function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv()?.handle): string {
     if (value === undefined) return Color.number(undefined);
@@ -10,13 +10,94 @@ function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv
 
     //loop over array until max length
     if (type?.endsWith('[]')) {
-        const itemType = type.substring(type.length - 3);
+        const baseType = type.replace(/[\\[\\]]/g, '')
+        const itemType = type.substring(0, type.length - 2)
         const items: string[] = [];
-        const size = value.size ?? value.length;
-        6;
+        // biome-ignore lint/style/useConst: 
+        let getItem = (i: number) => value[i];
+        let size = value.size ?? value.length;
+
+        // native pointer to array only
+        if (!size) {
+            const GetArrayItem = asFunction(jniEnv, JNI.GetObjectArrayElement)
+            size = asFunction(jniEnv, JNI.GetArrayLength)(jniEnv, value.$h ?? value)
+            getItem = (i: number) => vs(GetArrayItem(jniEnv, value.$h ?? value, i), itemType, jniEnv)
+            // return `${black('[')} ${gray(itemType)}<${dim(orange(size))}> ${black(']')}`;
+        }
+        //     let GetArrayItem: any;
+        //     switch (baseType) {
+        //         // case 'boolean':
+        //         //     GetArrayItem = JNI.GetBooleanArrayElements
+        //         //     break;
+        //         // case 'char':
+        //         //     GetArrayItem = JNI.GetCharArrayElements
+        //         //     break;
+        //         // case 'short':
+        //         //     GetArrayItem = JNI.GetShortArrayElements
+        //         //     break;
+        //         // case 'int':
+        //         //     GetArrayItem = JNI.GetIntArrayElements
+        //         //     break;
+        //         // case 'byte': {
+        //         //     const bArr = asFunction(jniEnv, JNI.GetByteArrayElements)(jniEnv, value, ptr(0x0))
+        //         //     getItem = (i: number) => bArr.add(4 * i).readS8()
+        //         //     break;
+        //         // }
+        //         // case 'long':
+        //         //     GetArrayItem = JNI.GetLongArrayElements
+        //         //     break;
+        //         // case 'flaot':
+        //         //     GetArrayItem = JNI.GetFloatArrayElements
+        //         //     break;
+        //         // case 'double':
+        //         //     GetArrayItem = JNI.GetDoubleArrayElements
+        //         //     break;
+        //         default:
+        //             GetArrayItem = asFunction(jniEnv, JNI.GetObjectArrayElement)
+        //             getItem = (i: number) => {
+        //                 let item = GetArrayItem(jniEnv, value.$h ?? value, i)
+        //                 if (!isNully(item)) switch (baseType) {
+        //                     case 'boolean': {
+        //                         item = item.readU8();
+        //                         break;
+        //                     }
+        //                     case 'byte': {
+        //                         item = item.readS8();
+        //                         break;
+        //                     }
+        //                     case 'char': {
+        //                         item = item.readU16();
+        //                         break;
+        //                     }
+        //                     case 'short': {
+        //                         item = item.readS16();
+        //                         break;
+        //                     }
+        //                     case 'int': {
+        //                         item = item.readS32();
+        //                         break;
+        //                     }
+        //                     case 'long': {
+        //                         item = item.readS64();
+        //                         break;
+        //                     }
+        //                     case 'double': {
+        //                         item = item.readDouble();
+        //                         break;
+        //                     }
+        //                     case 'float': {
+        //                         item = item.readFloat();
+        //                         break;
+        //                     }
+        //                 }
+        //                 return `${vs(item, itemType, jniEnv)}`
+        //             }
+        //     }
+        // }
+
         let messageSize = 0;
         for (let i = 0; i < size; i += 1) {
-            const mapped = `${value[i]}`;
+            const mapped = `${getItem(i)}`;
             items.push(mapped);
             messageSize += mapped.length;
             if ((messageSize > 200 || i >= 16) && i + 1 < size) {
@@ -99,8 +180,8 @@ function visualObject(value: NativePointer, type?: string): string {
     // String(value) + String(value.readByteArray(8));
 
     try {
-        if (type === ClassesString.String) {
-            const str = Java.cast(value, Classes.String);
+        if (type === ClassesString.String || type === ClassesString.CharSequence) {
+            const str = Java.cast(value, Classes.CharSequence);
             return Color.string(str);
         }
 

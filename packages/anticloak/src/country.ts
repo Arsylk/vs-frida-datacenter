@@ -115,6 +115,11 @@ function mock(keyOrConfig: Config | keyof typeof Configurations) {
         replace: always(subscriber),
     });
     hook(Classes.TimeZone, 'getID', { replace: always(config.timezoneId) });
+    hook(Classes.TimeZone, 'getDefault', {
+        replace() {
+            return Classes.TimeZone.getTimeZone('timezoneId')
+        }
+    });
     hook(Classes.Locale, 'getDefault', {
         replace: () => Classes.Locale.$new(config.locale[1], config.locale[0]),
         logging: { call: false, return: false },

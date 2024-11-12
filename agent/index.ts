@@ -1,5 +1,4 @@
 import * as Anticloak from '@clockwork/anticloak';
-import * as Cocos2dx from '@clockwork/cocos2dx';
 import {
     Classes,
     ClassesString,
@@ -18,6 +17,7 @@ import type { FridaMethodThisCompat } from '@clockwork/hooks/dist/types';
 import * as JniTrace from '@clockwork/jnitrace';
 import { Color, logger } from '@clockwork/logging';
 import * as Native from '@clockwork/native';
+import { getSelfProcessName } from '@clockwork/native/dist/utils.js';
 import * as Network from '@clockwork/network';
 import * as Unity from '@clockwork/unity';
 const { red, green, redBright, magentaBright: pink, gray, dim, black } = Color.use();
@@ -228,6 +228,7 @@ function hookCrypto() {
                 );
                 //@ts-ignore
                 transformed ??= `${Classes.String.valueOf(returnValue)}`;
+                logger.info({ tag: 'decrypt' }, `${transformed}`);
             }
         },
         logging: { arguments: false, return: false },
@@ -531,16 +532,12 @@ Java.performNow(() => {
             case 'KEY_LOCALE':
             case 'key_country':
                 return 'BR';
-            case 'ro.aliyun.clouduuid':
-            case 'ro.sys.aliyun.clouduuid':
-            case 'loginID':
-                return '4102978102398';
         }
     });
     hookPreferences(() => { });
     hookFirestore();
     hookCrypto();
-    hookRuntimeExec();
+    // hookRuntimeExec();
 
     bypassIntentFlags();
     bypassReceiverFlags();
@@ -643,11 +640,11 @@ Process.setExceptionHandler((exception: ExceptionDetails) => {
         { tag: 'exception' },
         `${black(exception.type)}: ${exception.memory?.operation} ${exception.memory?.address} at: ${gray(`${exception.address}`)} x0: ${red(`${ctx.x0}`)} x1: ${red(`${ctx.x1}`)}`,
     );
-    return exception.type === 'abort';
+    return exception.type === 'abort' && false;
 });
 Native.initLibart();
-Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x0080004c), fn_key: ptr(0x006f9170) });
-// Cocos2dx.hookLocalStorage((key) => {
+// Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x0080004c), fn_key: ptr(0x006f9170) });
+// Cocos2dx.hookLocalStorage(function (key) {
 //     switch (key) {
 //         case '__FirstLanuchTime':
 //             return 'false';
@@ -656,22 +653,32 @@ Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x0080004c), fn_key: ptr(0
 //         case 'isRealUser':
 //         case 'force_update':
 //             return 'true';
+//         case 'Shelf Quest Match & Clear_adsdkPayloads': {
+//             if (done) return
+//             done = true
+//             const value = this.fallback();
+//             logger.info({ tag: 'localstor' }, `value ${value}`)
+//             const now = Math.floor(Date.now() / 1000) * 1000
+//             return `[{"ip_config_value":"\\\"{\\\\\\"region\\\\\\":\\\\\\"BR\\\\\\",\\\\\\"forbid_red_envelope\\\\\\":false,\\\\\\"forbid_used\\\\\\":false,\\\\\\"forbid_pai\\\\\\":false,\\\\\\"is_forbid\\\\\\":false,\\\\\\"kbri\\\\\\":60,\\\\\\"recog_ire\\\\\\":true,\\\\\\"zip_version\\\\\\":\\\\\\"\\\\\\",\\\\\\"zip_url\\\\\\":\\\\\\"\\\\\\"}\\\"","ip_config_status":1,"ip_first_req":false,"redirect_type":"0","event_name":"ip_config","ts":${now},"timestamp":${now},"system_time":${now},"event_id":"3a5e69af-17c5-420a-8643-78ebb467941c","report_id":"2d312278-00eb-429f-a16c-12d488a5bc5c","target_p":"adsdk"}]`
+//         }
 //     }
 // });
 
-// Unity.setVersion('2022.1.10f1');
+
+
+// Unity.setVersion('2018.4.36f1');
 // Unity.patchSsl();
 // Unity.attachStrings();
 // Unity.attachScenes();
 
 emitter.on('il2cpp', Unity.listGameObjects);
 let enable = true;
-setTimeout(() => (enable = true), 5000);
+setTimeout(() => (enable = true), 10000);
 emitter.on('jni', (_) => (enable = !enable));
+
 
 const isNativeEnabled = true;
 const predicate = (r) => {
-    // if (1 === 1) return false;
     function isWithinOwnRange(ptr: NativePointer) {
         const path = Native.Inject.modules.findPath(ptr);
 
@@ -688,21 +695,23 @@ JniTrace.attach(({ returnAddress }) => {
     return enable && predicate(returnAddress);
 });
 
+Dump.initSoDump()
+
 Native.Files.hookAccess(predicate);
 // Native.Files.hookOpen(predicate);
 Native.Files.hookFopen(predicate, true, (path) => {
-    // if (path === '/proc/self/maps' || path === `/proc/${Process.id}/maps`) {
-    //     return `/data/data/${getSelfProcessName()}/files/fake_maps`;
-    // }
+    if (path === '/proc/self/maps' || path === `/proc/${Process.id}/maps`) {
+        return `/data/data/${getSelfProcessName()}/files/fake_maps`;
+    }
     if (path?.endsWith('/su')) {
         return path.replace(/\/su$/, '/nya')
     }
 });
 Native.Files.hookOpendir(predicate);
-// Native.Files.hookStat(predicate);
+Native.Files.hookStat(predicate);
 Native.Files.hookRemove(predicate);
-// Native.Strings.hookStrlen(predicate);
-// Native.Strings.hookStrcpy(predicate);
+Native.Strings.hookStrlen(predicate);
+Native.Strings.hookStrcpy(predicate);
 // Native.Strings.hookStrcmp(predicate);
 // Native.Strings.hookStrstr(predicate);
 // Native.Strings.hookStrtoLong(predicate);
@@ -712,14 +721,14 @@ Native.TheEnd.hook(predicate);
 Native.System.hookSystem();
 Native.System.hookGetauxval();
 
-// Native.Time.hookDifftime(predicate);
-// Native.Time.hookTime(predicate);
+Native.Time.hookDifftime(predicate);
+Native.Time.hookTime(predicate);
 // Native.Time.hookLocaltime(predicate);
 // Native.Time.hookGettimeofday(predicate);
 Anticloak.Debug.hookPtrace();
 Native.Pthread.hookPthread_create();
-// Native.Logcat.hookLogcat();
-Anticloak.Jigau.memoryPatch();
+Native.Logcat.hookLogcat();
+// Anticloak.Jigau.memoryPatch();
 
 Interceptor.attach(Libc.sprintf, {
     onEnter(args) {
@@ -757,10 +766,10 @@ Interceptor.attach(Module.getExportByName(null, 'glGetString'), {
     onLeave(retval) {
         const name = this.name.toInt32();
         const label = GL_ENUM[name] ?? 'UNKNOWN';
-        if (label === 'GL_VENDOR' || label === 'GL_RENDERER') {
+        if (label === 'GL_VENDOR' || label === 'GL_RENDERER' || label === 'GL_EXTENSIONS') {
             const value = retval.readCString();
             const newvalue = value?.replace(
-                /x86|sdk|open|source|emulator|google|aosp|apple|ranchu|goldfish|cuttlefish|generic|unknown/gi,
+                /x86|sdk|open|source|emulator|google|aosp|apple|ranchu|goldfish|cuttlefish|generic|unknown|android_emu/gi,
                 'nya',
             );
             retval.writeUtf8String(newvalue ?? '');
