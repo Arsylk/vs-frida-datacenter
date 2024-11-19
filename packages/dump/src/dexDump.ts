@@ -1,11 +1,18 @@
+<<<<<<< HEAD
 import { getApplicationContext } from '@clockwork/common';
 import { subLogger } from '@clockwork/logging';
+=======
+import { subLogger } from '@clockwork/logging';
+import { getSelfFiles } from '@clockwork/native';
+import { mkdir } from '@clockwork/native/dist/utils.js';
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 const logger = subLogger('dexdump');
 
 const FLAG_ENABLE_DEEP_SEARCH = false;
 
 function dump() {
     let enable_deep_search = FLAG_ENABLE_DEEP_SEARCH;
+<<<<<<< HEAD
     const know_paths = ['.js', '.html', '.xml'];
     const AppClassLoader = Java.use('android.app.ActivityThread')
         .currentApplication()
@@ -32,6 +39,10 @@ function dump() {
 
     // missing cleanup
 
+=======
+    mkdir(`${getSelfFiles()}/frida_dumped_files/`);
+    const scandexVar = scandex();
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
     scandexVar.forEach((scandex) => {
         try {
             const buf = memorydump(scandex.addr, scandex.size);
@@ -57,7 +68,11 @@ function dump() {
             //@ts-ignore
             const file: any = new File(
                 //@ts-ignore
+<<<<<<< HEAD
                 `${context.getFilesDir()}/frida_dumped_files/${scandex.addr}.dex`,
+=======
+                `${getSelfFiles()}/frida_dumped_files/${scandex.addr}.dex`,
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
                 'wb',
             );
             file.write(buffer);
@@ -142,7 +157,7 @@ function dump() {
                         result.push({ addr: range.base, size: dex_size });
                     }
                 }
-            } catch (e) {}
+            } catch (e) { }
         });
 
         return result;
@@ -222,4 +237,9 @@ function scheduleDexDump(delay = 10_000) {
     }, delay);
 }
 
+<<<<<<< HEAD
 export { scheduleDexDump, verify as dexBytesVerify };
+=======
+export { verify as dexBytesVerify, scheduleDexDump };
+
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2

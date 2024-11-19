@@ -1,11 +1,15 @@
 import { Libc } from '@clockwork/common';
 import { logger } from '@clockwork/logging';
+<<<<<<< HEAD
+=======
+import { Inject } from './inject.js';
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 
 function dellocate(ptr: NativePointer) {
     try {
         const env = Java.vm.tryGetEnv();
         env?.ReleaseStringUTFChars(ptr);
-    } catch (_) {}
+    } catch (_) { }
 }
 
 function mkdir(path: string): boolean {
@@ -24,7 +28,7 @@ function mkdir(path: string): boolean {
 
 function getSelfProcessName(): string | null {
     const path = Memory.allocUtf8String('/proc/self/cmdline');
-    const fd = Libc.open(path, 0);
+    const { value: fd } = Libc.open(path, 0);
     dellocate(path);
     if (fd !== -1) {
         const buffer = Memory.alloc(0x1000);
@@ -40,6 +44,15 @@ function getSelfFiles(): string {
     const files_dir = `/data/data/${process_name}/files`;
     mkdir(files_dir);
     return files_dir;
+}
+
+function traceInModules(ptr: NativePointer) {
+    for (const { base, name, size } of Inject.modules.values()) {
+        if (ptr > base && ptr < base.add(size)) {
+            return `${ptr.toString(16)} at ${name}!0x${ptr.sub(base).toString(16)}`
+        }
+    }
+    return `${ptr.toString(16)} at ${ptr}}`
 }
 
 function chmod(path: string): void {
@@ -112,11 +125,16 @@ function tryDemangle<T extends string | null>(name: T): T {
         const demangled = buf.readCString();
         dellocate(buf);
         if (demangled && demangled.length > 0) return demangled as T;
+<<<<<<< HEAD
     } catch (e) {}
+=======
+    } catch (e) { }
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
     return name;
 }
 
 const sscanf = new NativeFunction(Module.getExportByName('libc.so', 'sscanf'), 'int', [
+<<<<<<< HEAD
                     'pointer',
                     'pointer',
                     'pointer',
@@ -127,6 +145,18 @@ const sscanf = new NativeFunction(Module.getExportByName('libc.so', 'sscanf'), '
                     'pointer',
                     'pointer',
                 ]);
+=======
+    'pointer',
+    'pointer',
+    'pointer',
+    'pointer',
+    'pointer',
+    'pointer',
+    'pointer',
+    'pointer',
+    'pointer',
+]);
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 function tryResolveMapsSymbol(loc: NativePointer, pid: number = Process.id): DebugSymbol | null {
     try {
         const path = Memory.allocUtf8String(`/proc/${pid}/maps`);
@@ -149,7 +179,11 @@ function tryResolveMapsSymbol(loc: NativePointer, pid: number = Process.id): Deb
 
             const template = Memory.allocUtf8String('%lx-%lx %s %lx %s %ld %s');
             while ((nread = Libc.fgets(linePtr, size, fd.value))) {
+<<<<<<< HEAD
                 
+=======
+
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
                 const read = sscanf(linePtr, template, begin, end, perm, foo, dev, inode, mapname);
                 logger.info({ tag: 'mapres' }, `${linePtr.readCString()} ${read}`);
             }
@@ -167,9 +201,15 @@ export {
     dellocate,
     dumpFile,
     getSelfFiles,
+<<<<<<< HEAD
     getSelfProcessName,
     readFdPath,
     readTidName,
+=======
+    getSelfProcessName, mkdir, readFdPath,
+    readTidName,
+    traceInModules,
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
     tryDemangle,
     tryResolveMapsSymbol
 };

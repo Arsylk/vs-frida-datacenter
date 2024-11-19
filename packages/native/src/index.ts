@@ -12,7 +12,11 @@ export * as Syscall from './syscall.js';
 export * as System from './system.js';
 export * as TheEnd from './theEnd.js';
 export * as Time from './time.js';
+<<<<<<< HEAD
 export { dumpFile, getSelfFiles, tryResolveMapsSymbol } from './utils.js';
+=======
+export { dumpFile, getSelfFiles, traceInModules, tryResolveMapsSymbol } from './utils.js';
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 
 function gPtr(value: string | number): NativePointer {
     return ptr(value).sub('0x100000');
@@ -51,12 +55,22 @@ function initLibart() {
             : undefined;
         anyJava.api['art::ArtMethod::Invoke'] ??=
             name.includes('Invoke') &&
+<<<<<<< HEAD
             name.includes('_ZN3art9ArtMethod') &&
             name.includes('Thread') &&
             name.includes('JValue')
                 ? new NativeFunction(address, 'pointer', ['pointer', 'pointer', 'int', 'pointer', 'pointer'])
                 : undefined;
     }
+=======
+                name.includes('_ZN3art9ArtMethod') &&
+                name.includes('Thread') &&
+                name.includes('JValue')
+                ? new NativeFunction(address, 'pointer', ['pointer', 'pointer', 'int', 'pointer', 'pointer'])
+                : undefined;
+    }
+    anyJava.api['art::DexFile::OpenMemory'] = module.findExportByName('_ZN3art7DexFile10OpenMemoryEPKhjRKNSt3__112basic_stringIcNS3_11char_traitsIcEENS3_9allocatorIcEEEEjPNS_6MemMapEPKNS_10OatDexFileEPS9_')
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 }
 
 // * pointless ? no idea what could be the use case for this

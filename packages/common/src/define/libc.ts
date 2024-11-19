@@ -1,10 +1,27 @@
 import { type PropertyCallbackMapper, proxyCallback } from '../internal/proxy.js';
 
 const LibcFinder = {
+<<<<<<< HEAD
     // int open(const char *pathname, int flags, mode_t mode);
     open: () => {
         const ptr = Module.getExportByName('libc.so', 'open');
         return new NativeFunction(ptr, 'int', ['pointer', 'int', '...']);
+=======
+    // int open(const char *pathname, int flags);
+    open: () => {
+        const ptr = Module.getExportByName('libc.so', 'open');
+        return new SystemFunction(ptr, 'int', ['pointer', 'int']);
+    },
+    // int fileno(FILE *stream);
+    fileno: () => {
+        const ptr = Module.getExportByName('libc.so', 'fileno');
+        return new SystemFunction(ptr, 'int', ['pointer']);
+    },
+    // ssize_t write(int fd, const void *buf, size_t count);
+    write: () => {
+        const ptr = Module.getExportByName('libc.so', 'write');
+        return new SystemFunction(ptr, 'int', ['int', 'pointer', 'int']);
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
     },
     // int creat(const char *pathname, mode_t mode);
     creat: () => {
@@ -155,6 +172,26 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'fork');
         return new NativeFunction(ptr, 'int', []);
     },
+    // int execv(const char *path, char *const argv[]);
+    execv: () => {
+        const ptr = Module.getExportByName('libc.so', 'execv');
+        return new NativeFunction(ptr, 'int', ['pointer', 'pointer']);
+    },
+    // void *dlopen(const char *filename, int flags);
+    dlopen: () => {
+        const ptr = Module.getExportByName('libc.so', 'dlopen');
+        return new NativeFunction(ptr, 'pointer', ['pointer', 'int']);
+    },
+    // void *dlsym(void *restrict handle, const char *restrict symbol);
+    dlsym: () => {
+        const ptr = Module.getExportByName('libc.so', 'dlsym');
+        return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer']);
+    },
+    // int dlclose(void *handle);
+    dlclose: () => {
+        const ptr = Module.getExportByName('libc.so', 'dlclose');
+        return new NativeFunction(ptr, 'int', ['pointer']);
+    },
     // int gettimeofday(struct timeval *restrict tv, struct timezone *_Nullable restrict tz);
     gettimeofday: () => {
         const ptr = Module.getExportByName('libc.so', 'gettimeofday');
@@ -265,6 +302,19 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'sscanf');
         return new NativeFunction(ptr, 'int', ['pointer', 'pointer', '...']);
     },
+<<<<<<< HEAD
+=======
+    // FILE *popen(const char *command, const char *type);
+    popen: () => {
+        const ptr = Module.getExportByName('libc.so', 'popen');
+        return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer']);
+    },
+    // FILE *pclose(FD);
+    pclose: () => {
+        const ptr = Module.getExportByName('libc.so', 'pclose');
+        return new NativeFunction(ptr, 'int', ['pointer']);
+    },
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
     // pid_t getpid(void);
     getpid: () => {
         const ptr = Module.getExportByName('libc.so', 'getpid');
@@ -367,7 +417,11 @@ const LibcFinder = {
     },
     // int posix_spawn(pid_t *restrict pid, const char *restrict path,
     //                 const posix_spawn_file_actions_t *restrict file_actions,
+<<<<<<< HEAD
     //                 const posix_spawnattr_t *restrict attrp, 
+=======
+    //                 const po six_spawnattr_t *restrict attrp, 
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
     //                 char *const argv[restrict], 
     //                 char *const envp[restrict]);
     posix_spawn: () => {

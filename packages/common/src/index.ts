@@ -38,6 +38,11 @@ function getApplicationContext(): Java.Wrapper {
     return Classes.ActivityThread.currentApplication().getApplicationContext();
 }
 
+<<<<<<< HEAD
+=======
+const isNully = (ptr: NativePointerValue) => !ptr || ptr == NULL || `${ptr}` === '0x0' 
+
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 const emitter = new EventEmitter();
 declare global {
     const Classes: ClassesType;
@@ -73,8 +78,12 @@ export {
     findClass,
     getApplicationContext,
     getFindUnique,
+<<<<<<< HEAD
     isJWrapper,
     LibcFinderProxy as Libc,
+=======
+    isJWrapper, isNully, LibcFinderProxy as Libc,
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
     stacktrace,
     stacktraceList,
     tryNull

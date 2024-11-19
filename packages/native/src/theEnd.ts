@@ -1,5 +1,9 @@
 import { Libc } from '@clockwork/common';
 import { logger } from '@clockwork/logging';
+<<<<<<< HEAD
+=======
+import { traceInModules } from './utils.js';
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 
 function hookExit(predicate: (ptr: NativePointer) => boolean) {
     const array: ('exit' | '_exit' | 'abort')[] = ['exit', '_exit', 'abort'];
@@ -28,9 +32,14 @@ function hookExit(predicate: (ptr: NativePointer) => boolean) {
         new NativeCallback(
             function (err) {
                 const stacktrace = Thread.backtrace(this.context, Backtracer.ACCURATE)
+<<<<<<< HEAD
                     .map(DebugSymbol.fromAddress)
                     .join('\n');
                 logger.info({ tag: 'raise' }, `err: ${err} ${stacktrace}`);
+=======
+                    .join('\n\t');
+                logger.info({ tag: 'raise' }, `err: ${err} ${traceInModules(this.returnAddress)} ${stacktrace}`);
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
                 return 0;
             },
             'int',
@@ -44,7 +53,13 @@ function hookKill(predicate: (ptr: NativePointer) => boolean) {
         Libc.kill,
         new NativeCallback(
             (pid, code) => {
+<<<<<<< HEAD
                 logger.info({ tag: 'kill' }, `kill(${pid}, ${code}) called !`);
+=======
+                const stacktrace = Thread.backtrace(this.context, Backtracer.ACCURATE)
+                    .join('\n\t');
+                logger.info({ tag: 'kill' }, `kill(${pid}, ${code}) ${traceInModules(this.returnAddress)} ${stacktrace}`);
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
                 return 0;
             },
             'int',

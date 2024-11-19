@@ -1,3 +1,18 @@
+<<<<<<< HEAD
+=======
+const JavaPrimitive = {
+    boolean: 'Z',
+    byte: 'B',
+    char: 'C',
+    double: 'D',
+    float: 'F',
+    int: 'I',
+    long: 'J',
+    short: 'S',
+    void: 'V',
+} as const;
+
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 enum mode {
     F_OK = 0,
     X_OK = 1,
@@ -31,8 +46,15 @@ enum a_type {
     AT_RSEQ_FEATURE_SIZE = 27,
     AT_RSEQ_ALIGN = 28,
     AT_EXECFN = 31,
+<<<<<<< HEAD
     AT_MINSIGSTKSZ = 51
 }
 
 export { a_type, mode };
 
+=======
+    AT_MINSIGSTKSZ = 51,
+}
+
+export { JavaPrimitive, a_type, mode };
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2

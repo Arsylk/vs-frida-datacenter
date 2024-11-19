@@ -82,21 +82,37 @@ function hookAccess(predicate: (ptr: NativePointer) => boolean) {
     );
 }
 
+<<<<<<< HEAD
 function hookOpen(predicate: (ptr: NativePointer) => boolean) {
+=======
+function hookOpen(
+    predicate: (ptr: NativePointer) => boolean,
+    fn?: (this: InvocationContext | CallbackContext, path: string | null) => any,
+) {
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
     function log(
         this: InvocationContext | CallbackContext,
         uri: string | null,
         flags: number | null,
         mode: number | null,
+<<<<<<< HEAD
         ret: number,
         key: string,
     ) {
         const isOk = ret !== -1;
+=======
+        errno: number,
+        key: string,
+    ) {
+        const isOk = errno === 0;
+        const errstr = !isOk ? ` ${gray(dim(`{${errno}: "${Libc.strerror(errno).readCString()}}"`))}` : '';
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
         const struri = !isOk ? red(gray(`${uri}`)) : gray(`${uri}`);
         const flagsEnum = flags ? `0b${flags?.toString(2).padStart(16, '0')}` : null;
 
         logger.info(
             { tag: key },
+<<<<<<< HEAD
             `${struri} flags: ${flagsEnum}, ${mode ? `mode: ${mode}` : ''} ${DebugSymbol.fromAddress(this.returnAddress)}`,
         );
     }
@@ -125,6 +141,49 @@ function hookOpen(predicate: (ptr: NativePointer) => boolean) {
             }
         },
     });
+=======
+            `${struri} flags: ${flagsEnum}, ${mode ? `mode: ${mode} ${errstr}` : ''} ${DebugSymbol.fromAddress(this.returnAddress)}`,
+        );
+    }
+    Interceptor.replace(
+        Libc.open,
+        new NativeCallback(
+            function (pathname, flags) {
+                if (predicate(this.returnAddress)) {
+                    const pathnameStr = pathname.readCString();
+                    const replaceStr = fn?.call(this, pathnameStr);
+                    const pathArg = replaceStr ? Memory.allocUtf8String(replaceStr) : pathname;
+                    const ret = Libc.open(pathArg, flags);
+                    log.call(
+                        this,
+                        replaceStr ? `${pathnameStr} -> ${replaceStr}` : pathnameStr,
+                        flags,
+                        null,
+                        //@ts-ignore
+                        ret.errno,
+                        'open',
+                    );
+                    return ret.value;
+                }
+                const ret = Libc.open(pathname, flags);
+                return ret.value;
+            },
+            'int',
+            ['pointer', 'int'],
+        ),
+    );
+    // Interceptor.attach(Libc.open, {
+    //     onEnter(args) {
+    //         this.pathname = args[0];
+    //         this.flags = args[1].toInt32();
+    //     },
+    //     onLeave(retval) {
+    //         if (predicate(this.returnAddress)) {
+    //             log.call(this, this.pathname.readCString(), this.flags, retval.toInt32(), 0, 'open');
+    //         }
+    //     },
+    // });
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
     Interceptor.replace(
         Libc.creat,
         new NativeCallback(
@@ -174,7 +233,11 @@ function hookFopen(
 
         if (isFd && statfd) {
             const infs = readFdPath(uri);
+<<<<<<< HEAD
             strpath += `-> "${infs}"`;
+=======
+            strpath += ` -> "${infs}"`;
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
         }
 
         const struri = isOk ? dim(`${strpath}`) : dim(red(`${strpath}`));
@@ -338,7 +401,11 @@ function hookRemove(predicate: (ptr: NativePointer) => boolean, ignore?: (path: 
         const func = Libc[key];
         Interceptor.replace(
             func,
+<<<<<<< HEAD
             
+=======
+
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
             new NativeCallback(
                 function (pathname) {
                     let ret: number;
@@ -346,7 +413,11 @@ function hookRemove(predicate: (ptr: NativePointer) => boolean, ignore?: (path: 
                         const strpath = pathname.readCString();
                         const replace = ignore?.(`${pathname}`) === true;
                         const fmt = replace ? bgRed : String;
+<<<<<<< HEAD
                         logger.info({ tag: key }, `${fmt(bold(gray(`${strpath}`)))}`);
+=======
+                        logger.info({ tag: key }, `${fmt(bold(gray(`${strpath}`)))}` + ` ${DebugSymbol.fromAddress(this.returnAddress)}`);
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
                     }
                     return (ret ??= func(pathname));
                 },

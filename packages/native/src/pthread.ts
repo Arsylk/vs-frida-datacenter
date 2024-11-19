@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { tryNull } from '@clockwork/common';
+=======
+import { isNully, tryNull } from '@clockwork/common';
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 import { Color, logger } from '@clockwork/logging';
 import { readTidName, tryDemangle } from './utils.js';
 const { bold, dim, green, red, gray, black } = Color.use();
@@ -21,7 +25,11 @@ function hookPthread_create() {
                 const fMethod = `[${gray(`${method.moduleName}`)} ${black(`${name}`)}] ${gray(`${method.address}`)}`;
                 logger.info(
                     { tag: 'pthread_create' },
+<<<<<<< HEAD
                     `${gray('tid:')} ${fTid}, ${attr}${fThreadName}${fMethod}, ${arg !== NULL ? arg.readPointer() : arg}`,
+=======
+                    `${gray('tid:')} ${fTid}, ${attr}${fThreadName}${fMethod}, ${!isNully(arg) ? arg.readPointer() : arg}`,
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
                 );
 
                 return ret;

@@ -1,4 +1,5 @@
 import * as Anticloak from '@clockwork/anticloak';
+<<<<<<< HEAD
 import * as Unity from '@clockwork/unity';
 
 
@@ -11,3 +12,9 @@ Java.performNow(() => {
     Anticloak.InstallReferrer.replace({install_referrer: 'Non-nrganic'})
     Anticloak.Country.mock('BR');
 })
+=======
+
+const INSTALL_REFERRER =
+    'utm_source=Organic';
+Anticloak.InstallReferrer.replace({ install_referrer: INSTALL_REFERRER })
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2

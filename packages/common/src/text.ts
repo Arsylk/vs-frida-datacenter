@@ -1,10 +1,12 @@
+import { JavaPrimitive } from './define/enum.js';
+
 function maxLengh(message: any, length: number): string {
     const msgString = `${message}`;
     return msgString.substring(0, Math.min(msgString.length, length));
 }
 
 function noLines(message: any): string {
-    return `${message}`.replaceAll('\n', '\\n');
+    return `${message}`.replace('\n', '\\n');
 }
 
 function toHex(decimal: any, length = 2): string {
@@ -37,6 +39,7 @@ function uuid() {
     return Array(len(8), len(4), len(4), len(4), len(12)).join('-');
 }
 
+<<<<<<< HEAD
 const PRIMITIVE_TYPE: { [key: string]: string } = {
     Z: 'boolean',
     B: 'byte',
@@ -48,14 +51,20 @@ const PRIMITIVE_TYPE: { [key: string]: string } = {
     S: 'short',
     V: 'void',
 };
+=======
+const JavaPrimitiveReversed = Object.fromEntries(Reflect.ownKeys(JavaPrimitive).map((key) => [JavaPrimitive[key], key])) as {
+    [K in keyof (typeof JavaPrimitive) as (typeof JavaPrimitive)[K]]: K
+}
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 
 function toPrettyType(type: string): string {
+    const x = JavaPrimitive
     const len = type.length;
     for (; type.charAt(0) === '['; type = type.substring(1));
     const depth = len - type.length;
     if (type.charAt(0) === 'L' && type.charAt(type.length - 1) === ';')
-        return type.substring(1, type.length - 1).replaceAll('/', '.') + '[]'.repeat(depth);
-    return (PRIMITIVE_TYPE[type] ?? type) + '[]'.repeat(depth);
+        return type.substring(1, type.length - 1).replace('/', '.') + '[]'.repeat(depth);
+    return (JavaPrimitiveReversed[type] ?? type) + '[]'.repeat(depth);
 }
 
 function base64(input: string) {

@@ -1,6 +1,10 @@
 import { createColors } from 'colorette';
 const Colors = Object.assign(createColors({ useColor: true }), {
     orange: (text: string | number) => `\x1b[38;2;250;179;135m${text}\x1b[39m`,
+<<<<<<< HEAD
+=======
+    lavender: (text: string | number) => `\x1b[38;2;180;190;254m${text}\x1b[39m`,
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 });
 const { cyan, green, gray, blue, underline, yellow, magenta, orange } = use();
 

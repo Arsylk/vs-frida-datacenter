@@ -92,9 +92,15 @@ function hookStrcmp(predicate: (ptr: NativePointer) => boolean) {
     for (const key of array.slice(-1)) {
         const func = Libc[key];
         Interceptor.attach(func, {
+<<<<<<< HEAD
             onEnter(args) {
                 if (predicate(this.returnAddress)) {
                     logger.info({ tag: key }, `${args[0]?.readCString()} ? ${args[1]?.readCString()}`);
+=======
+            onEnter({0: a, 1: b}) {
+                if (predicate(this.returnAddress)) {
+                    logger.info({ tag: key }, `${a.readCString()} ? ${b.readCString()}`);
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
                 }
             },
             onLeave(retval) {},

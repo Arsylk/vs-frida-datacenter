@@ -17,7 +17,11 @@ import type { FridaMethodThisCompat } from '@clockwork/hooks/dist/types';
 import * as JniTrace from '@clockwork/jnitrace';
 import { Color, logger } from '@clockwork/logging';
 import * as Native from '@clockwork/native';
+<<<<<<< HEAD
 import { getSelfProcessName } from '@clockwork/native/dist/utils';
+=======
+import { getSelfProcessName } from '@clockwork/native/dist/utils.js';
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 import * as Network from '@clockwork/network';
 import * as Unity from '@clockwork/unity';
 const { red, green, redBright, magentaBright: pink, gray, dim, black } = Color.use();
@@ -143,8 +147,13 @@ function hookNetwork() {
 function hookRuntimeExec() {
     const mReplace = (sArg: string) => {
         sArg = sArg.replace(/su$/g, 'nya');
+<<<<<<< HEAD
         sArg = sArg.replace(/which/g, 'yhich');
         sArg = sArg.replace(/^rm -r/g, 'file ');
+=======
+        sArg = sArg.replace(/^rm -r/g, 'file ');
+        sArg = sArg.replace(/^getprop/g, 'ls');
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
         return Classes.String.$new(`${sArg}`);
     };
 
@@ -176,7 +185,11 @@ function hookRuntimeExec() {
                 this._command.value.set(i, newvalue);
                 newlist.push(newvalue);
             }
+<<<<<<< HEAD
             logger.info({ tag: 'exec' }, `${newlist}`);
+=======
+            logger.info({ tag: 'exec' }, `${newlist} ${pink(stacktrace())}`);
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
         },
     });
 }
@@ -228,6 +241,10 @@ function hookCrypto() {
                 );
                 //@ts-ignore
                 transformed ??= `${Classes.String.valueOf(returnValue)}`;
+<<<<<<< HEAD
+=======
+                logger.info({ tag: 'decrypt' }, `${transformed}`);
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
             }
         },
         logging: { arguments: false, return: false },
@@ -293,7 +310,11 @@ function hookPrefs(fn?: (this: FridaMethodThisCompat, key: string, method: strin
     for (const item of keyFns) {
         hook(Classes.SharedPreferencesImpl, item, {
             loggingPredicate: Filter.prefs,
+<<<<<<< HEAD
             logging: { multiline: false, short: true, return: false, call: false },
+=======
+            logging: { multiline: false, short: true },
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
             replace: compat(function () {
                 const result = fn?.call(this, this.originalArgs[0], item);
                 return result !== undefined ? result : this.fallback();
@@ -533,14 +554,22 @@ Java.performNow(() => {
                 return 'BR';
         }
     });
+<<<<<<< HEAD
     hookPreferences(() => {});
     hookFirestore();
     hookCrypto();
     hookRuntimeExec();
+=======
+    hookPreferences(() => { });
+    hookFirestore();
+    hookCrypto();
+    // hookRuntimeExec();
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 
     bypassIntentFlags();
     bypassReceiverFlags();
 
+<<<<<<< HEAD
     // uniqFind('android.opengl.GLSurfaceView', (clazz) =>
     //     enumerateMembers(
     //         clazz,
@@ -553,6 +582,8 @@ Java.performNow(() => {
     //     ),
     // );
 
+=======
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
     // hook('android.content.ContextWrapper', 'getSharedPreferences', {
     //     logging: { multiline: false, short: true, return: false },
     // });
@@ -630,9 +661,13 @@ Java.performNow(() => {
 
     // hook(Classes.Runtime, 'loadLibrary0', { logging: { short: true, multiline: false } });
 
+<<<<<<< HEAD
     uniqHook('org.chromium.net.NetworkActiveNotifier', 'build');
     ClassLoader.perform(() => {
         uniqHook('org.chromium.net.NetworkActiveNotifier', 'build');
+=======
+    ClassLoader.perform(() => {
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
     });
 });
 
@@ -653,11 +688,19 @@ Process.setExceptionHandler((exception: ExceptionDetails) => {
         { tag: 'exception' },
         `${black(exception.type)}: ${exception.memory?.operation} ${exception.memory?.address} at: ${gray(`${exception.address}`)} x0: ${red(`${ctx.x0}`)} x1: ${red(`${ctx.x1}`)}`,
     );
+<<<<<<< HEAD
     return exception.type === 'abort';
 });
 Native.initLibart();
 // Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x00bd953c), fn_key: ptr(0x01ac2a10) });
 // Cocos2dx.hookLocalStorage((key) => {
+=======
+    return exception.type === 'abort' && false;
+});
+Native.initLibart();
+// Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x0080004c), fn_key: ptr(0x006f9170) });
+// Cocos2dx.hookLocalStorage(function (key) {
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 //     switch (key) {
 //         case '__FirstLanuchTime':
 //             return 'false';
@@ -666,16 +709,31 @@ Native.initLibart();
 //         case 'isRealUser':
 //         case 'force_update':
 //             return 'true';
+//         case 'Shelf Quest Match & Clear_adsdkPayloads': {
+//             if (done) return
+//             done = true
+//             const value = this.fallback();
+//             logger.info({ tag: 'localstor' }, `value ${value}`)
+//             const now = Math.floor(Date.now() / 1000) * 1000
+//             return `[{"ip_config_value":"\\\"{\\\\\\"region\\\\\\":\\\\\\"BR\\\\\\",\\\\\\"forbid_red_envelope\\\\\\":false,\\\\\\"forbid_used\\\\\\":false,\\\\\\"forbid_pai\\\\\\":false,\\\\\\"is_forbid\\\\\\":false,\\\\\\"kbri\\\\\\":60,\\\\\\"recog_ire\\\\\\":true,\\\\\\"zip_version\\\\\\":\\\\\\"\\\\\\",\\\\\\"zip_url\\\\\\":\\\\\\"\\\\\\"}\\\"","ip_config_status":1,"ip_first_req":false,"redirect_type":"0","event_name":"ip_config","ts":${now},"timestamp":${now},"system_time":${now},"event_id":"3a5e69af-17c5-420a-8643-78ebb467941c","report_id":"2d312278-00eb-429f-a16c-12d488a5bc5c","target_p":"adsdk"}]`
+//         }
 //     }
 // });
 
+<<<<<<< HEAD
 // Unity.setVersion('2022.1.10f1');
+=======
+
+
+// Unity.setVersion('2018.4.36f1');
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 // Unity.patchSsl();
 // Unity.attachStrings();
 // Unity.attachScenes();
 
 emitter.on('il2cpp', Unity.listGameObjects);
 let enable = true;
+<<<<<<< HEAD
 setTimeout(() => (enable = true), 5000);
 emitter.on('jni', (_) => (enable = !enable));
 
@@ -684,25 +742,46 @@ const predicate = (r) => {
     // if (1 === 1) return false;
     function isWithinOwnRange(ptr: NativePointer) {
         const path = Native.Inject.modules.findPath(ptr);
+=======
+setTimeout(() => (enable = true), 10000);
+emitter.on('jni', (_) => (enable = !enable));
+
+
+const isNativeEnabled = true;
+const predicate = (r) => {
+    function isWithinOwnRange(ptr: NativePointer) {
+        const path = Native.Inject.modules.findPath(ptr);
+
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
         return path?.includes('/data') === true && !path.includes('/com.google.android.trichromelibrary');
     }
 
     if (!isNativeEnabled) return false;
     if (!r) return false;
     if (isWithinOwnRange(r)) return true;
+<<<<<<< HEAD
     return false && Native.Inject.modules.find(r) === null;
+=======
+    return !true && Native.Inject.modules.find(r) === null;
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 };
 
 JniTrace.attach(({ returnAddress }) => {
     return enable && predicate(returnAddress);
 });
 
+<<<<<<< HEAD
+=======
+Dump.initSoDump()
+
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 Native.Files.hookAccess(predicate);
 // Native.Files.hookOpen(predicate);
 Native.Files.hookFopen(predicate, true, (path) => {
     if (path === '/proc/self/maps' || path === `/proc/${Process.id}/maps`) {
         return `/data/data/${getSelfProcessName()}/files/fake_maps`;
     }
+<<<<<<< HEAD
 });
 Native.Files.hookOpendir(predicate);
 // Native.Files.hookStat(predicate);
@@ -712,19 +791,44 @@ Native.Files.hookRemove(predicate);
 // Native.Strings.hookStrcmp(predicate);
 // Native.Strings.hookStrstr(predicate);
 // Native.Strings.hookStrtoLong(predicate);
+=======
+    if (path?.endsWith('/su')) {
+        return path.replace(/\/su$/, '/nya')
+    }
+});
+Native.Files.hookOpendir(predicate);
+Native.Files.hookStat(predicate);
+Native.Files.hookRemove(predicate);
+Native.Strings.hookStrlen(predicate);
+Native.Strings.hookStrcpy(predicate);
+// Native.Strings.hookStrcmp(predicate);
+// Native.Strings.hookStrstr(predicate);
+// Native.Strings.hookStrtoLong(predicate);
+
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 Native.TheEnd.hook(predicate);
 
 Native.System.hookSystem();
 Native.System.hookGetauxval();
 
+<<<<<<< HEAD
 // Native.Time.hookDifftime(predicate);
 // Native.Time.hookTime(predicate);
+=======
+Native.Time.hookDifftime(predicate);
+Native.Time.hookTime(predicate);
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 // Native.Time.hookLocaltime(predicate);
 // Native.Time.hookGettimeofday(predicate);
 Anticloak.Debug.hookPtrace();
 Native.Pthread.hookPthread_create();
+<<<<<<< HEAD
 // Native.Logcat.hookLogcat();
 Anticloak.Jigau.memoryPatch();
+=======
+Native.Logcat.hookLogcat();
+// Anticloak.Jigau.memoryPatch();
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 
 Interceptor.attach(Libc.sprintf, {
     onEnter(args) {
@@ -746,7 +850,11 @@ Interceptor.attach(Libc.posix_spawn, {
     },
 });
 
+<<<<<<< HEAD
 // Dump.initSoDump();
+=======
+emitter.on('so', () => Dump.initSoDump())
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 emitter.on('dex', () => Dump.scheduleDexDump(0));
 
 const GL_ENUM = {
@@ -762,10 +870,17 @@ Interceptor.attach(Module.getExportByName(null, 'glGetString'), {
     onLeave(retval) {
         const name = this.name.toInt32();
         const label = GL_ENUM[name] ?? 'UNKNOWN';
+<<<<<<< HEAD
         if (label === 'GL_VENDOR' || label === 'GL_RENDERER') {
             const value = retval.readCString();
             const newvalue = value?.replace(
                 /x86|sdk|open|source|emulator|google|aosp|apple|ranchu|goldfish|cuttlefish|generic|unknown/gi,
+=======
+        if (label === 'GL_VENDOR' || label === 'GL_RENDERER' || label === 'GL_EXTENSIONS') {
+            const value = retval.readCString();
+            const newvalue = value?.replace(
+                /x86|sdk|open|source|emulator|google|aosp|apple|ranchu|goldfish|cuttlefish|generic|unknown|android_emu/gi,
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
                 'nya',
             );
             retval.writeUtf8String(newvalue ?? '');
@@ -773,6 +888,12 @@ Interceptor.attach(Module.getExportByName(null, 'glGetString'), {
         logger.info({ tag: 'opengl' }, `${label}(${dim(`${this.name}`)}) -> ${retval.readCString()}`);
     },
 });
+<<<<<<< HEAD
+=======
+
+
+
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 // Native.Inject.attachRelativeTo('libil2cpp.so', gPtr(0x160e2dc), {
 //     onEnter([__this, value, methodInfo]: [NativePointer, boolean, any]) {
 //         const _o = __this.readPointer();
@@ -846,6 +967,7 @@ Interceptor.replace(
             logger.info({ tag: 'fork' }, `${retval} ${DebugSymbol.fromAddress(this.returnAddress)}`);
             return retval;
             // return -1;
+<<<<<<< HEAD
         },
         'int',
         [],
@@ -870,9 +992,39 @@ Interceptor.replace(
 
 // setTimeout(() => {
 // const dir = `/data/data/insure.cable.estate/files`;
+=======
+        },
+        'int',
+        [],
+    ),
+);
+
+Interceptor.replace(
+    Libc.fgets,
+    new NativeCallback(
+        function (buffer, size, fp) {
+            const retval = Libc.fgets(buffer, size, fp);
+            if (predicate(this.returnAddress)) {
+                //     const endUserMssg = buffer.readCString(size)?.trimEnd();
+                //     logger.info({ tag: 'fgets' }, `${endUserMssg}`);
+            }
+            return retval;
+        },
+        'pointer',
+        ['pointer', 'int', 'pointer'],
+    ),
+);
+
+// // setTimeout(() => {
+// const dir = `/data/data/com.scoutant.shorttv/files`;
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 // Libc.system(Memory.allocUtf8String(`mkdir -p ${dir}`));
 
 // // @ts-ignore
 // File.writeAllText(`${dir}/fake_maps`, File.readAllText('/proc/self/maps'));
 // })
+<<<<<<< HEAD
 // // '));
+=======
+// '));
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2

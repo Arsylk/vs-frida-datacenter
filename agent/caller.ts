@@ -1,5 +1,9 @@
+<<<<<<< HEAD
 import { ClassLoader, findHook, getHookUnique } from '@clockwork/hooks';
 import { getFindUnique } from '@clockwork/common';
+=======
+import { ClassLoader } from '@clockwork/hooks';
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 
 setImmediate(() => {
     send({ type: 'setImmediate' });
@@ -27,7 +31,11 @@ setImmediate(() => {
 function mainloop(message: any, rawData: ArrayBuffer | null) {
     const tape = message?.payload?.type;
     if (tape === 'perform-resolve') {
+<<<<<<< HEAD
         if (!focus) {
+=======
+        if (!(focus)) {
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
             send({ type: 'error-not-found' });
             return recv(mainloop);
         }

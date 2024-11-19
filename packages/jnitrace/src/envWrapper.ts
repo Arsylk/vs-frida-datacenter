@@ -1,4 +1,10 @@
 import { JNI } from './jni.js';
+<<<<<<< HEAD
+=======
+import { JNIEnvInterceptor } from './jniEnvInterceptor.js';
+import { JNIEnvInterceptorARM64 } from './jniEnvInterceptorArm64.js';
+import { Fields, Methods } from './model.js';
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 
 type JniDefinition<T extends NativeFunctionReturnType, R extends [] | NativeFunctionArgumentType[]> = {
     offset: number;
@@ -6,20 +12,46 @@ type JniDefinition<T extends NativeFunctionReturnType, R extends [] | NativeFunc
     argTypes: R;
 };
 
+<<<<<<< HEAD
 class EnvWrapper {
     #env: Java.Env;
     jniEnv: NativePointer;
 
     #functions: { [key: number]: NativeFunction<any, any> } = {};
+=======
+type JniField<T extends NativePointerValue> = {
+    set(value: T): void
+    get(): T
+}
+
+class EnvWrapper {
+    #env: Java.Env;
+    jniEnv: NativePointer;
+    jniInterceptor: JNIEnvInterceptor;
+
+    Fields = Fields;
+    Methods = Methods;;
+
+    #functions: { [key: number]: NativeFunction<any, any> } = {};
+    #fields: { [key: number]: JniField<any> } = {};
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 
     constructor(env: Java.Env) {
         this.#env = env;
         this.jniEnv = env.handle
+<<<<<<< HEAD
+=======
+        this.jniInterceptor = new JNIEnvInterceptorARM64()
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
     }
 
     public getFunction<T extends NativeFunctionReturnType, R extends [] | NativeFunctionArgumentType[]>(
         def: JniDefinition<T, R>,
+<<<<<<< HEAD
     ): ReturnType<typeof asFunction<T, R>> {
+=======
+    ) {
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
         const cached = this.#functions[def.offset];
         if (cached) return cached;
         return (this.#functions[def.offset] = asFunction(this.jniEnv, def));
@@ -64,5 +96,21 @@ function asLocalRef<T>(jniEnv: NativePointer, ptr: NativePointer, fn: (ptr: Nati
     }
 }
 
+<<<<<<< HEAD
 export { asFunction, asLocalRef, EnvWrapper, type JniDefinition };
+=======
+function getClassName(env: NativePointer, handle: NativePointer) {
+    const getName = (ptr: NativePointer) => Java.cast(ptr, Classes.Class).getName()
+    return `${handle}`.length === 12
+        ? asLocalRef(env, handle, getName)
+        : getName(handle)
+}
+
+function getObjectClassName(env: NativePointer, handle: NativePointer) {
+    const clazz = asFunction(env, JNI.GetObjectClass)(env, handle)
+    return getClassName(env, clazz)
+}
+
+export { asFunction, asLocalRef, EnvWrapper, getClassName, getObjectClassName, type JniDefinition };
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 

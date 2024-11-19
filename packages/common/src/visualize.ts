@@ -1,8 +1,16 @@
+<<<<<<< HEAD
 import { asLocalRef } from '@clockwork/jnitrace';
 import { Color } from '@clockwork/logging';
 import { ClassesString } from './define/java.js';
 import { toHex } from './text.js';
 const { black, gray, red, green, cyan, dim, italic, bold, yellow, hidden } = Color.use();
+=======
+import { JNI, asFunction, asLocalRef } from '@clockwork/jnitrace';
+import { Color } from '@clockwork/logging';
+import { ClassesString } from './define/java.js';
+import { toHex } from './text.js';
+const { black, gray, red, green, orange, dim, italic, bold, yellow, hidden } = Color.use();
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 
 function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv()?.handle): string {
     if (value === undefined) return Color.number(undefined);
@@ -10,6 +18,7 @@ function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv
 
     //loop over array until max length
     if (type?.endsWith('[]')) {
+<<<<<<< HEAD
         const itemType = type.substring(type.length - 3);
         const items: string[] = [];
         const size = value.size ?? value.length;
@@ -17,6 +26,96 @@ function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv
         let messageSize = 0;
         for (let i = 0; i < size; i += 1) {
             const mapped = `${value[i]}`;
+=======
+        const baseType = type.replace(/[\\[\\]]/g, '')
+        const itemType = type.substring(0, type.length - 2)
+        const items: string[] = [];
+        // biome-ignore lint/style/useConst: 
+        let getItem = (i: number) => value[i];
+        let size = value.size ?? value.length;
+
+        // native pointer to array only
+        if (!size) {
+            const GetArrayItem = asFunction(jniEnv, JNI.GetObjectArrayElement)
+            size = asFunction(jniEnv, JNI.GetArrayLength)(jniEnv, value.$h ?? value)
+            getItem = (i: number) => vs(GetArrayItem(jniEnv, value.$h ?? value, i), itemType, jniEnv)
+            // return `${black('[')} ${gray(itemType)}<${dim(orange(size))}> ${black(']')}`;
+        }
+        //     let GetArrayItem: any;
+        //     switch (baseType) {
+        //         // case 'boolean':
+        //         //     GetArrayItem = JNI.GetBooleanArrayElements
+        //         //     break;
+        //         // case 'char':
+        //         //     GetArrayItem = JNI.GetCharArrayElements
+        //         //     break;
+        //         // case 'short':
+        //         //     GetArrayItem = JNI.GetShortArrayElements
+        //         //     break;
+        //         // case 'int':
+        //         //     GetArrayItem = JNI.GetIntArrayElements
+        //         //     break;
+        //         // case 'byte': {
+        //         //     const bArr = asFunction(jniEnv, JNI.GetByteArrayElements)(jniEnv, value, ptr(0x0))
+        //         //     getItem = (i: number) => bArr.add(4 * i).readS8()
+        //         //     break;
+        //         // }
+        //         // case 'long':
+        //         //     GetArrayItem = JNI.GetLongArrayElements
+        //         //     break;
+        //         // case 'flaot':
+        //         //     GetArrayItem = JNI.GetFloatArrayElements
+        //         //     break;
+        //         // case 'double':
+        //         //     GetArrayItem = JNI.GetDoubleArrayElements
+        //         //     break;
+        //         default:
+        //             GetArrayItem = asFunction(jniEnv, JNI.GetObjectArrayElement)
+        //             getItem = (i: number) => {
+        //                 let item = GetArrayItem(jniEnv, value.$h ?? value, i)
+        //                 if (!isNully(item)) switch (baseType) {
+        //                     case 'boolean': {
+        //                         item = item.readU8();
+        //                         break;
+        //                     }
+        //                     case 'byte': {
+        //                         item = item.readS8();
+        //                         break;
+        //                     }
+        //                     case 'char': {
+        //                         item = item.readU16();
+        //                         break;
+        //                     }
+        //                     case 'short': {
+        //                         item = item.readS16();
+        //                         break;
+        //                     }
+        //                     case 'int': {
+        //                         item = item.readS32();
+        //                         break;
+        //                     }
+        //                     case 'long': {
+        //                         item = item.readS64();
+        //                         break;
+        //                     }
+        //                     case 'double': {
+        //                         item = item.readDouble();
+        //                         break;
+        //                     }
+        //                     case 'float': {
+        //                         item = item.readFloat();
+        //                         break;
+        //                     }
+        //                 }
+        //                 return `${vs(item, itemType, jniEnv)}`
+        //             }
+        //     }
+        // }
+
+        let messageSize = 0;
+        for (let i = 0; i < size; i += 1) {
+            const mapped = `${getItem(i)}`;
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
             items.push(mapped);
             messageSize += mapped.length;
             if ((messageSize > 200 || i >= 16) && i + 1 < size) {
@@ -54,7 +153,11 @@ function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv
         case 'float': {
             //@ts-ignore
             const strFloat = Classes.String.valueOf.overload('float').bind(Classes.String);
+<<<<<<< HEAD
             return Color.number(strFloat(value));
+=======
+            return Color.number(strFloat(Number(value)));
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
         }
         case 'double': {
             //@ts-ignore
@@ -78,10 +181,23 @@ function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv
 
     // * should only have java objects in here
     const classHandle = value.$h ?? value;
+<<<<<<< HEAD
     // console.log(value, type, typeof value, value.$h, value instanceof NativePointer);
 
     if (classHandle) {
         const text = asLocalRef(jniEnv, classHandle, (ptr: NativePointer) => visualObject(ptr, type));
+=======
+    const handleStr = `${classHandle}`
+    // console.log(value, type, typeof value, value.$h, value instanceof NativePointer);
+    // return `${classHandle}`;
+
+    if (handleStr === '0x0') {
+        return Color.number(null)
+    }
+
+    if (classHandle) {
+        const text = (handleStr.length === 12) ? asLocalRef(jniEnv, classHandle, (ptr: NativePointer) => visualObject(ptr, type)) : visualObject(classHandle, type)
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
         if (text) return text;
     }
 
@@ -90,11 +206,19 @@ function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv
 
 function visualObject(value: NativePointer, type?: string): string {
     // ? do not ask, i have no idea why this prevents crashes
+<<<<<<< HEAD
     String(value) + String(value.readByteArray(8));
 
     try {
         if (type === ClassesString.String) {
             const str = Java.cast(value, Classes.String);
+=======
+    // String(value) + String(value.readByteArray(8));
+
+    try {
+        if (type === ClassesString.String || type === ClassesString.CharSequence) {
+            const str = Java.cast(value, Classes.CharSequence);
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
             return Color.string(str);
         }
 
@@ -105,7 +229,16 @@ function visualObject(value: NativePointer, type?: string): string {
 
         if (type === ClassesString.OpenSSLX509Certificate) {
             const win = Java.cast(value, Classes.OpenSSLX509Certificate);
+<<<<<<< HEAD
             return `${ClassesString.OpenSSLX509Certificate}(frame=${win.getFrame()})`;
+=======
+            return `${ClassesString.OpenSSLX509Certificate}(issuer=${win.getIssuerX500Principal()})`;
+        }
+
+        if (type === ClassesString.Certificate) {
+            const win = Java.cast(value, Classes.Certificate);
+            return `${ClassesString.Certificate}(issuer=${win.getType()})`;
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
         }
 
         if (type === ClassesString.WindowInsets) {

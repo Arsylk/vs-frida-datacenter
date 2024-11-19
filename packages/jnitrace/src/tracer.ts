@@ -1,5 +1,6 @@
 import { Classes, ClassesString, enumerateMembers, findClass } from '@clockwork/common';
 import { asFunction } from './envWrapper.js';
+<<<<<<< HEAD
 import { JavaMethod } from './javaMethod.js';
 import { JNI, type jMethodID, type jclass } from './jni.js';
 
@@ -18,6 +19,11 @@ const Cache = {
 };
 
 const cachedBase: NativePointer | null = null;
+=======
+import { JNI, type jMethodID, type jclass } from './jni.js';
+import { JavaMethod, Methods } from './model.js';
+
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 let FindClass: NativeFunction<any, any> | null = null;
 let ToReflectedMethod: any = null;
 let getDeclaringClassDesc: NativeFunction<any, any> | null = null;
@@ -39,6 +45,7 @@ function resolveMethod(
     methodID: jMethodID,
     isStatic: boolean,
 ): JavaMethod | null {
+<<<<<<< HEAD
     const method = Cache.get(methodID, isStatic);
     if (method) return method;
 
@@ -50,6 +57,15 @@ function resolveMethod(
     if (ToReflectedMethod === null && env) ToReflectedMethod = asFunction(env, JNI.ToReflectedMethod);
 
     if (ToReflectedMethod) {
+=======
+    const method = Methods.get(methodID, isStatic);
+    if (method) return method;
+
+    if (FindClass === null && env) FindClass = asFunction(env, JNI.FindClass);
+    if (ToReflectedMethod === null && env) ToReflectedMethod = asFunction(env, JNI.ToReflectedMethod);
+
+    if (ToReflectedMethod && clazz && methodID && `${clazz}` !== '0x0' && `${methodID}` !== '0x0') {
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
         const jniMethod = ToReflectedMethod(env, clazz, methodID, isStatic ? 1 : 0);
         const javaExecutable = Java.cast(jniMethod, Classes.Executable);
 
@@ -77,12 +93,21 @@ function resolveMethod(
             isStatic,
         );
 
+<<<<<<< HEAD
         declaringClass.$dispose();
         for (const parameterType of parameterTypes) {
             parameterType.$dispose();
         }
 
         return Cache.set(methodID, method);
+=======
+        // declaringClass.$dispose();
+        // for (const parameterType of parameterTypes) {
+        //     parameterType.$dispose();
+        // }
+
+        return Methods.set(methodID, isStatic, method);
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
     }
 
     if (getDeclaringClassDesc === null) {
@@ -115,11 +140,20 @@ function resolveMethod(
             for (const overload of method.overloads) {
                 if (`${overload.handle}` === `${methodID}`) {
                     matched = overload;
+<<<<<<< HEAD
                     return Cache.set(
                         methodID,
                         new JavaMethod(
                             thisSig ?? '',
                             member,
+=======
+                    return Methods.set(
+                        methodID,
+                        isStatic,
+                        new JavaMethod(
+                            thisSig ?? '',
+                            method.methodName,
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
                             overload.argumentTypes.map((x) => x.className ?? x.name),
                             overload.returnType.className ?? overload.returnType.name,
                             isStatic,
@@ -167,6 +201,7 @@ function signatureToPrettyTypes(sig: string) {
         }
     }
     return arr;
+<<<<<<< HEAD
 }
 
 function fastpathMethod(
@@ -188,6 +223,27 @@ function makeThunk(size: number, write: (writer: Arm64Writer) => void) {
     if (!thunkPage) {
         thunkPage = Memory.alloc(Process.pageSize);
     }
+=======
+}
+
+function fastpathMethod(
+    methodId: jMethodID,
+    className: string,
+    name: string,
+    sig: string,
+    isStatic: boolean,
+) {
+    const arr = signatureToPrettyTypes(sig);
+    const ret = arr.pop() ?? 'void';
+    const method = new JavaMethod(className, name, arr, ret, isStatic);
+    return global.set(methodId, method);
+}
+
+let thunkPage: NativePointer | null = null;
+let thunkOffset: NativePointer = ptr(0x0)
+function makeThunk(size: number, write: (writer: Arm64Writer) => void) {
+    thunkPage ??= Memory.alloc(Process.pageSize);
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
 
     const thunk = thunkPage.add(thunkOffset);
 
@@ -218,6 +274,7 @@ function makeCxxMethodWrapperReturningStdStringByValue(impl: any, argTypes: any)
         writer.putBrReg('x7');
     });
 
+<<<<<<< HEAD
     const invokeThunk = new NativeFunction(
         thunk,
         'void',
@@ -226,6 +283,10 @@ function makeCxxMethodWrapperReturningStdStringByValue(impl: any, argTypes: any)
             exceptions: 'propagate',
         },
     );
+=======
+    const argumentsTypes = ['pointer'] + argTypes as NativeFunctionArgumentType[]
+    const invokeThunk = new NativeFunction(thunk, 'void', argumentsTypes);
+>>>>>>> 760230fe663d279907bd1eea45674922a72d97c2
     const wrapper = (...args: NativeFunctionArgumentValue[]) => {
         //@ts-ignore
         invokeThunk(...args);
