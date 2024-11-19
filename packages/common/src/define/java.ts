@@ -98,6 +98,7 @@ const ClassesString = {
     DatagramChannelImpl: 'sun.nio.ch.DatagramChannelImpl',
     InputDevice: 'android.view.InputDevice',
     WindowInsets: 'android.view.WindowInsets',
+    X509Certificate: 'java.security.cert.X509Certificate',
     OpenSSLX509Certificate: 'com.android.org.conscrypt.OpenSSLX509Certificate',
     Certificate: 'java.security.cert.Certificate',
     UUID: 'java.util.UUID',

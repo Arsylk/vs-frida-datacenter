@@ -1,6 +1,6 @@
 import { Libc } from '@clockwork/common';
-import { logger } from '@clockwork/logging';
-import { Inject } from './inject.js';
+import { Color, logger } from '@clockwork/logging';
+const { gray, black } = Color.use()
 
 function dellocate(ptr: NativePointer) {
     try {
@@ -43,13 +43,20 @@ function getSelfFiles(): string {
     return files_dir;
 }
 
-function traceInModules(ptr: NativePointer) {
-    for (const { base, name, size } of Inject.modules.values()) {
-        if (ptr > base && ptr < base.add(size)) {
-            return `${ptr.toString(16)} at ${name}!0x${ptr.sub(base).toString(16)}`
-        }
+function addressOf(ptr: NativePointer, extended?: boolean) {
+    const surround = (str: any) => `${black('⟨')}${str}${black('⟩')}`
+    const debug = DebugSymbol.fromAddress(ptr)
+    if (debug.moduleName) {
+        const rel = debug.name ?? `0x${ptr.toString(16)}`
+        return surround(`${debug.moduleName}${gray('!')}${rel} ${extended ? ptr.toString(16) : ''}`)
     }
-    return `${ptr.toString(16)} at ${ptr}}`
+    return surround(`0x${ptr.toString(16)}`)
+    // for (const { base, name, size } of Inject.modules.values()) {
+    //     if (ptr > base && ptr < base.add(size) && !name.endsWith('.oat')) {
+    //         return surround(`${name}${gray('!')}0x${ptr.sub(base).toString(16)} 0x${ptr.toString(16)}`)
+    //     }
+    // }
+    // return surround(`0x${ptr.toString(16)}`)
 }
 
 function chmod(path: string): void {
@@ -174,13 +181,11 @@ function tryResolveMapsSymbol(loc: NativePointer, pid: number = Process.id): Deb
 }
 
 export {
-    dellocate,
+    addressOf, dellocate,
     dumpFile,
     getSelfFiles,
     getSelfProcessName, mkdir, readFdPath,
-    readTidName,
-    traceInModules,
-    tryDemangle,
+    readTidName, tryDemangle,
     tryResolveMapsSymbol
 };
 

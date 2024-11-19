@@ -1,7 +1,7 @@
-import { createHash } from 'crypto';
 import { Std, Text } from '@clockwork/common';
 import { Color, subLogger } from '@clockwork/logging';
-import { Inject, dumpFile } from '@clockwork/native';
+import { Inject, addressOf, dumpFile } from '@clockwork/native';
+import { createHash } from 'crypto';
 const { dim } = Color.use();
 const logger = subLogger('cocos2dx');
 
@@ -15,7 +15,7 @@ type Cocos2dxOffset = {
 function hookLegacy(): NativePointer[] {
     //@ts-ignore
     const array = Module.enumerateExportsSync(libname).filter(({ name }) =>
-        name.includes('evalString' && name.includes('ScriptEngine')),
+        name.includes('evalString') && name.includes('ScriptEngine')
     );
     return array;
 }
@@ -44,7 +44,7 @@ const hookEvalString: InvocationListenerCallbacks = {
         const result = dumpFile(scripts, length, path, 'cocos2dx');
         logger.info(`${path} ${result ? dim(Text.toByteSize(length)) : 'error'}`);
     },
-    onLeave() {},
+    onLeave() { },
 };
 
 const hookLuaLLoadbuffer: InvocationListenerCallbacks = {
@@ -63,7 +63,7 @@ const hookLuaLLoadbuffer: InvocationListenerCallbacks = {
         const result = dumpFile(scripts, length, path, 'cocos2dx');
         logger.info(`${path} ${result ? dim(Text.toByteSize(length)) : 'error'}`);
     },
-    onLeave() {},
+    onLeave() { },
 };
 
 function dump(...targets: Cocos2dxOffset[]) {
@@ -92,14 +92,14 @@ function dump(...targets: Cocos2dxOffset[]) {
             hookTemp && evalStringAddresses.push(hookTemp);
         }
         for (const address of evalStringAddresses) {
-            logger.info(`evalString: ${module.name} ${DebugSymbol.fromAddress(address)}`);
+            logger.info(`evalString: ${module.name} ${addressOf(address)}`);
             Interceptor.attach(address, hookEvalString);
         }
 
         // luad load buffer
         const lual = module.findExportByName('luaL_loadbuffer');
         if (lual) {
-            logger.info(`luaL_loadbuffer: ${module.name} ${DebugSymbol.fromAddress(lual)}`);
+            logger.info(`luaL_loadbuffer: ${module.name} ${addressOf(lual)}`);
             Interceptor.attach(lual, hookLuaLLoadbuffer);
         }
 
@@ -110,7 +110,7 @@ function dump(...targets: Cocos2dxOffset[]) {
 
         const xxteaCryptDecrypt = module.findExportByName('_ZNK10XXTeaCrypt7decryptERKN7cocos2d4DataEPS1_');
         if (xxteaCryptDecrypt) {
-            logger.info(`xxtea_crypt_decrypt: ${module.name} ${DebugSymbol.fromAddress(xxteaCryptDecrypt)}`);
+            logger.info(`xxtea_crypt_decrypt: ${module.name} ${addressOf(xxteaCryptDecrypt)}`);
             Interceptor.attach(xxteaCryptDecrypt, {
                 onEnter(args) {
                     const key = args[0].add(Process.pointerSize === 4 ? 0x4 : 0x8).readCString();
@@ -124,7 +124,7 @@ function dump(...targets: Cocos2dxOffset[]) {
 
         const xxteaKeyAndSign = module.findExportByName('_ZN7cocos2d8LuaStack18setXXTEAKeyAndSignEPKciS2_i');
         if (xxteaKeyAndSign) {
-            logger.info(`xxtea_key_and_sign: ${module.name} ${DebugSymbol.fromAddress(xxteaKeyAndSign)}`);
+            logger.info(`xxtea_key_and_sign: ${module.name} ${addressOf(xxteaKeyAndSign)}`);
             Interceptor.attach(xxteaKeyAndSign, {
                 onEnter(args) {
                     const keylen = Math.min(args[2].toUInt32(), 16);
@@ -140,7 +140,7 @@ function dump(...targets: Cocos2dxOffset[]) {
 
         const xxteaKeyAndSign1 = module.findExportByName('_ZN7cocos2d5extra6Crypto12decryptXXTEAEPhiS2_iPi');
         if (xxteaKeyAndSign1) {
-            logger.info(`xxtea_key_and_sign1: ${module.name} ${DebugSymbol.fromAddress(xxteaKeyAndSign1)}`);
+            logger.info(`xxtea_key_and_sign1: ${module.name} ${addressOf(xxteaKeyAndSign1)}`);
             Interceptor.attach(xxteaKeyAndSign1, {
                 onEnter(args) {
                     const key = args[1].readCString();
@@ -152,7 +152,7 @@ function dump(...targets: Cocos2dxOffset[]) {
         }
         const xxteaKeyAndSign2 = module.findExportByName('_ZN7cocos2d8LuaStack18setXXTEAKeyAndSignEPKcS2_');
         if (xxteaKeyAndSign2) {
-            logger.info(`xxtea_key_and_sign2: ${module.name} ${DebugSymbol.fromAddress(xxteaKeyAndSign2)}`);
+            logger.info(`xxtea_key_and_sign2: ${module.name} ${addressOf(xxteaKeyAndSign2)}`);
             Interceptor.attach(xxteaKeyAndSign2, {
                 onEnter(args) {
                     const key = args[0].readCString();
@@ -166,7 +166,7 @@ function dump(...targets: Cocos2dxOffset[]) {
             '_ZN7cocos2d5extra6Crypto15decryptXXTEALuaEPKciS3_i',
         );
         if (xxteaKeyAndSign3) {
-            logger.info(`xxtea_key_and_sign3: ${module.name} ${DebugSymbol.fromAddress(xxteaKeyAndSign3)}`);
+            logger.info(`xxtea_key_and_sign3: ${module.name} ${addressOf(xxteaKeyAndSign3)}`);
             Interceptor.attach(xxteaKeyAndSign3, {
                 onEnter(args) {
                     const key = args[0].readCString();
@@ -180,7 +180,7 @@ function dump(...targets: Cocos2dxOffset[]) {
         const xxteaResourcesDecode = module.findExportByName('_ZN15ResourcesDecode11setXXTeaKeyEPKciS1_i');
         if (xxteaResourcesDecode) {
             logger.info(
-                `xxtea_resources_decode: ${module.name} ${DebugSymbol.fromAddress(xxteaResourcesDecode)}`,
+                `xxtea_resources_decode: ${module.name} ${addressOf(xxteaResourcesDecode)}`,
             );
             Interceptor.attach(xxteaResourcesDecode, {
                 onEnter(args) {
@@ -191,7 +191,7 @@ function dump(...targets: Cocos2dxOffset[]) {
                         `key -> ${args[1].readCString(keylen)} sign -> ${args[3].readCString(siglen)}`,
                     );
                 },
-                onLeave() {},
+                onLeave() { },
             });
         }
 
@@ -200,7 +200,7 @@ function dump(...targets: Cocos2dxOffset[]) {
         xxtea_decrypt = module.findExportByName('xxtea_decrypt');
         xxtea_decrypt && xxteaAddresses.push(xxtea_decrypt);
         for (const address of xxteaAddresses) {
-            logger.info(`xxtea_decrypt: ${module.name} ${DebugSymbol.fromAddress(address)}`);
+            logger.info(`xxtea_decrypt: ${module.name} ${addressOf(address)}`);
 
             // no idea why this often crashes
             try {
@@ -211,7 +211,7 @@ function dump(...targets: Cocos2dxOffset[]) {
                             `key -> ${args[2].readCString(Math.min(args[3].toUInt32(), 16))}`,
                         );
                     },
-                    onLeave: () => {},
+                    onLeave: () => { },
                 });
             } catch (e) {
                 logger.warn(`could not attach to xxtea_decrypt at ${address}`);
@@ -221,7 +221,7 @@ function dump(...targets: Cocos2dxOffset[]) {
         // New methods for hooking
         const getLuaStack = module.findExportByName('_ZN7cocos2d9LuaEngine11getLuaStackEv');
         if (getLuaStack) {
-            logger.info(`get_lua_stack: ${module.name} ${DebugSymbol.fromAddress(getLuaStack)}`);
+            logger.info(`get_lua_stack: ${module.name} ${addressOf(getLuaStack)}`);
 
             let isHooked = false;
             Interceptor.attach(getLuaStack, {
@@ -243,7 +243,7 @@ function dump(...targets: Cocos2dxOffset[]) {
 
         const getLuaEngine = module.findExportByName('_ZN7cocos2d9LuaEngine11getInstanceEv');
         if (getLuaEngine) {
-            logger.info(`get_lua_engine: ${module.name} ${DebugSymbol.fromAddress(getLuaEngine)}`);
+            logger.info(`get_lua_engine: ${module.name} ${addressOf(getLuaEngine)}`);
 
             let isHooked = false;
             Interceptor.attach(getLuaEngine, {
@@ -290,7 +290,7 @@ function dump(...targets: Cocos2dxOffset[]) {
             try {
                 ptr = module.base.add(offset);
                 addr = ptr.readPointer();
-                logger.info(`set_xxtea_key: ${module.name} ${DebugSymbol.fromAddress(addr)}`);
+                logger.info(`set_xxtea_key: ${module.name} ${addressOf(addr)}`);
                 Interceptor.attach(addr, {
                     onEnter(args) {
                         logger.info({ id: 'set_xxtea_key' }, new Std.String(args[1]).disposeToString());

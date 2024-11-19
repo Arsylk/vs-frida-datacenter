@@ -1,11 +1,10 @@
 import { Libc } from '@clockwork/common';
 import { Color, logger } from '@clockwork/logging';
 import { unbox } from './index.js';
-import { readFdPath } from './utils.js';
+import { addressOf, readFdPath } from './utils.js';
 // import { constants } from 'frida-fs';
 const [R_OK, W_OK, X_OK] = [1, 2, 4];
 const { bold, dim, green, red, gray, bgRed } = Color.use();
-
 
 function ofResultColor(path: NativePointer | string | number, ret: NativePointer | number) {
     if (typeof path === 'number') path = `<fd:${path}>`;
@@ -29,7 +28,7 @@ function hookAccess(predicate: (ptr: NativePointer) => boolean) {
         const mask = `?${mode & R_OK ? 'R' : empty}${mode & W_OK ? 'W' : empty}${mode & X_OK ? 'X' : empty}`;
         const uri = isOk ? dim(green(`${path}`)) : dim(red(`${path}`));
 
-        logger.info({ tag: tag }, `${uri} ${mask} ${DebugSymbol.fromAddress(this.returnAddress)}`);
+        logger.info({ tag: tag }, `${uri} ${mask} ${addressOf(this.returnAddress)}`);
     }
 
     Interceptor.replace(
@@ -58,8 +57,13 @@ function hookAccess(predicate: (ptr: NativePointer) => boolean) {
             function (fd, path, mode, flag) {
                 if (predicate(this.returnAddress)) {
                     const strPath = path.readCString();
-                    const iPath = `${strPath}`.toLowerCase()
-                    if (iPath.endsWith('bin/su') || iPath.includes('termux') || iPath.includes('magisk') || iPath.includes('supersu')) {
+                    const iPath = `${strPath}`.toLowerCase();
+                    if (
+                        iPath.endsWith('bin/su') ||
+                        iPath.includes('termux') ||
+                        iPath.includes('magisk') ||
+                        iPath.includes('supersu')
+                    ) {
                         return -1;
                     }
 
@@ -101,7 +105,7 @@ function hookOpen(
 
         logger.info(
             { tag: key },
-            `${struri} flags: ${flagsEnum}, ${mode ? `mode: ${mode} ${errstr}` : ''} ${DebugSymbol.fromAddress(this.returnAddress)}`,
+            `${struri} flags: ${flagsEnum}, ${mode ? `mode: ${mode} ${errstr}` : ''} ${addressOf(this.returnAddress)}`,
         );
     }
     Interceptor.replace(
@@ -189,10 +193,10 @@ function hookFopen(
         let strpath = isFd ? `<fd:${uri}>` : `${uri}`;
         const isOk = `${errno}` === '0';
 
-        if (isFd && statfd) {
-            const infs = readFdPath(uri);
-            strpath += ` -> "${infs}"`;
-        }
+        // if (isFd && statfd) {
+        //     const infs = readFdPath(uri);
+        //     strpath += ` -> "${infs}"`;
+        // }
 
         const struri = isOk ? dim(`${strpath}`) : dim(red(`${strpath}`));
         const strmod = `${mode}`.padEnd(2);
@@ -363,7 +367,11 @@ function hookRemove(predicate: (ptr: NativePointer) => boolean, ignore?: (path: 
                         const strpath = pathname.readCString();
                         const replace = ignore?.(`${pathname}`) === true;
                         const fmt = replace ? bgRed : String;
-                        logger.info({ tag: key }, `${fmt(bold(gray(`${strpath}`)))}` + ` ${DebugSymbol.fromAddress(this.returnAddress)}`);
+                        logger.info(
+                            { tag: key },
+                            `${fmt(bold(gray(`${strpath}`)))}` + ` ${addressOf(this.returnAddress)}`,
+                        );
+                        if (replace) return 0;
                     }
                     return (ret ??= func(pathname));
                 },

@@ -1,5 +1,6 @@
 import { Libc } from '@clockwork/common';
 import { Color, logger } from '@clockwork/logging';
+import { addressOf } from './utils.js';
 const { dim, green, red, italic, gray } = Color.use();
 
 function strOneLine(ptr: NativePointer): string {
@@ -13,9 +14,9 @@ function hookStrstr(predicate: (ptr: NativePointer) => boolean) {
         Interceptor.replace(
             func,
             new NativeCallback(
-                function (haystack, needle) {
+                function (this: InvocationContext, haystack, needle) {
                     if (haystack.readCString()?.includes('TracerPid')) {
-                        haystack = Memory.allocUtf8String('nya')
+                        haystack = Memory.allocUtf8String('nya');
                     }
                     const ret = func(haystack, needle);
 
@@ -26,12 +27,11 @@ function hookStrstr(predicate: (ptr: NativePointer) => boolean) {
                             ? `"${strOneLine(needle)}"`
                             : gray(`"${strOneLine(needle)}"`.slice(0, 100));
                         const colorsign = isFound ? green : (x: any) => x;
-                        logger.info({ tag: key }, `${strhay} ${colorsign('?')} ${strned}`);
-
+                        logger.info({ tag: key }, `${strhay} ${colorsign('?')} ${strned} ${this.threadId}`);
                     }
 
                     return ret;
-                },
+                } as any,
                 'pointer',
                 ['pointer', 'pointer'],
             ),
@@ -50,7 +50,7 @@ function hookStrlen(predicate: (ptr: NativePointer) => boolean) {
                     const strs = gray(`"${strOneLine(s)}"`);
                     logger.info(
                         { tag: 'strlen' },
-                        `${strs} # ${Color.number(ret)} ${DebugSymbol.fromAddress(this.returnAddress)}`,
+                        `${strs} # ${Color.number(ret)} ${addressOf(this.returnAddress)}`,
                     );
                 }
 
@@ -92,12 +92,12 @@ function hookStrcmp(predicate: (ptr: NativePointer) => boolean) {
     for (const key of array.slice(-1)) {
         const func = Libc[key];
         Interceptor.attach(func, {
-            onEnter({0: a, 1: b}) {
+            onEnter({ 0: a, 1: b }) {
                 if (predicate(this.returnAddress)) {
                     logger.info({ tag: key }, `${a.readCString()} ? ${b.readCString()}`);
                 }
             },
-            onLeave(retval) {},
+            onLeave(retval) { },
         });
         // Interceptor.replace(
         // 	func,

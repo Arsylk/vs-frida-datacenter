@@ -1,7 +1,15 @@
 import { Classes, ClassesString, Text, isNully, vs } from '@clockwork/common';
 import { JavaPrimitive } from '@clockwork/common/dist/define/enum.js';
 import { Color, logger as gLogger, subLogger } from '@clockwork/logging';
-import { EnvWrapper, type JniDefinition, asFunction, asLocalRef, getClassName, getObjectClassName } from './envWrapper.js';
+import { addressOf } from '@clockwork/native';
+import {
+    EnvWrapper,
+    type JniDefinition,
+    asFunction,
+    asLocalRef,
+    getClassName,
+    getObjectClassName,
+} from './envWrapper.js';
 import { JNI } from './jni.js';
 import { JniInvokeCallbacks } from './jniInvokeCallback.js';
 import { JNIMethod, type JavaMethod, JniInvokeMode } from './model.js';
@@ -25,10 +33,13 @@ function ColorMethod(jMethodId: NativePointer, method: JavaMethod): string {
 }
 
 function ColorMethodInvoke(method: JavaMethod, args: string[]): string {
-    // TODO move someplace else 
+    // TODO move someplace else
     let isMultiline = true;
     // only primitive types or single param
-    if (method.jParameterTypes.length <= 1 || !method.jParameterTypes.map(p => p in Reflect.ownKeys(JavaPrimitive)).includes(false)) {
+    if (
+        method.jParameterTypes.length <= 1 ||
+        !method.jParameterTypes.map((p) => p in Reflect.ownKeys(JavaPrimitive)).includes(false)
+    ) {
         isMultiline = false;
     }
 
@@ -51,7 +62,6 @@ function ColorMethodInvoke(method: JavaMethod, args: string[]): string {
     }
     const nl = isMultiline ? '\n' : '';
     const pad = isMultiline ? '    ' : '';
-
 
     const isConstructor = method.name === '<init>';
     let sb = '';
@@ -88,7 +98,7 @@ function hookIf<T>(
     return function (this: InvocationContext, args: T) {
         const msg = callback.call(this, args);
         if (!msg) return;
-        console.log(`[${tag}]`, msg, DebugSymbol.fromAddress(this.returnAddress));
+        console.log(`[${tag}]`, msg, addressOf(this.returnAddress));
     };
 }
 
@@ -151,7 +161,7 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
     repl(envWrapper, JNI.FindClass, function (retval, env, str) {
         if (!predicate(this)) return;
         const msg = lavender(`${(str as NativePointer).readCString()}`);
-        gLogger.info(`[${dim('FindClass')}] ${msg} ${retval}`);
+        gLogger.info(`[${dim('FindClass')}] ${msg} ${retval} ${addressOf(this.returnAddress)}`);
     });
     repl(envWrapper, JNI.NewGlobalRef, function (retval, env, obj) {
         if (!predicate(this) || isNully(obj) || isNully(retval)) return;
@@ -165,7 +175,7 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
             case 'android.media.MediaRouter$RouteInfo':
             case 'android.view.Display':
             case 'android.media.AudioDeviceInfo:':
-                return
+                return;
         }
 
         const type = Text.toPrettyType(typeName);
@@ -189,7 +199,7 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
             case 'com.cocos.lib.CocosHelper':
             case 'org.cocos2dx.lib.CanvasRenderingContext2DImpl':
             case 'com.cocos.lib.CanvasRenderingContext2DImpl':
-                return
+                return;
         }
 
         const msg = `${method ? ColorMethod(retval, method) : GetMethodText(retval, name as NativePointer, sig as NativePointer)}`;
@@ -212,7 +222,7 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
         name: NativePointer,
         sig: NativePointer,
     ) => {
-        const clazzName = getClassName(env, clazz)
+        const clazzName = getClassName(env, clazz);
         const sigName = `${sig.readCString()}`;
         const typeName = signatureToPrettyTypes(sigName)?.[0] ?? sigName;
         const fieldName = `${name.readCString()}`;
@@ -253,22 +263,26 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
     repl(envWrapper, JNI.RegisterNatives, function (retval, env, clazz, jMethodDef, count) {
         if (!predicate(this) || isNully(clazz) || isNully(jMethodDef)) return;
 
-        const methods: string[] = []
+        const methods: string[] = [];
         for (let i = 0; i < count; i++) {
             const namePtr = (jMethodDef as NativePointer).add(i * Process.pointerSize * 3).readPointer();
-            const sigPtr = (jMethodDef as NativePointer).add(i * Process.pointerSize * 3 + Process.pointerSize).readPointer();
-            const fnPtrPtr = (jMethodDef as NativePointer).add(i * Process.pointerSize * 3 + Process.pointerSize * 2).readPointer();
+            const sigPtr = (jMethodDef as NativePointer)
+                .add(i * Process.pointerSize * 3 + Process.pointerSize)
+                .readPointer();
+            const fnPtrPtr = (jMethodDef as NativePointer)
+                .add(i * Process.pointerSize * 3 + Process.pointerSize * 2)
+                .readPointer();
 
             let sigText = `${sigPtr.readCString()}`;
             const types = signatureToPrettyTypes(sigText);
             if (types) {
                 sigText = `(${types.splice(0, 1).join(', ')})${types[0] && types[0] !== 'void' ? `: ${types[0]}` : ''}`;
             }
-            const text = `    ${black(dim('  >'))}${orange(`${namePtr.readCString()}`)}${sigText} ? ${gray(`${(fnPtrPtr)}`)}`;
-            methods.push(text)
+            const text = `    ${black(dim('  >'))}${orange(`${namePtr.readCString()}`)}${sigText} ? ${gray(`${fnPtrPtr}`)}`;
+            methods.push(text);
         }
 
-        const clazzName = getClassName(env as NativePointer, clazz as NativePointer)
+        const clazzName = getClassName(env as NativePointer, clazz as NativePointer);
         const msg = `${orange(`${jMethodDef}`)} ${clazzName}\n${methods.join('\n')}`;
         gLogger.info(`[${dim('RegisterNatives')}] ${msg}`);
     });
@@ -362,37 +376,6 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
             }),
         });
 
-    for (const Obj of [JNI.NewObject, JNI.NewObjectA, JNI.NewObjectV]) {
-        continue;
-        repl(envWrapper, Obj, function (retval, env, clazz, methodID, args) {
-            if (!predicate(this) || isNully(clazz) || isNully(methodID) || isNully(retval) || isNully(args)) return;
-
-            const method = resolveMethod(
-                env as NativePointer,
-                clazz as NativePointer,
-                methodID as NativePointer,
-                false,
-            );
-            const jArgs = envWrapper.jniInterceptor.getCallMethodArgs(
-                Obj.name,
-                [
-                    env as NativePointer,
-                    clazz as NativePointer,
-                    methodID as NativePointer,
-                    args as NativePointer,
-                ],
-                method,
-            );
-            const msg = formatCallMethod(
-                env as NativePointer,
-                methodID as NativePointer,
-                method,
-                jArgs,
-            );
-            gLogger.info(`[${dim(Obj.name)}] ${msg}`);
-        });
-    }
-
     // biome-ignore lint/suspicious/noSelfCompare: <explanation>
     // biome-ignore lint/correctness/noConstantCondition: <explanation>
     // if (1 === 1) return;
@@ -408,12 +391,12 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
     //             }
 
     //             const msg = formatCallMethod(env, name, methodID, method, jArgs);
-    //             gLogger.info(`[${dim(name)}] ${msg} ${DebugSymbol.fromAddress(this.returnAddress)}`);
+    //             gLogger.info(`[${dim(name)}] ${msg} ${addressOf(this.returnAddress)}`);
     //         },
     //         onLeave({ env, method }, retval) {
     //             if (this.ignore || method?.isVoid) return
     //             const msg = formatMethodReturn(env, retval, method?.returnType);
-    //             gLogger.info(`[${dim(name)}] ${msg} ${DebugSymbol.fromAddress(this.returnAddress)}`);
+    //             gLogger.info(`[${dim(name)}] ${msg} ${addressOf(this.returnAddress)}`);
     //         },
     //     });
     //     Interceptor.attach(address, cb);
@@ -423,12 +406,12 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
     //     const cb = JniInvokeCallbacks(envWrapper, name, JniInvokeMode.Nonvirtual, predicate, {
     //         onEnter({ method, env, methodID, jArgs }) {
     //             const msg = formatCallMethod(env, name, methodID, method, jArgs);
-    //             gLogger.info(`[${dim(name)}] ${msg} ${DebugSymbol.fromAddress(this.returnAddress)}`);
+    //             gLogger.info(`[${dim(name)}] ${msg} ${addressOf(this.returnAddress)}`);
     //         },
     //         onLeave({ env, method }, retval) {
     //             if (this.ignore || method?.isVoid) return
     //             const msg = formatMethodReturn(env, retval, method?.returnType);
-    //             gLogger.info(`[${dim(name)}] ${msg} ${DebugSymbol.fromAddress(this.returnAddress)}`);
+    //             gLogger.info(`[${dim(name)}] ${msg} ${addressOf(this.returnAddress)}`);
     //         },
     //     });
     //     Interceptor.attach(address, cb);
@@ -479,11 +462,15 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
         JNI.CallStaticVoidMethodV,
         JNI.NewObject,
         JNI.NewObjectA,
-        JNI.NewObjectV
-    ]
+        JNI.NewObjectV,
+    ];
     for (const j of CallObjects) {
-        const { address, name } = jfn(j)
-        const mode = name.includes('Static') ? JniInvokeMode.Static : name.includes('NewObject') ? JniInvokeMode.Constructor : JniInvokeMode.Normal
+        const { address, name } = jfn(j);
+        const mode = name.includes('Static')
+            ? JniInvokeMode.Static
+            : name.includes('NewObject')
+                ? JniInvokeMode.Constructor
+                : JniInvokeMode.Normal;
         const cb = JniInvokeCallbacks(envWrapper, j, mode, predicate, {
             onEnter({ method, env, methodID, jArgs }) {
                 const msg = formatCallMethod(env, methodID, method, jArgs);
@@ -505,60 +492,57 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
                         this.ignore = true;
                         if (this.ignore) return;
                         break;
-                    case "android.view.Choreographer":
-                        this.ignore = method?.name === 'postFrameCallback'
-                        if (this.ignore) return
+                    case 'android.view.Choreographer':
+                        this.ignore = method?.name === 'postFrameCallback';
+                        if (this.ignore) return;
                         break;
-                    case "java.lang.Long":
-                        this.ignore = method?.name === 'longValue'
-                        if (this.ignore) return
+                    case 'java.lang.Long':
+                        this.ignore = method?.name === 'longValue';
+                        if (this.ignore) return;
                         break;
                     case 'android.media.MediaRouter$RouteInfo':
-                        this.ignore = method?.name === 'getPresentationDisplay'
+                        this.ignore = method?.name === 'getPresentationDisplay';
                         if (this.ignore) return;
                         break;
                     case 'android.media.MediaRouter':
-                        this.ignore = method?.name === 'getSelectedRoute'
+                        this.ignore = method?.name === 'getSelectedRoute';
                         if (this.ignore) return;
                         break;
                     case 'android.view.Display':
-                        this.ignore = method?.name === 'getDisplayId'
+                        this.ignore = method?.name === 'getDisplayId';
                         if (this.ignore) return;
                         break;
                     case 'android.media.AudioDeviceInfo':
-                        this.ignore = method?.name === 'getType'
+                        this.ignore = method?.name === 'getType';
                         if (this.ignore) return;
                         break;
                     case 'android.media.AudioManager':
-                        this.ignore = method?.name === 'getDevices'
+                        this.ignore = method?.name === 'getDevices';
                         if (this.ignore) return;
                         break;
                 }
-                gLogger.info(`[${dim(name)}] ${msg} ${DebugSymbol.fromAddress(this.returnAddress)}`);
+                gLogger.info(`[${dim(name)}] ${msg} ${addressOf(this.returnAddress)}`);
             },
-            onLeave({ env, method, jArgs }, retval) {
-                if (this.ignore || method?.isVoid) return
+            onLeave({ env, method, obj, jArgs }, retval) {
+                if (this.ignore || method?.isVoid) return;
                 if (method?.name === 'getRawOffset') {
-                    const offs = [-10800000, -12600000, -14400000, -18000000, -21600000, -25200000, -28800000, -32400000, -34200000, -3600000, -36000000, -39600000, -43200000, -7200000, 0, 10800000, 12600000, 14400000, 16200000, 18000000, 19800000, 20700000, 21600000, 23400000, 25200000, 28800000, 31500000, 32400000, 34200000, 3600000, 36000000, 37800000, 39600000, 43200000, 45900000, 46800000, 50400000, 7200000]
-                    retval.replace(ptr(offs[0]))
+                    const offs = [
+                        -10800000, -12600000, -14400000, -18000000, -21600000, -25200000, -28800000,
+                        -32400000, -34200000, -3600000, -36000000, -39600000, -43200000, -7200000, 0,
+                        10800000, 12600000, 14400000, 16200000, 18000000, 19800000, 20700000, 21600000,
+                        23400000, 25200000, 28800000, 31500000, 32400000, 34200000, 3600000, 36000000,
+                        37800000, 39600000, 43200000, 45900000, 46800000, 50400000, 7200000,
+                    ];
+                    retval.replace(ptr(offs[0]));
                 }
                 if (method?.name === 'contains') {
-                    const skip = ['test-keys', 'goldfish', 'ranchu', 'Emulator', 'vbox']
-                    const rawSus = jArgs?.[0]
-                    if (rawSus) {
-                        const sus = `${Java.cast(rawSus as NativePointer, Classes.String)}`;
-                        if (skip.includes(sus)) {
-                            logger.info({ tag: 'sus' }, `${sus} ${skip.includes(sus)} ${retval}`)
-                            retval.replace(ptr(0x0))
-                        }
-
-                    }
+                    logger.info({ tag: 'contains' }, `${Java.cast(obj as NativePointer, Classes.String)}`);
                 }
                 const msg = formatMethodReturn(env, retval, method?.returnType);
-                gLogger.info(`[${dim(name)}] ${msg} ${DebugSymbol.fromAddress(this.returnAddress)}`);
+                gLogger.info(`[${dim(name)}] ${msg} ${addressOf(this.returnAddress)}`);
             },
         });
-        Interceptor.attach(address, cb)
+        Interceptor.attach(address, cb);
     }
 }
 
@@ -597,4 +581,3 @@ type mFunctionReturn<T extends NativeFunctionReturnType> = ReturnType<mFunction<
 type mFunctionParameters<R extends [] | NativeFunctionArgumentType[]> = Parameters<mFunction<any, R>>;
 
 export { EnvWrapper, JNI, asFunction, asLocalRef, hookLibart as attach, getObjectClassName };
-

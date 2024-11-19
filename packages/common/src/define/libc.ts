@@ -69,9 +69,10 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'readlink');
         return new NativeFunction(ptr, 'int', ['pointer', 'pointer', 'int']);
     },
+    // ssize_t read(int fd, void buf[.count], size_t count);
     read: () => {
         const ptr = Module.getExportByName('libc.so', 'read');
-        return new NativeFunction(ptr, 'int', ['int', 'pointer', 'int']);
+        return new NativeFunction(ptr, 'uint', ['int', 'pointer', 'uint']);
     },
     // off_t lseek(int fd, off_t offset, int whence);
     lseek: () => {
@@ -121,6 +122,21 @@ const LibcFinder = {
     pthread_getattr_np: () => {
         const ptr = Module.getExportByName('libc.so', 'pthread_getattr_np');
         return new NativeFunction(ptr, 'int', ['pointer', 'pointer']);
+    },
+    // int pthread_join(pthread_t thread, void **retval);
+    pthread_join: () => {
+        const ptr = Module.getExportByName('libc.so', 'pthread_join');
+        return new NativeFunction(ptr, 'int', ['pointer', 'pointer']);
+    },
+    // int pthread_gettid_np(pthread_t *thread);
+    pthread_gettid_np: () => {
+        const ptr = Module.getExportByName('libc.so', 'pthread_gettid_np');
+        return new NativeFunction(ptr, 'uint', ['pointer']);
+    },
+    // int pthread_getname_np(pthread_t *thread, const char * name, size_t len);
+    pthread_getname_np: () => {
+        const ptr = Module.getExportByName('libc.so', 'pthread_getname_np');
+        return new NativeFunction(ptr, 'int', ['pointer', 'pointer', 'size_t']);
     },
     // double difftime(time_t __time1, time_t __time0)
     difftime: () => {
@@ -315,7 +331,7 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'remove');
         return new NativeFunction(ptr, 'int', ['pointer']);
     },
-    // int remove(const char *pathname);
+    // int unlink(const char *pathname);
     unlink: () => {
         const ptr = Module.getExportByName('libc.so', 'unlink');
         return new NativeFunction(ptr, 'int', ['pointer']);
@@ -364,6 +380,11 @@ const LibcFinder = {
     sprintf: () => {
         const ptr = Module.getExportByName('libc.so', 'sprintf');
         return new NativeFunction(ptr, 'int', ['pointer', 'pointer', '...']);
+    },
+    // int vsnprintf (char * s, size_t n, const char * format, va_list arg );
+    vsnprintf: () => {
+        const ptr = Module.getExportByName('libc.so', 'vsnprintf');
+        return new NativeFunction(ptr, 'int', ['pointer', 'int', 'pointer', '...']);
     },
     // long int atol ( const char * str );
     atoi: () => {
@@ -418,6 +439,11 @@ const LibcFinder = {
     syscall: () => {
         const ptr = Module.getExportByName('libc.so', 'syscall');
         return new NativeFunction(ptr, 'int32', ['int32', '...']);
+    },
+    // __sighandler_t signal(int __sig,__sighandler_t __handler);
+    signal: () => {
+        const ptr = Module.getExportByName('libc.so', 'signal');
+        return new NativeFunction(ptr, 'pointer', ['int', 'pointer']);
     },
     // char * __cxa_demangle (const char *mangled_name, char *output_buffer, size_t *length, int *status)
     __cxa_demangle: () => {

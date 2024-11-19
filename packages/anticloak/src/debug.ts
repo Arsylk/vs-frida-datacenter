@@ -1,7 +1,7 @@
 import { Libc, tryNull } from '@clockwork/common';
 import { always, hook } from '@clockwork/hooks';
 import { logger } from '@clockwork/logging';
-import { traceInModules } from '@clockwork/native';
+import { addressOf } from '@clockwork/native';
 
 function hookPtrace() {
     const replace = Interceptor.replaceFast(
@@ -16,7 +16,7 @@ function hookPtrace() {
             ) {
                 logger.info(
                     { tag: 'ptrace' },
-                    `${request} ${pid} ${addr} ${data} ${traceInModules(this.returnAddress)}`,
+                    `${request} ${pid} ${addr} ${data} ${addressOf(this.returnAddress)}`,
                 );
                 return 0;
             },

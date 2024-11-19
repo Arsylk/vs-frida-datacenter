@@ -12,7 +12,7 @@ export * as Syscall from './syscall.js';
 export * as System from './system.js';
 export * as TheEnd from './theEnd.js';
 export * as Time from './time.js';
-export { dumpFile, getSelfFiles, traceInModules, tryResolveMapsSymbol } from './utils.js';
+export { addressOf, dumpFile, getSelfFiles, tryResolveMapsSymbol } from './utils.js';
 
 function gPtr(value: string | number): NativePointer {
     return ptr(value).sub('0x100000');

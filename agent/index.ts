@@ -534,7 +534,7 @@ Java.performNow(() => {
                 return 'BR';
         }
     });
-    hookPreferences(() => { });
+    hookPreferences(() => {});
     hookFirestore();
     hookCrypto();
     // hookRuntimeExec();
@@ -619,8 +619,7 @@ Java.performNow(() => {
 
     // hook(Classes.Runtime, 'loadLibrary0', { logging: { short: true, multiline: false } });
 
-    ClassLoader.perform(() => {
-    });
+    ClassLoader.perform(() => {});
 });
 
 Network.injectSsl();
@@ -642,6 +641,7 @@ Process.setExceptionHandler((exception: ExceptionDetails) => {
     );
     return exception.type === 'abort' && false;
 });
+
 Native.initLibart();
 // Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x0080004c), fn_key: ptr(0x006f9170) });
 // Cocos2dx.hookLocalStorage(function (key) {
@@ -653,18 +653,8 @@ Native.initLibart();
 //         case 'isRealUser':
 //         case 'force_update':
 //             return 'true';
-//         case 'Shelf Quest Match & Clear_adsdkPayloads': {
-//             if (done) return
-//             done = true
-//             const value = this.fallback();
-//             logger.info({ tag: 'localstor' }, `value ${value}`)
-//             const now = Math.floor(Date.now() / 1000) * 1000
-//             return `[{"ip_config_value":"\\\"{\\\\\\"region\\\\\\":\\\\\\"BR\\\\\\",\\\\\\"forbid_red_envelope\\\\\\":false,\\\\\\"forbid_used\\\\\\":false,\\\\\\"forbid_pai\\\\\\":false,\\\\\\"is_forbid\\\\\\":false,\\\\\\"kbri\\\\\\":60,\\\\\\"recog_ire\\\\\\":true,\\\\\\"zip_version\\\\\\":\\\\\\"\\\\\\",\\\\\\"zip_url\\\\\\":\\\\\\"\\\\\\"}\\\"","ip_config_status":1,"ip_first_req":false,"redirect_type":"0","event_name":"ip_config","ts":${now},"timestamp":${now},"system_time":${now},"event_id":"3a5e69af-17c5-420a-8643-78ebb467941c","report_id":"2d312278-00eb-429f-a16c-12d488a5bc5c","target_p":"adsdk"}]`
-//         }
 //     }
 // });
-
-
 
 // Unity.setVersion('2018.4.36f1');
 // Unity.patchSsl();
@@ -675,7 +665,6 @@ emitter.on('il2cpp', Unity.listGameObjects);
 let enable = true;
 setTimeout(() => (enable = true), 10000);
 emitter.on('jni', (_) => (enable = !enable));
-
 
 const isNativeEnabled = true;
 const predicate = (r) => {
@@ -695,7 +684,7 @@ JniTrace.attach(({ returnAddress }) => {
     return enable && predicate(returnAddress);
 });
 
-Dump.initSoDump()
+// Dump.initSoDump();
 
 Native.Files.hookAccess(predicate);
 // Native.Files.hookOpen(predicate);
@@ -704,14 +693,14 @@ Native.Files.hookFopen(predicate, true, (path) => {
         return `/data/data/${getSelfProcessName()}/files/fake_maps`;
     }
     if (path?.endsWith('/su')) {
-        return path.replace(/\/su$/, '/nya')
+        return path.replace(/\/su$/, '/nya');
     }
 });
 Native.Files.hookOpendir(predicate);
-Native.Files.hookStat(predicate);
+// Native.Files.hookStat(predicate);
 Native.Files.hookRemove(predicate);
-Native.Strings.hookStrlen(predicate);
-Native.Strings.hookStrcpy(predicate);
+// Native.Strings.hookStrlen(predicate);
+// Native.Strings.hookStrcpy(predicate);
 // Native.Strings.hookStrcmp(predicate);
 // Native.Strings.hookStrstr(predicate);
 // Native.Strings.hookStrtoLong(predicate);
@@ -721,13 +710,13 @@ Native.TheEnd.hook(predicate);
 Native.System.hookSystem();
 Native.System.hookGetauxval();
 
-Native.Time.hookDifftime(predicate);
-Native.Time.hookTime(predicate);
+// Native.Time.hookDifftime(predicate);
+// Native.Time.hookTime(predicate);
 // Native.Time.hookLocaltime(predicate);
 // Native.Time.hookGettimeofday(predicate);
 Anticloak.Debug.hookPtrace();
 Native.Pthread.hookPthread_create();
-Native.Logcat.hookLogcat();
+// Native.Logcat.hookLogcat();
 // Anticloak.Jigau.memoryPatch();
 
 Interceptor.attach(Libc.sprintf, {
@@ -750,7 +739,7 @@ Interceptor.attach(Libc.posix_spawn, {
     },
 });
 
-emitter.on('so', () => Dump.initSoDump())
+emitter.on('so', () => Dump.initSoDump());
 emitter.on('dex', () => Dump.scheduleDexDump(0));
 
 const GL_ENUM = {
@@ -778,8 +767,6 @@ Interceptor.attach(Module.getExportByName(null, 'glGetString'), {
     },
 });
 
-
-
 // Native.Inject.attachRelativeTo('libil2cpp.so', gPtr(0x160e2dc), {
 //     onEnter([__this, value, methodInfo]: [NativePointer, boolean, any]) {
 //         const _o = __this.readPointer();
@@ -791,7 +778,7 @@ Interceptor.attach(Module.getExportByName(null, 'glGetString'), {
 //         logger.info(
 //             { tag: 'setactive' },
 //             pink(
-//                 Thread.backtrace(this.context, Backtracer.ACCURATE).map(DebugSymbol.fromAddress).join(', \n'),
+//                 Thread.backtrace(this.context, Backtracer.ACCURATE).map(addressOf).join(', \n'),
 //             ),
 //             6,
 //         );
@@ -835,7 +822,7 @@ Interceptor.attach(Module.getExportByName(null, 'glGetString'), {
 //                 default: {
 //                     logger.info(
 //                         { tag: ex },
-//                         `"${arg.readCString()}" -> $com.lomol.workout.loseweightm{DebugSymbol.fromAddress(this.returnAddress)}`,
+//                         `"${arg.readCString()}" -> $com.lomol.workout.loseweightm{addressOf(this.returnAddress)}`,
 //                     );
 //                     return;
 //                 }
@@ -850,7 +837,7 @@ Interceptor.replace(
     new NativeCallback(
         function () {
             const retval = fork();
-            logger.info({ tag: 'fork' }, `${retval} ${DebugSymbol.fromAddress(this.returnAddress)}`);
+            logger.info({ tag: 'fork' }, `${retval} ${Native.addressOf(this.returnAddress)}`);
             return retval;
             // return -1;
         },

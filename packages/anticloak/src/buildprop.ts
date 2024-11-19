@@ -48,7 +48,7 @@ function propMapper(key: string): string | undefined {
             return 'xiaomi-raven 14 SQ1D.220205.003 8069835 release-keys';
         case 'persist.sys.timezone':
         case 'ro.hardware.power':
-        case 'init.svc.adbd': 
+        case 'init.svc.adbd':
         case 'sys.usb.controller':
         case 'sys.usb.state':
             return '';
@@ -63,9 +63,9 @@ function buildMapper(key: string): string | undefined {
         case 'MANUFACTURER':
         case 'SOC_MANUFACTURER':
             return 'Xiaomi';
-        // case 'DEVICE':
-        // case 'PRODUCT': // this can be problematic for EGLConfig
-        //     return 'nya_arm64';
+        case 'DEVICE':
+        case 'PRODUCT': // this can be problematic for EGLConfig
+            return 'nya_arm64';
         case 'HARDWARE':
             return 'qcom';
         case 'BOARD':

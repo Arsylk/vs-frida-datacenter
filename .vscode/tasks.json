@@ -43,8 +43,8 @@
                 "-f",
                 "${input:appPackage}",
                 "-l",
-                "script.js"
-                // "agent/dist/justdump.js"
+                // "script.js"
+                "agent/dist/justdump.js"
                 // "agent/dist/justcocos.js"
             ],
             "type": "shell",

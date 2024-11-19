@@ -44,9 +44,9 @@ const base = {
             fs: 'frida-fs',
         },
     },
-    // mode: 'production',
-    mode: 'development',
-    devtool: 'inline-source-map',
+    mode: 'production',
+    // mode: 'development',
+    // devtool: 'inline-source-map',
 };
 export default [
     Object.assign(Object.assign({}, base), {
