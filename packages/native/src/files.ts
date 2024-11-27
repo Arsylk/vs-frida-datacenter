@@ -193,10 +193,10 @@ function hookFopen(
         let strpath = isFd ? `<fd:${uri}>` : `${uri}`;
         const isOk = `${errno}` === '0';
 
-        // if (isFd && statfd) {
-        //     const infs = readFdPath(uri);
-        //     strpath += ` -> "${infs}"`;
-        // }
+        if (isFd && statfd) {
+            const infs = readFdPath(uri);
+            strpath += ` -> "${infs}"`;
+        }
 
         const struri = isOk ? dim(`${strpath}`) : dim(red(`${strpath}`));
         const strmod = `${mode}`.padEnd(2);

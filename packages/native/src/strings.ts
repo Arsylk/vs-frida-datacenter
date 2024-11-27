@@ -15,12 +15,13 @@ function hookStrstr(predicate: (ptr: NativePointer) => boolean) {
             func,
             new NativeCallback(
                 function (this: InvocationContext, haystack, needle) {
-                    if (haystack.readCString()?.includes('TracerPid')) {
-                        haystack = Memory.allocUtf8String('nya');
+                    const strNeedle = needle.readCString();
+                    if (strNeedle === 'gmain' || strNeedle === 'gum-js-loop') {
+                        return NULL
                     }
                     const ret = func(haystack, needle);
 
-                    if (predicate(this.returnAddress)) {
+                    if (predicate(this.returnAddress) && !strNeedle.includes('"frida:rpc"')) {
                         const isFound = ret && !ret.isNull();
                         const strhay = gray(`"${strOneLine(haystack)}"`.slice(0, 100));
                         const strned = isFound
@@ -87,13 +88,13 @@ function hookStrcpy(predicate: (ptr: NativePointer) => boolean) {
 }
 
 // hooking strcmp appears to kill the app regardless of what app it is ?
-function hookStrcmp(predicate: (ptr: NativePointer) => boolean) {
+function hookStrcmp(predicate: (ptr: NativePointer, threadId: number) => boolean) {
     const array: ('strcmp' | 'strncmp')[] = ['strcmp', 'strncmp'];
     for (const key of array.slice(-1)) {
         const func = Libc[key];
         Interceptor.attach(func, {
             onEnter({ 0: a, 1: b }) {
-                if (predicate(this.returnAddress)) {
+                if (predicate(this.returnAddress, this.threadId)) {
                     logger.info({ tag: key }, `${a.readCString()} ? ${b.readCString()}`);
                 }
             },

@@ -12,7 +12,8 @@ export * as Syscall from './syscall.js';
 export * as System from './system.js';
 export * as TheEnd from './theEnd.js';
 export * as Time from './time.js';
-export { addressOf, dumpFile, getSelfFiles, tryResolveMapsSymbol } from './utils.js';
+export { addressOf, dumpFile, getSelfFiles, mkdir, tryResolveMapsSymbol } from './utils.js';
+const mutex = Memory.alloc(Process.pointerSize === 4 ? 24 : 40);
 
 function gPtr(value: string | number): NativePointer {
     return ptr(value).sub('0x100000');
@@ -104,15 +105,29 @@ function prettyMethod(methodID: NativePointer, withSignature: boolean) {
     return result.disposeToString();
 }
 
+function sync(fn: () => void) {
+    Libc.pthread_mutex_init(mutex, NULL);
+    try {
+        if (Libc.pthread_mutex_lock(mutex) === 0x0) {
+            fn()
+        }
+    } finally {
+        Libc.pthread_mutex_unlock(mutex)
+    }
+
+
+    const dumpedLibs = new Map();
+
+
+}
+
 export {
     attachRegisterNatives,
     attachSystemPropertyGet,
     gPtr,
     HooahTrace,
     initLibart,
-    Inject,
-    prettyMethod,
-    type,
+    Inject, mutex, prettyMethod, sync, type,
     unbox
 };
 

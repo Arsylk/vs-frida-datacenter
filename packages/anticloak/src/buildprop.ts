@@ -24,6 +24,7 @@ function propMapper(key: string): string | undefined {
             return 'Raven';
         case 'ro.product.manufacturer':
         case 'ro.product.brand':
+        case 'ro.soc.manufacturer':
             return 'Xiaomi';
         case 'ro.hardware':
         case 'ro.product.board':
@@ -64,10 +65,10 @@ function buildMapper(key: string): string | undefined {
         case 'SOC_MANUFACTURER':
             return 'Xiaomi';
         case 'DEVICE':
-        case 'PRODUCT': // this can be problematic for EGLConfig
-            return 'nya_arm64';
-        case 'HARDWARE':
-            return 'qcom';
+        // case 'PRODUCT': // this can be problematic for EGLConfig
+        //     return 'nya_arm64';
+        // case 'HARDWARE':
+        //     return 'qcom';
         case 'BOARD':
             return 'hi6250';
         case 'FINGERPRINT':

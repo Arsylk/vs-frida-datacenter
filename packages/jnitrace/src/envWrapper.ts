@@ -1,5 +1,5 @@
 import { JNI } from './jni.js';
-import { JNIEnvInterceptor } from './jniEnvInterceptor.js';
+import type { JNIEnvInterceptor } from './jniEnvInterceptor.js';
 import { JNIEnvInterceptorARM64 } from './jniEnvInterceptorArm64.js';
 import { Fields, Methods } from './model.js';
 

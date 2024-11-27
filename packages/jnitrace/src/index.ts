@@ -142,30 +142,33 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
     envWrapper ??= new EnvWrapper(Java.vm.getEnv());
 
     repl(envWrapper, JNI.GetStringUTFChars, function (retval, env, str, smth) {
-        if (!predicate(this)) return;
+        if (!predicate(this) || isNully(retval)) return;
+
         const msg = Color.string(retval.readCString());
         gLogger.info(`[${dim('GetStringUTFChars')}] ${msg}`);
     });
     repl(envWrapper, JNI.NewStringUTF, function (retval, env, str) {
-        if (!predicate(this)) return;
-        const text = (str as NativePointer).readCString();
+        if (!predicate(this) || isNully(str)) return;
+        const text = str.readCString();
         switch (text) {
             case 'com/cocos/lib/CocosHelper':
             case 'org/cocos2dx/lib/CanvasRenderingContext2DImpl':
             case 'com/cocos/lib/CanvasRenderingContext2DImpl':
                 return;
         }
+
         const msg = Color.string(text);
-        gLogger.info(`[${dim('NewStringUTF')}] ${msg}`);
+        gLogger.info(`[${dim('NewStringUTF')}] ${msg} ${addressOf(this.returnAddress)}`);
     });
     repl(envWrapper, JNI.FindClass, function (retval, env, str) {
-        if (!predicate(this)) return;
-        const msg = lavender(`${(str as NativePointer).readCString()}`);
+        if (!predicate(this) || isNully(str)) return;
+
+        const msg = lavender(`${str.readCString()}`);
         gLogger.info(`[${dim('FindClass')}] ${msg} ${retval} ${addressOf(this.returnAddress)}`);
     });
     repl(envWrapper, JNI.NewGlobalRef, function (retval, env, obj) {
         if (!predicate(this) || isNully(obj) || isNully(retval)) return;
-        const getObjectClass = asFunction(env as NativePointer, JNI.GetObjectClass);
+        const getObjectClass = asFunction(env, JNI.GetObjectClass);
         const refClass = getObjectClass(env, obj);
         const typeName = Java.cast(refClass, Classes.Class).getName();
         if (typeName.match(/^\$Proxy[0-9]+$/) || typeName === ClassesString.Long) {
@@ -179,7 +182,7 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
         }
 
         const type = Text.toPrettyType(typeName);
-        const value = vs(obj, type, env as NativePointer);
+        const value = vs(obj, type, env);
         const msg = `${Color.className(type)}: ${value}`;
         gLogger.info(`[${dim('NewGlobalRef')}] ${msg}`);
     });
@@ -194,7 +197,7 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
     };
     repl(envWrapper, JNI.GetMethodID, function (retval, env, clazz, name, sig) {
         if (!predicate(this) || isNully(clazz) || isNully(name) || isNully(sig)) return;
-        const method = resolveMethod(env as NativePointer, clazz as NativePointer, retval, false);
+        const method = resolveMethod(env, clazz, retval, false);
         switch (method?.className) {
             case 'com.cocos.lib.CocosHelper':
             case 'org.cocos2dx.lib.CanvasRenderingContext2DImpl':
@@ -202,16 +205,16 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
                 return;
         }
 
-        const msg = `${method ? ColorMethod(retval, method) : GetMethodText(retval, name as NativePointer, sig as NativePointer)}`;
+        const msg = `${method ? ColorMethod(retval, method) : GetMethodText(retval, name, sig)}`;
         gLogger.info(`[${dim('GetMethodID')}] ${msg}`);
     });
     repl(envWrapper, JNI.GetStaticMethodID, function (retval, env, clazz, name, sig) {
         if (!predicate(this) || isNully(clazz) || isNully(name) || isNully(sig)) return;
-        const method = resolveMethod(env as NativePointer, clazz as NativePointer, retval, true);
+        const method = resolveMethod(env, clazz, retval, true);
         if (method?.className === 'com.cocos.lib.CocosHelper') return;
         if (method?.className === 'com.cocos.lib.CanvasRenderingContext2DImpl') return;
 
-        const msg = `${method ? ColorMethod(retval, method) : GetMethodText(retval, name as NativePointer, sig as NativePointer)}`;
+        const msg = `${method ? ColorMethod(retval, method) : GetMethodText(retval, name, sig)}`;
         gLogger.info(`[${dim('GetStaticMethodID')}] ${msg}`);
     });
 
@@ -232,25 +235,13 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
     repl(envWrapper, JNI.GetFieldID, function (retval, env, clazz, name, sig) {
         if (!predicate(this) || isNully(clazz) || isNully(name)) return;
 
-        const msg = GetFieldText(
-            retval,
-            env as NativePointer,
-            clazz as NativePointer,
-            name as NativePointer,
-            sig as NativePointer,
-        );
+        const msg = GetFieldText(retval, env, clazz, name, sig)
         gLogger.info(`[${dim('GetFieldID')}] ${msg}`);
     });
     repl(envWrapper, JNI.GetStaticFieldID, function (retval, env, clazz, name, sig) {
         if (!predicate(this) || isNully(clazz) || isNully(name)) return;
 
-        const msg = GetFieldText(
-            retval,
-            env as NativePointer,
-            clazz as NativePointer,
-            name as NativePointer,
-            sig as NativePointer,
-        );
+        const msg = GetFieldText(retval, env, clazz, name, sig);
         gLogger.info(`[${dim('GetStaticFieldID')}] ${msg}`);
     });
 
@@ -265,11 +256,11 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
 
         const methods: string[] = [];
         for (let i = 0; i < count; i++) {
-            const namePtr = (jMethodDef as NativePointer).add(i * Process.pointerSize * 3).readPointer();
-            const sigPtr = (jMethodDef as NativePointer)
+            const namePtr = jMethodDef.add(i * Process.pointerSize * 3).readPointer();
+            const sigPtr = jMethodDef
                 .add(i * Process.pointerSize * 3 + Process.pointerSize)
                 .readPointer();
-            const fnPtrPtr = (jMethodDef as NativePointer)
+            const fnPtrPtr = jMethodDef
                 .add(i * Process.pointerSize * 3 + Process.pointerSize * 2)
                 .readPointer();
 
@@ -278,23 +269,23 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
             if (types) {
                 sigText = `(${types.splice(0, 1).join(', ')})${types[0] && types[0] !== 'void' ? `: ${types[0]}` : ''}`;
             }
-            const text = `    ${black(dim('  >'))}${orange(`${namePtr.readCString()}`)}${sigText} ? ${gray(`${fnPtrPtr}`)}`;
+            const text = `    ${black(dim('  >'))}${orange(`${namePtr.readCString()}`)}${sigText} ? ${gray(`${addressOf(fnPtrPtr)}`)}`;
             methods.push(text);
         }
 
-        const clazzName = getClassName(env as NativePointer, clazz as NativePointer);
-        const msg = `${orange(`${jMethodDef}`)} ${clazzName}\n${methods.join('\n')}`;
+        const clazzName = getClassName(env, clazz);
+        const msg = `${orange(`${jMethodDef}`)} ${clazzName} ${addressOf(this.returnAddress, true)}\n${methods.join('\n')}`;
         gLogger.info(`[${dim('RegisterNatives')}] ${msg}`);
     });
 
     repl(envWrapper, JNI.GetObjectArrayElement, function (retval, env, jarray, i) {
         if (!predicate(this) || isNully(jarray) || !i) return;
-        const getObjectClass = asFunction(env as NativePointer, JNI.GetObjectClass);
+        const getObjectClass = asFunction(env, JNI.GetObjectClass);
         const refClass = !isNully(retval) ? getObjectClass(env, retval) : null;
         const typeName = refClass ? Java.cast(refClass, Classes.Class).getName() : null;
         const type = typeName ? Text.toPrettyType(typeName) : null;
 
-        const value = vs(retval, type ?? undefined, env as NativePointer);
+        const value = vs(retval, type ?? undefined, env);
         const msg = `${type ?? jarray}[${i}] ${value}`;
         gLogger.info(`[${dim('GetObjectArrayElement')}] ${msg}`);
     });
@@ -308,33 +299,7 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
     //         name.includes('_ZN3art3JNIILb0') &&
     //         !name.includes('CheckJNI')
     //     ) {
-    //         if (name.includes('GetStringUTFChars')) {
-    //             logger.trace(`GetStringUTFChars is at ${name} ${address}`);
-    //         } else if (name.includes('NewStringUTF')) {
-    //             logger.trace(`NewStringUTF is at ${name} ${address}`);
-    //         } else if (name.includes('DefineClass')) {
-    //             logger.trace(`DefineClass is at ${name} ${address}`);
-    //         } else if (name.includes('FindClass')) {
-    //             logger.trace(`FindClass is at ${name} ${address}`);
-    //         } else if (name.includes('GetMethodID')) {
-    //             logger.trace(`GetMethodID is at ${name} ${address}`);
-    //         } else if (name.includes('GetStaticMethodID')) {
-    //             logger.trace(`GetStaticMethodID is at ${name} ${address}`);
-    //         } else if (name.includes('GetFieldID')) {
-    //             logger.trace(`GetFieldID is at ${name} ${address}`);
-    //         } else if (name.includes('GetStaticFieldID')) {
-    //             logger.trace(`GetStaticFieldID is at ${name} ${address}`);
-    //         } else if (name.includes('RegisterNatives')) {
-    //             logger.trace(`RegisterNatives is at ${name} ${address}`);
-    //         } else if (name.includes('NewObject') && !name.includes('Array')) {
-    //             logger.trace(`NewObject is at ${name} ${address}`);
-    //         } else if (name.includes('CallStatic')) {
-    //             logger.trace(`CallStatic is at ${name} ${address}`);
-    //         } else if (name.includes('CallNonvirtual')) {
-    //             logger.trace(`CallNonvirtual is at ${name} ${address}`);
-    //         } else if (name.includes('Call') && name.includes('Method')) {
-    //             logger.trace(`Call<>Method is at ${name} ${address}`);
-    //         } else if (name.includes('ToReflectedMethod')) {
+    //        if (name.includes('ToReflectedMethod')) {
     //             logger.trace(`ToReflectedMethod is at ${name} ${address}`);
     //         } else if (name.includes('GetArrayLength')) {
     //             Interceptor.attach(address, {
@@ -360,8 +325,6 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
     //             Interceptor.attach(address, {
     //                 onLeave: hookIfTag('GetByteArrayElements', (retval) => `${retval}}`),
     //             });
-    //         } else if (name.includes('NewGlobalRef')) {
-    //             logger.trace(`NewGlobalRef is at ${name} ${address}`);
     //         }
     //     }
     // }
@@ -371,42 +334,23 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
                 this.a0 = args[0];
                 this.a1 = args[1];
             },
-            onLeave: hookIfTag<InvocationReturnValue>('IsSameObject', function (retval) {
-                return `${this.a0} == ${this.a1} ? ${retval}`;
-            }),
+            onLeave(retval) {
+                const msg = `${this.a0} == ${this.a1} ? ${retval}`
+                gLogger.info(`[${dim('IsSameObject')}] ${msg}`);
+            },
         });
 
     // biome-ignore lint/suspicious/noSelfCompare: <explanation>
     // biome-ignore lint/correctness/noConstantCondition: <explanation>
     // if (1 === 1) return;
 
-    // for (const { address, name } of addrsCallStatic) {
-    //     const cb = JniInvokeCallbacks(envWrapper, name, JniInvokeMode.Static, predicate, {
-    //         onEnter({ method, env, methodID, jArgs }) {
-    //             if ((method?.className?.includes('CocosHelper') &&
-    //                 method?.name?.includes('flushTasksOnGameThread')) || (method?.className === ClassesString.System && method?.name === 'nanoTime')
-    //             ) {
-    //                 this.ignore = true;
-    //                 return;
-    //             }
-
-    //             const msg = formatCallMethod(env, name, methodID, method, jArgs);
-    //             gLogger.info(`[${dim(name)}] ${msg} ${addressOf(this.returnAddress)}`);
-    //         },
-    //         onLeave({ env, method }, retval) {
-    //             if (this.ignore || method?.isVoid) return
-    //             const msg = formatMethodReturn(env, retval, method?.returnType);
-    //             gLogger.info(`[${dim(name)}] ${msg} ${addressOf(this.returnAddress)}`);
-    //         },
-    //     });
-    //     Interceptor.attach(address, cb);
-    // }
 
     // for (const { address, name } of addrsCallNonvirtual) {
     //     const cb = JniInvokeCallbacks(envWrapper, name, JniInvokeMode.Nonvirtual, predicate, {
     //         onEnter({ method, env, methodID, jArgs }) {
     //             const msg = formatCallMethod(env, name, methodID, method, jArgs);
     //             gLogger.info(`[${dim(name)}] ${msg} ${addressOf(this.returnAddress)}`);
+
     //         },
     //         onLeave({ env, method }, retval) {
     //             if (this.ignore || method?.isVoid) return
@@ -460,6 +404,27 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
         JNI.CallStaticVoidMethod,
         JNI.CallStaticVoidMethodA,
         JNI.CallStaticVoidMethodV,
+        JNI.CallNonvirtualObjectMethod,
+        JNI.CallNonvirtualObjectMethodA,
+        JNI.CallNonvirtualObjectMethodV,
+        JNI.CallNonvirtualIntMethod,
+        JNI.CallNonvirtualIntMethodA,
+        JNI.CallNonvirtualIntMethodV,
+        JNI.CallNonvirtualBooleanMethod,
+        JNI.CallNonvirtualBooleanMethodA,
+        JNI.CallNonvirtualBooleanMethodV,
+        JNI.CallNonvirtualDoubleMethod,
+        JNI.CallNonvirtualDoubleMethodA,
+        JNI.CallNonvirtualDoubleMethodV,
+        JNI.CallNonvirtualFloatMethod,
+        JNI.CallNonvirtualFloatMethodA,
+        JNI.CallNonvirtualFloatMethodV,
+        JNI.CallNonvirtualLongMethod,
+        JNI.CallNonvirtualLongMethodA,
+        JNI.CallNonvirtualLongMethodV,
+        JNI.CallNonvirtualVoidMethod,
+        JNI.CallNonvirtualVoidMethodA,
+        JNI.CallNonvirtualVoidMethodV,
         JNI.NewObject,
         JNI.NewObjectA,
         JNI.NewObjectV,
@@ -468,9 +433,11 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
         const { address, name } = jfn(j);
         const mode = name.includes('Static')
             ? JniInvokeMode.Static
-            : name.includes('NewObject')
-                ? JniInvokeMode.Constructor
-                : JniInvokeMode.Normal;
+            : name.includes('Nonvirtual')
+                ? JniInvokeMode.Nonvirtual
+                : name.includes('NewObject')
+                    ? JniInvokeMode.Constructor
+                    : JniInvokeMode.Normal;
         const cb = JniInvokeCallbacks(envWrapper, j, mode, predicate, {
             onEnter({ method, env, methodID, jArgs }) {
                 const msg = formatCallMethod(env, methodID, method, jArgs);
@@ -535,7 +502,7 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
                     ];
                     retval.replace(ptr(offs[0]));
                 }
-                if (method?.name === 'contains') {
+                if (method?.className === ClassesString.String && method?.name === 'contains') {
                     logger.info({ tag: 'contains' }, `${Java.cast(obj as NativePointer, Classes.String)}`);
                 }
                 const msg = formatMethodReturn(env, retval, method?.returnType);
@@ -574,10 +541,14 @@ function repl<T extends NativeFunctionReturnType, R extends [] | NativeFunctionA
     );
 }
 
-type mFunction<T extends NativeFunctionReturnType, R extends [] | NativeFunctionArgumentType[]> = ReturnType<
+
+type RemapAllParams<T extends (...args: any[]) => any, MapFn extends (param: any) => any> =
+    T extends (...args: infer A) => infer R
+    ? (...args: { [K in keyof A]: A[K] & ReturnType<MapFn> }) => R
+    : never;
+type mFunction<T extends NativeFunctionReturnType, R extends [] | NativeFunctionArgumentType[]> = RemapAllParams<ReturnType<
     typeof asFunction<T, R>
->;
+>, () => NativePointer>;
 type mFunctionReturn<T extends NativeFunctionReturnType> = ReturnType<mFunction<T, any>>;
 type mFunctionParameters<R extends [] | NativeFunctionArgumentType[]> = Parameters<mFunction<any, R>>;
-
-export { EnvWrapper, JNI, asFunction, asLocalRef, hookLibart as attach, getObjectClassName };
+export { EnvWrapper, JNI, asFunction, asLocalRef, hookLibart as attach, envWrapper, getObjectClassName };

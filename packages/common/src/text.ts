@@ -1,4 +1,6 @@
+import { Color } from '@clockwork/logging';
 import { JavaPrimitive } from './define/enum.js';
+const { gray } = Color.use();
 
 function maxLengh(message: any, length: number): string {
     const msgString = `${message}`;
@@ -73,4 +75,15 @@ function base64(input: string) {
     return output;
 }
 
-export { base64, maxLengh, noLines, stringNumber, toByteSize, toHex, toPrettyType, uuid };
+function stringify(data: any) {
+    const mapped = Reflect.ownKeys(data).map((k: symbol | string) => {
+        const value = data[k as string];
+        return `${gray(k as string)}: ${value}`;
+
+    })
+    return `{ ${mapped.join(', ')} }`
+}
+
+
+export { base64, maxLengh, noLines, stringify, stringNumber, toByteSize, toHex, toPrettyType, uuid };
+

@@ -45,8 +45,8 @@ const base = {
         },
     },
     mode: 'production',
-    // mode: 'development',
-    // devtool: 'inline-source-map',
+    mode: 'development',
+    devtool: 'inline-source-map',
 };
 export default [
     Object.assign(Object.assign({}, base), {

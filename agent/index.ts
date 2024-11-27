@@ -204,6 +204,9 @@ function hookCrypto() {
         logging: { multiline: false, short: true },
     });
     hook(Classes.Cipher, 'doFinal', {
+        before(method, ...args) {
+            logger.info(pink(stacktrace()))
+        },
         after(method, returnValue, ...args) {
             if (this.opmode.value === 1) {
                 let str = tryNull(() => Classes.String.$new(args[0], Classes.StandardCharsets.UTF_8.value));
@@ -534,7 +537,7 @@ Java.performNow(() => {
                 return 'BR';
         }
     });
-    hookPreferences(() => {});
+    hookPreferences(() => { });
     hookFirestore();
     hookCrypto();
     // hookRuntimeExec();
@@ -617,9 +620,27 @@ Java.performNow(() => {
         logging: { short: true, multiline: false },
     });
 
-    // hook(Classes.Runtime, 'loadLibrary0', { logging: { short: true, multiline: false } });
+    // hook(Classes.Runtime, 'loadLibrary0', { logging: { short: true, yymultiline: false } });
 
-    ClassLoader.perform(() => {});
+    hook('android.app.ForegroundServiceTypePolicy$ForegroundServiceTypePolicyInfo', 'isTypeDisabled', {
+        replace() { return false }
+    })
+    hook('android.app.ForegroundServiceTypePolicy$ForegroundServiceTypePermissions', 'checkPermissions', {
+        replace() { return 0 }
+    })
+    hook(Classes.Service, '$init', {
+        before(method, ...args) {
+            const clazz = findClass(this.$className)
+            clazz && hook(clazz, 'startForeground', {
+                predicate: (overload) => overload.argumentTypes.length === 2,
+                replace(method, arg0, arg1) {
+                    return clazz.startForeground(this, arg0, arg1, Classes.ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED.value)
+                }
+            })
+        },
+    })
+
+    ClassLoader.perform(() => { });
 });
 
 Network.injectSsl();
@@ -656,15 +677,12 @@ Native.initLibart();
 //     }
 // });
 
-// Unity.setVersion('2018.4.36f1');
-// Unity.patchSsl();
-// Unity.attachStrings();
-// Unity.attachScenes();
+// Unity.setVersion('2022.3.16f1');
+Unity.patchSsl();
+Unity.attachStrings();
+Unity.attachScenes();
 
 emitter.on('il2cpp', Unity.listGameObjects);
-let enable = true;
-setTimeout(() => (enable = true), 10000);
-emitter.on('jni', (_) => (enable = !enable));
 
 const isNativeEnabled = true;
 const predicate = (r) => {
@@ -680,6 +698,9 @@ const predicate = (r) => {
     return !true && Native.Inject.modules.find(r) === null;
 };
 
+let enable = !true;
+setTimeout(() => (enable = !true), 9000);
+emitter.on('jni', (_) => (enable = !enable));
 JniTrace.attach(({ returnAddress }) => {
     return enable && predicate(returnAddress);
 });
@@ -767,69 +788,6 @@ Interceptor.attach(Module.getExportByName(null, 'glGetString'), {
     },
 });
 
-// Native.Inject.attachRelativeTo('libil2cpp.so', gPtr(0x160e2dc), {
-//     onEnter([__this, value, methodInfo]: [NativePointer, boolean, any]) {
-//         const _o = __this.readPointer();
-//         const il2class = Struct.Unity.Il2CppClass(_o);
-//         logger.info(
-//             { tag: 'setactive' },
-//             `setActive(${__this}, ${value}) [${methodInfo}] ${JSON.stringify(Struct.toObject(il2class))}`,
-//         );
-//         logger.info(
-//             { tag: 'setactive' },
-//             pink(
-//                 Thread.backtrace(this.context, Backtracer.ACCURATE).map(addressOf).join(', \n'),
-//             ),
-//             6,
-//         );
-//         const clazz = Il2Cpp.api.objectGetClass(__this);
-
-//         Il2Cpp.api.classHasReferences(clazz);
-//         // const others = [Struct.Unity.Il2CppClass(_o.add(0x50).readPointer())];
-//         // for (const key of others) {
-//         //     logger.info({ tag: 'setother' }, `${_ToString?.(_o) as any} )`);
-//         // }
-//     },
-// } as any);
-
-// [
-//     'fwrite',
-//     'faccessat',
-
-//     'vprintf',
-//     '__android_log_print',
-//     'sprintf',
-//     'statvfs',
-//     'pthread_kill',
-//     'killpg',
-//     'tgkill',
-//     'signal',
-//     'abort',
-// ].forEach((ex) => {
-//     const exp = Module.getExportByName(null, ex);
-//     Interceptor.attach(exp, {
-//         onEnter(args) {
-//             const arg = ex === '__android_log_print' ? args[2] : args[0];
-//             switch (ex) {
-//                 case '__android_log_print': {
-//                     logger.info({ tag: ex }, `"${args[2].readCString()}"`);
-//                     return;
-//                 }
-//                 case 'sprintf': {
-//                     logger.info({ tag: ex }, `"${args[0].readCString()}" "${args[1].readCString()}"`);
-//                     return;
-//                 }
-//                 default: {
-//                     logger.info(
-//                         { tag: ex },
-//                         `"${arg.readCString()}" -> $com.lomol.workout.loseweightm{addressOf(this.returnAddress)}`,
-//                     );
-//                     return;
-//                 }
-//             }
-//         },
-//     });
-// });
 const fork_ptr = Module.getExportByName('libc.so', 'fork');
 const fork = new NativeFunction(fork_ptr, 'int', []);
 Interceptor.replace(
@@ -852,8 +810,8 @@ Interceptor.replace(
         function (buffer, size, fp) {
             const retval = Libc.fgets(buffer, size, fp);
             if (predicate(this.returnAddress)) {
-                //     const endUserMssg = buffer.readCString(size)?.trimEnd();
-                //     logger.info({ tag: 'fgets' }, `${endUserMssg}`);
+                // const endUserMssg = buffer.readCString()?.trimEnd();
+                // logger.info({ tag: 'fgets' }, `${endUserMssg}`);
             }
             return retval;
         },

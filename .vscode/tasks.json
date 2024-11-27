@@ -35,18 +35,7 @@
             "label": "Run Frida",
             "detail": "Start a frida session",
             "command": "frida",
-            "args": [
-                "-D",
-                "${config:adb.serialId}",
-                "-o",
-                "session.txt",
-                "-f",
-                "${input:appPackage}",
-                "-l",
-                // "script.js"
-                "agent/dist/justdump.js"
-                // "agent/dist/justcocos.js"
-            ],
+            "args": ["-D", "${config:adb.serialId}", "-o", "session.txt", "-f", "${input:appPackage}", "-l", "${config:frida.script}"],
             "type": "shell",
             "group": "test",
             "runOptions": {
@@ -143,7 +132,7 @@
             "label": "Android Clear App Data",
             "detail": "Perform pm clear on selected package",
             "type": "shell",
-            "command": "adb shell pm clear ${input:appPackage}",
+            "command": "adb -s ${config:adb.serialId} shell pm clear ${input:appPackage}",
             "icon": {
                 "id": "trashcan"
             },

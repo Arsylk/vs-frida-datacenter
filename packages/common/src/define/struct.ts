@@ -78,6 +78,35 @@ const Unity = {
     }),
 };
 
+const Elf = {
+    /**
+     * struct astruct {
+            ushort field0x0;
+            ushort array_size;
+            undefined field2_0x4;
+            undefined field3_0x5;
+            undefined field4_0x6;
+            undefined field5_0x7;
+            long counter;
+            long *field7_0x10;
+            long field8_0x18;
+            char *name_0x20;
+            void *array_0x28;
+        };
+     * 
+     */
+    data: proxyStruct({
+        field_0x0: 'short',
+        array_size_0x2: 'short',
+        field_0x4: 'int',
+        counter_0x8: 'long',
+        field7_0x10: 'long',
+        field8_0x18: 'pointer',
+        name_0x20: 'string*',
+        array_0x28: 'pointer',
+    })
+}
+
 function malloc<T extends { [key: string]: StructTypes }>(struct: StructCreator<T>) {
     return struct(Memory.alloc(struct.size));
 }
@@ -92,4 +121,5 @@ function toObject<T extends { [key: string]: StructTypes }>(struct: PropertyStru
     );
 }
 
-export { Stat, Time, Unity, malloc, toObject };
+export { Elf, Stat, Time, Unity, malloc, toObject };
+

@@ -27,7 +27,9 @@ function hookExit(predicate: (ptr: NativePointer) => boolean) {
         Libc.raise,
         new NativeCallback(
             function (err) {
-                const stacktrace = Thread.backtrace(this.context, Backtracer.FUZZY).join('\n\t');
+                const stacktrace = Thread.backtrace(this.context, Backtracer.FUZZY)
+                    .map(x => addressOf(x, true))
+                    .join('\n\t');
                 logger.info({ tag: 'raise' }, `err: ${err} ${addressOf(this.returnAddress)} ${stacktrace}`);
                 return 0;
             },

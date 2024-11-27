@@ -1,19 +1,21 @@
 import * as Anticloak from '@clockwork/anticloak';
-import { emitter } from '@clockwork/common';
-import { dumpLib } from '@clockwork/dump';
+import { Text, emitter, getFindUnique } from '@clockwork/common';
+import * as Dump from '@clockwork/dump';
+import { getHookUnique } from '@clockwork/hooks';
+import * as JniTrace from '@clockwork/jnitrace';
 import { Color, logger } from '@clockwork/logging';
 import * as Native from '@clockwork/native';
-import * as Network from '@clockwork/network';
+import { getSelfProcessName } from '@clockwork/native/dist/utils';
+const uniqHook = getHookUnique(true);
+const uniqFind = getFindUnique(false);
+
 const { white, gray } = Color.use();
 
-Network.injectSsl();
-Anticloak.InstallReferrer.replace({
-    install_referrer:
-        'utm_source=facebook_ads&utm_medium=Non-rganic&media_source=true_network&http_referrer=BingSearch',
-});
-Java.performNow(() => {
-});
-
+// Network.injectSsl();
+// Anticloak.InstallReferrer.replace({
+//     install_referrer:
+//         'utm_source=facebook_ads&utm_medium=Non-rganic&media_source=true_network&http_referrer=BingSearch',
+// });
 const predicate = (r: NativePointer) => {
     function isWithinOwnRange(ptr: NativePointer) {
         const path = Native.Inject.modules.findPath(ptr);
@@ -22,66 +24,58 @@ const predicate = (r: NativePointer) => {
     return isWithinOwnRange(r);
 };
 
-emitter.on('dumplib', (lib) => dumpLib(lib))
+emitter.on('dumplib', (lib) => Dump.dumpLib(lib));
 
 let en = true;
-setTimeout(() => (en = true), 5000);
-// JniTrace.attach((thisRef) => en && predicate(thisRef.returnAddress));
+setTimeout(() => (en = true), 6000);
 
+let replace = false;
+Native.Inject.afterInitArray(name => {
+    if (name === 'libjiagu_64.so') {
+        if (!replace) {
+            JniTrace.attach((thisRef) => predicate(thisRef.returnAddress));
+            Native.Files.hookOpen(predicate, (path) => {
+                path?.includes('dex') && Native.sync(() => {
+                    Dump.dumpLib('libjiagu_64.so', true)
+                })
+            });
+            Interceptor.attach(Libc.dlsym, {
+                onEnter(args) {
+                    this.args0 = args[0]
+                    this.args1 = args[1].readCString()
+                },
+                onLeave(retval) {
+                    logger.info({ tag: 'dlsym' }, `${this.args1} ${retval}`)
+                },
+            });
+        }
+        // !replace && 
+        Stalker.addCallProbe(Module.getExportByName(null, "dl_iterate_phdr"), () => {
+            logger.info({ tag: 'dl_iterate_phdr' }, 'hi');
+        });
+        replace = true
+
+        const module = Process.findModuleByName('libjiagu_64.so')
+        logger.info({ tag: 'base' }, Text.stringify(module))
+    }
+})
+
+Native.Files.hookFopen(predicate, true, (path) => {
+    if (path === '/proc/self/maps' || path === `/proc/${Process.id}/maps`) {
+        return `/data/data/${getSelfProcessName()}/files/fake_maps`;
+    }
+    if (path?.endsWith('/su')) {
+        return path.replace(/\/su$/, '/nya');
+    }
+});
 Native.Files.hookAccess(predicate);
-// // Native.Files.hookOpen(predicate, function (path) {
-// //     if (path?.includes('.dex')) {
-// //         const trace = Thread.backtrace(this.context, Backtracer.FUZZY)
-// //             .map((x) => Native.addressOf(x))
-// //             .join('\n  ');
-// //         logger.info(`  ${trace}`);
-// //         dumpLib('libjiagu_64.so')
-// //         // const rs = Process.enumerateMallocRanges()
-// //         //     // .filter(x => x.protection?.includes('x'))
-// //         //     //@ts-ignore
-// //         //     .filter(x => (x.base < (ptr as NativePointer) && x.base.add(x.size) < (ptr as NativePointer)))
-// //         // logger.info({ tag: '9info' }, `${rs}`)
-// //         //@ts-ignore
-// //         // logger.info({ tag: 'procs' }, File.readAllText('/proc/self/maps'))
-// //     }
-// // });
-
-// const fopen = new NativeFunction(Module.getExportByName('libc.so', 'fopen'), 'pointer', ['pointer', 'pointer']);
-// Interceptor.replace(
-//     fopen,
-//     new NativeCallback(
-//         function (pathname, mode) {
-//             if (predicate(this.returnAddress)) {
-//                 const path = pathname.readCString();
-//                 logger.info({ tag: 'fopen' }, `${path} ${mode} ${Native.addressOf(this.returnAddress)} ${(this as any).threadId}`)
-//                 if (path === '/proc/self/maps' || path === `/proc/${Process.id}/maps`) {
-//                     pathname = Memory.allocUtf8String('/proc/self/cmdline');
-//                 }
-//                 if (path === '/proc/self/status' || path === `/proc/${Process.id}/status`) {
-//                     pathname = Memory.allocUtf8String('/proc/self/cmdline');
-//                     const trace = Thread.backtrace(this.context, Backtracer.FUZZY)
-//                         .map((x) => Native.addressOf(x))
-//                         .join('\n  ');
-//                     logger.info(`  ${trace} ${(this as any).threadId}`);
-//                 }
-//                 if (path?.endsWith('/su')) {
-//                     pathname = Memory.allocUtf8String(path.replace(/\/su$/, '/nya'));
-//                 }
-//             }
-//             return fopen(pathname, mode)
-//         },
-//         'pointer',
-//         ['pointer', 'pointer'],
-//     )
-// );
-
 Native.Files.hookOpendir(predicate);
 Native.Files.hookStat(predicate);
-Native.Files.hookRemove(predicate, () => false);
-// Native.Strings.hookStrlen(predicate);
+Native.Files.hookRemove(predicate);
+// Native.Strings.hookStrlen(predicate)
 // Native.Strings.hookStrcpy(predicate);
 // Native.Strings.hookStrcmp(predicate);
-Native.Strings.hookStrstr(predicate);
+// Native.Strings.hookStrstr(predicate);
 Native.Strings.hookStrtoLong(predicate);
 
 Native.TheEnd.hook(predicate);
@@ -90,211 +84,220 @@ Native.System.hookSystem();
 Native.System.hookGetauxval();
 Native.System.hookPosixSpawn();
 
-// // Native.Time.hookDifftime(predicate);
-// // Native.Time.hookTime(predicate);
-// // Native.Time.hookLocaltime(predicate);
-// // Native.Time.hookGettimeofday(predicate);
+// Native.Time.hookDifftime(predicate);
+// Native.Time.hookTime(predicate);
+// Native.Time.hookLocaltime(predicate);
+// Native.Time.hookGettimeofday(predicate);
 Native.Pthread.hookPthread_create();
 Native.Pthread.hookPthread_join();
 // Native.Logcat.hookLogcat();
 
 Anticloak.Debug.hookPtrace();
 
-Interceptor.attach(Libc.dlsym, {
-    onEnter(args) {
-        this.dst = args[1];
-    },
-    onLeave(retval) {
-        const text = this.dst.readCString();
-        logger.info({ tag: 'dlsym' }, `${text} -> ${retval}`);
-        if (text === 'strstr') {
-            Interceptor.attach(retval, {
-                onEnter(args) {
-                    logger.info({ tag: `dlsym->${text}` }, `${args[0].readCString()} ? ${args[1].readCString()}`);
-                },
-            })
-        }
-    },
-});
 
-Interceptor.attach(Libc.sprintf, {
-    onEnter(args) {
-        this.dst = args[0];
-    },
-    onLeave(retval) {
-        const text = this.dst.readCString();
-        logger.info({ tag: 'sprintf' }, `${text}`);
-    },
-});
+// Interceptor.attach(Libc.sprintf, {
+//     onEnter(args) {
+//         this.dst = args[0];
+//     },
+//     onLeave(retval) {
+//         const text = this.dst.readCString();
+//         logger.info({ tag: 'sprintf' }, `${text}`);
+//     },
+// });
 
-Interceptor.attach(Libc.vsnprintf, {
-    onEnter(args) {
-        this.dst = args[0];
-    },
-    onLeave(retval) {
-        if (predicate(this.returnAddress)) {
-            const text = this.dst.readCString();
-            logger.info({ tag: 'vsnprintf' }, `${text}`);
-        }
-    },
-});
-
-// Interceptor.attach(Libc.syscall, {
-//     onEnter({ 0: _sysno, 1: args }) {
+// Interceptor.attach(Libc.vsnprintf, {
+//     onEnter(args) {
+//         this.dst = args[0];
+//     },
+//     onLeave(retval) {
 //         if (predicate(this.returnAddress)) {
-//             const sysno = _sysno.toUInt32();
-//             logger.info({ tag: 'syscall' }, `${sysno} ${Native.addressOf(this.returnAddress)} `);
+//             const text = this.dst.readCString();
+//             logger.info({ tag: 'vsnprintf' }, `${text}`);
 //         }
 //     },
 // });
 
+// // Interceptor.attach(Libc.syscall, {
 
+// //     onEnter({ 0: _sysno, 1: args }) {
+// //         if (predicate(this.returnAddress)) {
+// //             const sysno = _sysno.toUInt32();
+// //             logger.info({ tag: 'syscall' }, `${sysno} ${Native.addressOf(this.returnAddress)} `);
+// //         }
+// //     },
+// // });
 
-Interceptor.attach(Module.getExportByName(null, 'dl_iterate_phdr'), {
-    onEnter(args) {
-        if (predicate(this.returnAddress)) {
-            logger.info({ tag: 'dl_iterate_phdr' }, `${args[0]} `);
-        }
-    },
-});
+// // // Interceptor.attach(Module.getExportByName(null, 'dl_iterate_phdr'), {
+// // //     onEnter(args) {
+// // //         if (predicate(this.returnAddress)) {
+// // //             logger.info({ tag: 'dl_iterate_phdr' }, `${args[0]} `);
+// // //         }
+// // //     },
+// // // });
 
+// // Dump.initSoDump();
+// // // // emitter.on('so', initSoDump);
+// // // // emitter.on('dex', scheduleDexDump.bind(0));
 
+// // // let replaced = true;
+// // // let dones = false;
+// // // let dumped = false;
+// // // let stalked = true;
+// // // Native.Inject.afterInitArrayModule(function (module) {
+// // //     const threadId = (this as any).threadId;
+// // //     if (module.name === 'libjiagu_64.so') {
+// // //         //const dlopen = new NativeFunction(module.getExportByName('dlopen'), 'void', ['pointer', 'int']);
+// // //         //!stalked && do_stalking(module, threadId);
+// // //         //stalked = true;
+// // //         //
+// // //         //MemoryAccessMonitor.enable(
+// // //         //    { base: module.base.add(0x12b000), size: 0x1000 },
+// // //         //    {
+// // //         //        onAccess(details) {
+// // //         //            logger.info({ tag: 'scanmem' }, `${details.address} ${details.operation}`);
+// // //         //        },
+// // //         //    },
+// // //         //);
+// // //         //
+// // //         //!replaced &&
+// // //         //    Interceptor.replace(
+// // //         //        Libc.open,
+// // //         //        new NativeCallback(
+// // //         //            function (path, mode) {
+// // //         //                const threadId = (this as any).threadId;
+// // //         //                const pathname = path.readCString();
+// // //         //                logger.info({ tag: 'open' }, `${pathname} ${mode}`);
+// // //         //                if (
+// // //         //                    pathname === '/proc/self/maps' ||
+// // //         //                    pathname === `/proc/${Process.id}/maps` ||
+// // //         //                    pathname?.includes('/maps')
+// // //         //                ) {
+// // //         //                    path = Memory.allocUtf8String(
+// // //         //                        '/data/data/com.kct.fundo.btnotification/files/fake',
+// // //         //                    );
+// // //         //                }
+// // //         //                if (!dumped) {
+// // //         //                    dumped = true;
+// // //         //                    dumpLib('libjiagu_64.so');
+// // //         //                }
+// // //         //
+// // //         //                const trace = Thread.backtrace(this.context, Backtracer.FUZZY)
+// // //         //                    .map((x) => Native.addressOf(x))
+// // //         //                    .join('\n  ');
+// // //         //                logger.info(`  ${trace} ${(this as any).threadId}`);
+// // //         //                const { value } = Libc.open(path, mode);
+// // //         //                return value;
+// // //         //            },
+// // //         //            'int',
+// // //         //            ['pointer', 'int'],
+// // //         //        ),
+// // //         //    );
+// // //         //replaced = true;
+// // //         //if (dones) return;
+// // //         //const hooked = Interceptor.attach(dlopen, {
+// // //         //    onEnter({ 0: path, 1: flags }) {
+// // //         //        logger.info({ tag: 'dlopen' }, `${path.readCString()}`);
+// // //         //        if (dones) return;
+// // //         //        dones = true;
+// // //         //        hooked.detach();
+// // //         //        const setState = new NativeFunction(module.base.add(0x1880b0), 'pointer', ['int']);
+// // //         //        Interceptor.replace(
+// // //         //            setState,
+// // //         //            new NativeCallback(
+// // //         //                (state) => {
+// // //         //                    return setState(0x82);
+// // //         //                },
+// // //         //                'pointer',
+// // //         //                ['int'],
+// // //         //            ),
+// // //         //        );
+// // //         //    },
+// // //         //});
+// // //     }
+// // //     if (module.name === 'libjiagu_64.so') {
+// // //         Memory.scan(module.base, module.size, 'e8 06 40 f9 1f 01 15 eb 61 00 54', {
+// // //             onMatch(address, size) {
+// // //                 logger.info({ tag: 'mempatch' }, `${address}`);
+// // //                 address.writeByteArray([0x1f, 0x1, 0x0, 0xf1]);
+// // //             },
+// // //         });
+// // //         return;
+// // //     }
+// // // });
 
-// // initSoDump();
-// emitter.on('so', initSoDump);
-// emitter.on('dex', scheduleDexDump.bind(0));
+// // // function do_stalking(module: Module, threadId: number) {
+// // //     Stalker.exclude(Process.getModuleByName('libart.so'));
+// // //     Stalker.exclude(Process.getModuleByName('libc.so'));
+// // //     Stalker.exclude(Process.getModuleByName('libart.so'));
+// // //     Stalker.exclude(Process.getModuleByName('libc.so'));
+// // //     Stalker.follow(threadId, {
+// // //         events: {
+// // //             call: false,
+// // //             ret: false,
+// // //             exec: false,
+// // //             block: false,
+// // //             compile: false,
+// // //         },
+// // //         onReceive: (events) => { },
+// // //         transform: (iterator) => {
+// // //             let insn = iterator.next();
+// // //             do {
+// // //                 const addr = `${insn.address.sub(module.base)}`;
+// // //                 if (funct[addr]) {
+// // //                     logger.info({ tag: 'call' }, `${funct[addr]}`);
+// // //                 }
+// // //                 iterator.keep();
+// // //             } while ((insn = iterator.next()) !== null);
+// // //         },
+// // //         onCallSummary: (summary) => { },
+// // //     });
+// // // }
 
-
-
-let replaced = false
-let dones = false;
-let dumped = false
-let stalked = true
-Native.Inject.afterInitArrayModule(function (module) {
-    const threadId = (this as any).threadId
-    if (module.name === 'libjiagu_64.so') {
-        !stalked && do_stalking(module, threadId)
-        stalked = true;
-
-
-        MemoryAccessMonitor.enable({ base: module.base.add(0x12B000), size: 0x1000 }, {
-            onAccess(details) {
-                logger.info({ tag: 'scanmem' }, `${details.address} ${details.operation}`)
-            }
-        })
-
-        !replaced && Interceptor.replace(Libc.open, new NativeCallback(function (path, mode) {
-            const threadId = (this as any).threadId
-            const pathname = path.readCString()
-            logger.info({ tag: 'open' }, `${pathname} ${mode}`)
-            if (pathname === '/proc/self/maps' || pathname === `/proc/${Process.id}/maps` || pathname?.includes('/maps')) {
-                path = Memory.allocUtf8String('/data/data/com.kct.fundo.btnotification/files/fake')
-            }
-            if (!dumped) {
-                dumped = true
-
-            }
-            // dumpLib('libjiagu_64.so')
-
-            const trace = Thread.backtrace(this.context, Backtracer.FUZZY)
-                .map((x) => Native.addressOf(x))
-                .join('\n  ');
-            logger.info(`  ${trace} ${(this as any).threadId}`);
-            const { value } = Libc.open(path, mode)
-            return value
-        }, 'int', ['pointer', 'int']));
-        replaced = true
-
-        const dlopen = new NativeFunction(module.getExportByName('dlopen'), 'void', ['pointer', 'int']);
-        if (dones) return;
-        const hooked = Interceptor.attach(dlopen, {
-            onEnter({ 0: path, 1: flags }) {
-                logger.info({ tag: 'dlopen' }, `${path.readCString()}`)
-                if (dones) return;
-                dones = true
-                hooked.detach();
-                const setState = new NativeFunction(module.base.add(0x1880b0), 'pointer', ['int'])
-                Interceptor.replace(setState, new NativeCallback((state) => {
-                    return setState(0x82)
-                }, 'pointer', ['int']))
-            }
-        })
-    }
-    if (module.name === 'libjiagu_64.so') {
-        Memory.scan(module.base, module.size, 'e8 06 40 f9 1f 01 15 eb 61 00 54', {
-            onMatch(address, size) {
-                logger.info({ tag: 'mempatch' }, `${address}`);
-                address.writeByteArray([0x1f, 0x1, 0x0, 0xf1]);
-            },
-        });
-        return;
-    };
-})
-
-function do_stalking(module: Module, threadId: number) {
-    Stalker.exclude(Process.getModuleByName('libart.so'))
-    Stalker.exclude(Process.getModuleByName('libc.so'))
-    Stalker.exclude(Process.getModuleByName('libart.so'))
-    Stalker.exclude(Process.getModuleByName('libc.so'))
-    Stalker.follow(threadId, {
-        events: {
-            call: false,
-            ret: false,
-            exec: false,
-            block: false,
-            compile: false
-        },
-        onReceive: (events) => {
-        },
-        transform: (iterator) => {
-            let insn = iterator.next();
-            do {
-                const addr = `${insn.address.sub(module.base)}`
-                if (funct[addr]) {
-                    logger.info({ tag: 'call' }, `${funct[addr]}`)
-                }
-                iterator.keep();
-            } while ((insn = iterator.next()) !== null);
-        },
-        onCallSummary: (summary) => {
-        }
-    });
-
-}
-
-function do_stalking_v2(module: Module, threadId: number) {
-    const depth = { [threadId]: 0 };
-    for (const { 0: f, 1: name } of Object.entries(funct)) {
-        if (name.startsWith('pthread') || name.startsWith('str') || name.startsWith('mem')) continue
-        if (['FUN_0013ce80', 'FUN_0013a3c0', 'dlopen', 'open', 'malloc', 'sscanf', 'free', 'operator.delete', 'operator.new', 'operator.new[]'].includes(name)) continue
-        const hook = (addr) => {
-            Interceptor.attach(addr, {
-                onEnter(args) {
-                    if (predicate(this.returnAddress)) {
-                        depth[threadId] ??= 0
-                        depth[threadId] += 1
-                        logger.info({ tag: name }, `${'-'.repeat(depth[threadId])} call`)
-                    }
-                },
-                onLeave(retval) {
-                    if (predicate(this.returnAddress)) {
-                        logger.info({ tag: name }, `${'-'.repeat(depth[threadId])} ret ${retval}`)
-                        depth[threadId] -= 1
-                    }
-                },
-            })
-        }
-        try {
-            hook(module.base.add(ptr(f)))
-        } catch (e) {
-            try {
-                // hook(Module.getExportByName(null, name))
-            } catch (ee) {
-
-            }
-        }
-    }
-}
+// // // function do_stalking_v2(module: Module, threadId: number) {
+// // //     const depth = { [threadId]: 0 };
+// // //     for (const { 0: f, 1: name } of Object.entries(funct)) {
+// // //         if (name.startsWith('pthread') || name.startsWith('str') || name.startsWith('mem')) continue;
+// // //         if (
+// // //             [
+// // //                 'FUN_0013ce80',
+// // //                 'FUN_0013a3c0',
+// // //                 'dlopen',
+// // //                 'open',
+// // //                 'malloc',
+// // //                 'sscanf',
+// // //                 'free',
+// // //                 'operator.delete',
+// // //                 'operator.new',
+// // //                 'operator.new[]',
+// // //             ].includes(name)
+// // //         )
+// // //             continue;
+// // //         const hook = (addr) => {
+// // //             Interceptor.attach(addr, {
+// // //                 onEnter(args) {
+// // //                     if (predicate(this.returnAddress)) {
+// // //                         depth[threadId] ??= 0;
+// // //                         depth[threadId] += 1;
+// // //                         logger.info({ tag: name }, `${'-'.repeat(depth[threadId])} call`);
+// // //                     }
+// // //                 },
+// // //                 onLeave(retval) {
+// // //                     if (predicate(this.returnAddress)) {
+// // //                         logger.info({ tag: name }, `${'-'.repeat(depth[threadId])} ret ${retval}`);
+// // //                         depth[threadId] -= 1;
+// // //                     }
+// // //                 },
+// // //             });
+// // //         };
+// // //         try {
+// // //             hook(module.base.add(ptr(f)));
+// // //         } catch (e) {
+// // //             try {
+// // //                 // hook(Module.getExportByName(null, name))
+// // //             } catch (ee) { }
+// // //         }
+// // //     }
+// // // }
 
 const funct = {
     '0x2fd000': 'stpcpy',
@@ -2079,4 +2082,4 @@ const funct = {
     '0x21d3fc': 'FUN_0031d3fc',
     '0x209b10': 'FUN_00309b10',
     '0x228d90': 'FUN_00328d90',
-}
+};

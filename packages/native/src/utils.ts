@@ -43,12 +43,20 @@ function getSelfFiles(): string {
     return files_dir;
 }
 
+Object.defineProperties(addressOf, {
+    transform: {
+        writable: true,
+        value: (ptr: NativePointer) => ptr
+    }
+});
 function addressOf(ptr: NativePointer, extended?: boolean) {
     const surround = (str: any) => `${black('⟨')}${str}${black('⟩')}`
     const debug = DebugSymbol.fromAddress(ptr)
+    ptr = (addressOf as any).transform(ptr)
+
     if (debug.moduleName) {
         const rel = debug.name ?? `0x${ptr.toString(16)}`
-        return surround(`${debug.moduleName}${gray('!')}${rel} ${extended ? ptr.toString(16) : ''}`)
+        return surround(`${debug.moduleName}${gray('!')}${rel} ${extended ? `0x${ptr.toString(16)}` : ''}`)
     }
     return surround(`0x${ptr.toString(16)}`)
     // for (const { base, name, size } of Inject.modules.values()) {
