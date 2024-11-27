@@ -15,11 +15,6 @@ abstract class JNIEnvInterceptor {
         // instant skip when method is missing
         if (!method) return null
 
-        //if (caller.endsWith('jmethodIDz')) return [];
-        //if (!caller.endsWith('va_list') && !caller.endsWith('jvalue')) {
-        //    return null;
-        //}
-
         const isVaList = caller.endsWith('va_list') || caller.endsWith('V');
 
         const callArgs = Array(method.jParameterTypes.length)

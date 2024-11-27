@@ -46,4 +46,5 @@ enum a_type {
     AT_MINSIGSTKSZ = 51,
 }
 
-export { JavaPrimitive, a_type, mode };
+export { a_type, JavaPrimitive, mode };
+

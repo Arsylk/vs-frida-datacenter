@@ -1,3 +1,4 @@
+import * as Anticloak from '@clockwork/anticloak';
 import { emitter } from '@clockwork/common';
 import * as Dump from '@clockwork/dump';
 import { Color, logger } from '@clockwork/logging';
@@ -195,3 +196,7 @@ function stringifyData(data: any) {
     })
     return `{ ${mapped.join(', ')} }`
 }
+
+const INSTALL_REFERRER =
+    'utm_source=Organic';
+Anticloak.InstallReferrer.replace({ install_referrer: INSTALL_REFERRER })

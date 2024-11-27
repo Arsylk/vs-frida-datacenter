@@ -205,7 +205,6 @@ function hookCrypto() {
     });
     hook(Classes.Cipher, 'doFinal', {
         before(method, ...args) {
-            logger.info(pink(stacktrace()))
         },
         after(method, returnValue, ...args) {
             if (this.opmode.value === 1) {
@@ -238,22 +237,31 @@ function hookCrypto() {
     });
 }
 
-function hookJson(fn?: (key: string, method: string) => any) {
+function hookJson(fn?: (key: string, method: string, fallback: () => Java.Wrapper) => any) {
     const getOpt = ['get', 'opt'];
     const types = ['Boolean', 'Double', 'Int', 'JSONArray', 'JSONObject', 'Long', 'String'];
 
     hook(Classes.JSONObject, '$init', {
         loggingPredicate: Filter.json,
         logging: { short: true },
-        predicate: (_, index) => index !== 0,
+        predicate: (_, index) => index !== 0 && _.argumentTypes.length === 1 && _.argumentTypes[0].className === ClassesString.String,
+        replace(method, ...args) {
+            if (`${args[0]}`.includes("isApp")) {
+                method.call(this, '{"imgs":null,"ty":"okhttp/4.12.0","user_info":"send me t","v":"2","isApp":1,"user":"TestNya","timestamp":1732709955063,"token":"ab2398df147908df45530b2fe3e4f42d"}')
+                logger.info({ tag: 'trace' }, pink(stacktrace()))
+
+            }
+            method.call(this, ...args)
+        }
     });
 
     hook(Classes.JSONObject, 'has', {
         loggingPredicate: Filter.json,
         logging: { multiline: false, short: true },
         replace(method, key) {
-            const found = fn?.(key, 'has') !== undefined;
-            return found || method.call(this, key);
+            const bound = method.bind(this, key)
+            const found = fn?.(key, 'has', bound) !== undefined;
+            return found || bound();
         },
     });
 
@@ -261,7 +269,11 @@ function hookJson(fn?: (key: string, method: string) => any) {
         hook(Classes.JSONObject, item, {
             loggingPredicate: Filter.json,
             logging: { multiline: false, short: true },
-            replace: fn ? ifKey((key) => fn(key, item)) : undefined,
+            replace(method, ...args) {
+                const bound = method.bind(this, ...args)
+                const value = fn?.(args[0], item, bound)
+                return value !== undefined ? value : bound()
+            }
         });
     }
 
@@ -271,7 +283,11 @@ function hookJson(fn?: (key: string, method: string) => any) {
             hook(Classes.JSONObject, name, {
                 loggingPredicate: Filter.json,
                 logging: { multiline: false, short: true },
-                replace: fn ? ifKey((key) => fn(key, name)) : undefined,
+                replace(method, ...args) {
+                    const bound = method.bind(this, ...args)
+                    const value = fn?.(args[0], item, bound)
+                    return value !== undefined ? value : bound()
+                },
             });
         }
     }
@@ -494,7 +510,7 @@ Java.performNow(() => {
     hookActivity();
     hookWebview(true);
     hookNetwork();
-    hookJson((key, _method) => {
+    hookJson(function (key, _method, fallback) {
         switch (key) {
             case 'install_referrer':
             case 'referrer':
@@ -540,7 +556,7 @@ Java.performNow(() => {
     hookPreferences(() => { });
     hookFirestore();
     hookCrypto();
-    // hookRuntimeExec();
+    hookRuntimeExec();
 
     bypassIntentFlags();
     bypassReceiverFlags();
@@ -698,8 +714,8 @@ const predicate = (r) => {
     return !true && Native.Inject.modules.find(r) === null;
 };
 
-let enable = !true;
-setTimeout(() => (enable = !true), 9000);
+let enable = true;
+setTimeout(() => (enable = true), 9000);
 emitter.on('jni', (_) => (enable = !enable));
 JniTrace.attach(({ returnAddress }) => {
     return enable && predicate(returnAddress);

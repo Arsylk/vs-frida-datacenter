@@ -49,6 +49,7 @@ function hookKill(predicate: (ptr: NativePointer) => boolean) {
                     { tag: 'kill' },
                     `kill(${pid}, ${code}) ${addressOf(this.returnAddress)} ${stacktrace}`,
                 );
+                logger.info({ tag: 'kill' }, `kill(${pid}, ${code}) called !`);
                 return 0;
             },
             'int',

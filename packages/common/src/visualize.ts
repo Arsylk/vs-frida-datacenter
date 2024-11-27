@@ -10,8 +10,8 @@ function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv
 
     //loop over array until max length
     if (type?.endsWith('[]')) {
-        const baseType = type.replace(/[\\[\\]]/g, '');
-        const itemType = type.substring(0, type.length - 2);
+        const baseType = type.replace(/[\\[\\]]/g, '')
+        const itemType = type.substring(0, type.length - 2)
         const items: string[] = [];
         let getItem = (i: number) => value[i];
         let size = value.size ?? value.length;
@@ -87,21 +87,28 @@ function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv
     const classHandle = value.$h ?? value;
     const handleStr = `${classHandle}`;
     // console.log(value, type, typeof value, value.$h, value instanceof NativePointer);
-    // return `${classHandle}`;
-
-    if (handleStr === '0x0') {
-        return Color.number(null);
-    }
 
     if (classHandle) {
-        const text =
-            handleStr.length === 12
-                ? asLocalRef(jniEnv, classHandle, (ptr: NativePointer) => visualObject(ptr, type))
-                : visualObject(classHandle, type);
-        if (text) return text;
-    }
+        const text = asLocalRef(jniEnv, classHandle, (ptr: NativePointer) => visualObject(ptr, type));
+        const handleStr = `${classHandle}`
+        // console.log(value, type, typeof value, value.$h, value instanceof NativePointer);
+        // return `${classHandle}`;
 
-    return black(`${value}`);
+        if (handleStr === '0x0') {
+            return Color.number(null);
+        }
+
+        if (classHandle) {
+            const text =
+                handleStr.length === 12
+                    ? asLocalRef(jniEnv, classHandle, (ptr: NativePointer) => visualObject(ptr, type))
+                    : visualObject(classHandle, type);
+            if (text) return text;
+        }
+
+        return black(`${value}`);
+    }
+    return red(`${value}`)
 }
 
 function visualObject(value: NativePointer, type?: string): string {
@@ -122,6 +129,10 @@ function visualObject(value: NativePointer, type?: string): string {
         if (type === ClassesString.OpenSSLX509Certificate || type === ClassesString.X509Certificate) {
             const win = Java.cast(value, Classes.X509Certificate);
             return `${ClassesString.X509Certificate}(issuer=${win.getIssuerX500Principal()})`;
+        }
+        if (type === ClassesString.OpenSSLX509Certificate) {
+            const win = Java.cast(value, Classes.OpenSSLX509Certificate);
+            return `${ClassesString.OpenSSLX509Certificate}(issuer=${win.getIssuerX500Principal()})`;
         }
 
         if (type === ClassesString.Certificate) {

@@ -12,7 +12,7 @@ export * from './visualize.js';
 function tryNull<T>(fn: () => T): T | null {
     try {
         return fn();
-    } catch (_) {}
+    } catch (_) { }
     return null;
 }
 
@@ -38,7 +38,7 @@ function getApplicationContext(): Java.Wrapper {
     return Classes.ActivityThread.currentApplication().getApplicationContext();
 }
 
-const isNully = (ptr: NativePointerValue) => !ptr || ptr == NULL || `${ptr}` === '0x0' 
+const isNully = (ptr: NativePointerValue) => !ptr || ptr == NULL || `${ptr}` === '0x0'
 
 const emitter = new EventEmitter();
 declare global {

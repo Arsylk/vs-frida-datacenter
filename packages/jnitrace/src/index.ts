@@ -345,21 +345,6 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
     // if (1 === 1) return;
 
 
-    // for (const { address, name } of addrsCallNonvirtual) {
-    //     const cb = JniInvokeCallbacks(envWrapper, name, JniInvokeMode.Nonvirtual, predicate, {
-    //         onEnter({ method, env, methodID, jArgs }) {
-    //             const msg = formatCallMethod(env, name, methodID, method, jArgs);
-    //             gLogger.info(`[${dim(name)}] ${msg} ${addressOf(this.returnAddress)}`);
-
-    //         },
-    //         onLeave({ env, method }, retval) {
-    //             if (this.ignore || method?.isVoid) return
-    //             const msg = formatMethodReturn(env, retval, method?.returnType);
-    //             gLogger.info(`[${dim(name)}] ${msg} ${addressOf(this.returnAddress)}`);
-    //         },
-    //     });
-    //     Interceptor.attach(address, cb);
-    // }
 
     const CallObjects = [
         JNI.CallObjectMethod,
@@ -500,7 +485,7 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
                         23400000, 25200000, 28800000, 31500000, 32400000, 34200000, 3600000, 36000000,
                         37800000, 39600000, 43200000, 45900000, 46800000, 50400000, 7200000,
                     ];
-                    retval.replace(ptr(offs[0]));
+                    // retval.replace(ptr(offs[0]));
                 }
                 if (method?.className === ClassesString.String && method?.name === 'contains') {
                     logger.info({ tag: 'contains' }, `${Java.cast(obj as NativePointer, Classes.String)}`);

@@ -55,22 +55,22 @@ function JniInvokeCallbacks(
         onEnter(rawargs) {
             if (!predicate(this)) return;
 
-            let env: NativePointer 
-            let obj: NativePointer 
-            let clazz: NativePointer 
+            let env: NativePointer
+            let obj: NativePointer
+            let clazz: NativePointer
             let methodID: NativePointer
             let args: NativePointer
             if (mode === JniInvokeMode.Constructor || mode === JniInvokeMode.Static) {
                 // const { 0: env, 1: clazz, 2: methodID, 3: args } = rawargs
                 env = rawargs[0]
                 obj = NULL;
-                clazz = rawargs[1] 
+                clazz = rawargs[1]
                 methodID = rawargs[2]
                 args = rawargs[3]
             } else if (mode === JniInvokeMode.Normal) {
                 // const { 0: env, 1: obj, 2: methodID, 3: args } = rawargs
                 env = rawargs[0]
-                obj = rawargs[1] 
+                obj = rawargs[1]
                 clazz = NULL;
                 methodID = rawargs[2]
                 args = rawargs[3]
@@ -78,7 +78,7 @@ function JniInvokeCallbacks(
                 // const { 0: env, 1: obj, 2: clazz, 3: methodID, 4: args } = rawargs
                 env = rawargs[0]
                 obj = rawargs[1]
-                clazz = rawargs[2] 
+                clazz = rawargs[2]
                 methodID = rawargs[3]
                 args = rawargs[4]
             }
@@ -113,7 +113,7 @@ function JniInvokeCallbacks(
                 (context as any).argStruct = null;
                 (context as any).method = null;
                 (context as any).jArgs = null;
-            } catch (e) {}
+            } catch (e) { }
         },
     };
     return cb;
