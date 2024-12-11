@@ -50,6 +50,16 @@ const Stat = {
     }),
 };
 
+const Dir = {
+    dirent: proxyStruct({
+        d_ino: 'uint64',
+        d_off: 'int64',
+        d_reclen: 'byte',
+        d_type: 'char',
+        d_name: 'string',
+    }),
+};
+
 const Unity = {
     Il2CppClass: proxyStruct({
         image: 'pointer',
@@ -104,8 +114,8 @@ const Elf = {
         field8_0x18: 'pointer',
         name_0x20: 'string*',
         array_0x28: 'pointer',
-    })
-}
+    }),
+};
 
 function malloc<T extends { [key: string]: StructTypes }>(struct: StructCreator<T>) {
     return struct(Memory.alloc(struct.size));
@@ -121,5 +131,4 @@ function toObject<T extends { [key: string]: StructTypes }>(struct: PropertyStru
     );
 }
 
-export { Elf, Stat, Time, Unity, malloc, toObject };
-
+export { Dir, Elf, Stat, Time, Unity, malloc, toObject };

@@ -53,13 +53,17 @@ function proxyCallback<T extends { [key: string]: Returnable }>(data: T): Proper
 }
 
 type PropertyStructMapper<T extends { [key: string]: StructTypes }> = {
-    [Property in keyof T]: T[Property] extends 'int' | 'long'
+    [Property in keyof T]: T[Property] extends 'int' | 'uint' | 'long' | 'short' | 'ushort' | 'byte'
         ? StructField<number>
-        : T[Property] extends 'string'
+        : T[Property] extends 'string' | 'char'
           ? StructField<string>
-          : StructField<NativePointer>;
+          : T[Property] extends 'uint64'
+            ? StructField<UInt64>
+            : T[Property] extends 'int64'
+              ? StructField<Int64>
+              : StructField<NativePointer>;
 } & { ptr: NativePointer };
-type StructField<T extends number | string | NativePointer> = {
+type StructField<T extends number | Int64 | UInt64 | string | NativePointer> = {
     ptr: NativePointer;
     value: T;
 };
@@ -74,6 +78,24 @@ function proxyStruct<T extends { [key: string]: StructTypes }>(data: T): StructC
         for (const key in data) {
             const crnt = ptr.add(offset);
             switch (data[key]) {
+                case 'char':
+                    cache[key] = {
+                        ptr: crnt,
+                        get value() {
+                            return crnt.readCString(1);
+                        },
+                    };
+                    offset += 0x1;
+                    break;
+                case 'byte':
+                    cache[key] = {
+                        ptr: crnt,
+                        get value() {
+                            return crnt.readU8() & 0xff;
+                        },
+                    };
+                    offset += 0x2;
+                    break;
                 case 'string':
                     cache[key] = {
                         ptr: crnt,
@@ -118,6 +140,33 @@ function proxyStruct<T extends { [key: string]: StructTypes }>(data: T): StructC
                         },
                     };
                     offset += 0x8;
+                    break;
+                case 'int64':
+                    cache[key] = {
+                        ptr: crnt,
+                        get value() {
+                            return crnt.readS64();
+                        },
+                    };
+                    offset += 0x8;
+                    break;
+                case 'uint64':
+                    cache[key] = {
+                        ptr: crnt,
+                        get value() {
+                            return crnt.readU64();
+                        },
+                    };
+                    offset += 0x8;
+                    break;
+                case 'ushort':
+                    cache[key] = {
+                        ptr: crnt,
+                        get value() {
+                            return crnt.readUShort();
+                        },
+                    };
+                    offset += 0x2;
                     break;
                 case 'short':
                     cache[key] = {

@@ -17,7 +17,7 @@ function hookStrstr(predicate: (ptr: NativePointer) => boolean) {
                 function (this: InvocationContext, haystack, needle) {
                     const strNeedle = needle.readCString();
                     if (strNeedle === 'gmain' || strNeedle === 'gum-js-loop') {
-                        return NULL
+                        return NULL;
                     }
                     const ret = func(haystack, needle);
 
@@ -98,7 +98,7 @@ function hookStrcmp(predicate: (ptr: NativePointer, threadId: number) => boolean
                     logger.info({ tag: key }, `${a.readCString()} ? ${b.readCString()}`);
                 }
             },
-            onLeave(retval) { },
+            onLeave(retval) {},
         });
         // Interceptor.replace(
         // 	func,

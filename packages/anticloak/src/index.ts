@@ -8,6 +8,7 @@ export * as Country from './country.js';
 export * as Debug from './debug.js';
 export * as InstallReferrer from './installReferrer.js';
 export * as Jigau from './jigau.js';
+export * from './packages.js';
 
 function hookDevice(fn?: (key: string) => number | undefined) {
     enumerateMembers(Classes.Build, {
@@ -99,7 +100,9 @@ function hookHasFeature() {
     const HARDWARE_FEATURES = ['android.hardware.camera.flash', 'android.hardware.nfc'];
     hook(Classes.ApplicationPackageManager, 'hasSystemFeature', {
         logging: { short: true, multiline: false },
-        predicate(_, i) { return i !== 0 },
+        predicate(_, i) {
+            return i !== 0;
+        },
         replace(method, ...args) {
             const feature = `${args[0]}`;
             for (const key of HARDWARE_FEATURES) {

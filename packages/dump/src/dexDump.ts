@@ -119,7 +119,7 @@ function dump() {
                         result.push({ addr: range.base, size: dex_size });
                     }
                 }
-            } catch (e) { }
+            } catch (e) {}
         });
 
         return result;
@@ -199,5 +199,52 @@ function scheduleDexDump(delay = 10_000) {
     }, delay);
 }
 
-export { verify as dexBytesVerify, scheduleDexDump };
+function hookArtLoader() {
+    const hashMap = new Map<string, string>();
+    let basepath: string | null = null;
+    let dexCount = 1;
 
+    const onEnter = (args: InvocationArguments) => {
+        const dexPtr = args[5];
+        //ptr(dex_file).add(Process.pointerSize) is "const uint8_t* const begin_;"
+        //ptr(dex_file).add(Process.pointerSize + Process.pointerSize) is "const size_t size_;"
+        const base = dexPtr.add(Process.pointerSize).readPointer();
+        const size = dexPtr.add(Process.pointerSize * 2).readUInt();
+        const key = `${base}`;
+        const value = `${size}`;
+
+        if (hashMap.get(key) === value) return;
+        hashMap.set(key, value);
+
+        const magic = base.readCString();
+        if (magic?.includes('dex')) {
+            const dexPath = `${getSelfFiles()}/dump_dex`;
+            mkdir(dexPath);
+            const dexFile = `${basepath ?? dexPath}/class${dexCount === 1 ? '' : dexCount}.dex`;
+            logger.info({ tag: 'art' }, `dex: ${dexFile}`);
+            dexCount += 1;
+            //@ts-ignore
+            File.writeAllBytes(dexFile, base.readByteArray(size));
+            basepath ??= dexPath;
+        }
+    };
+
+    const libart = Process.getModuleByName('libart.so');
+    for (const { name, address } of libart.enumerateSymbols()) {
+        //这个DefineClass的函数签名是Android9的
+        //_ZN3art11ClassLinker11DefineClassEPNS_6ThreadEPKcmNS_6HandleINS_6mirror11ClassLoaderEEERKNS_7DexFileERKNS9_8ClassDefE
+        if (
+            name.includes('ClassLinker') &&
+            name.includes('DefineClass') &&
+            name.includes('Thread') &&
+            name.includes('DexFile')
+        ) {
+            logger.info({ tag: 'art' }, `${name}: ${address}`);
+            Interceptor.attach(address, {
+                onEnter: onEnter,
+            });
+        }
+    }
+}
+
+export { verify as dexBytesVerify, scheduleDexDump, hookArtLoader };

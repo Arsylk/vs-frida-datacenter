@@ -10,17 +10,20 @@ function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv
 
     //loop over array until max length
     if (type?.endsWith('[]')) {
-        const baseType = type.replace(/[\\[\\]]/g, '')
-        const itemType = type.substring(0, type.length - 2)
+        const baseType = type.replace(/[\\[\\]]/g, '');
+        const itemType = type.substring(0, type.length - 2);
         const items: string[] = [];
         let getItem = (i: number) => value[i];
         let size = value.size ?? value.length;
 
         // native pointer to array only
         if (!size) {
-            const GetArrayItem = asFunction(jniEnv, JNI.GetObjectArrayElement);
-            size = asFunction(jniEnv, JNI.GetArrayLength)(jniEnv, value.$h ?? value);
-            getItem = (i: number) => vs(GetArrayItem(jniEnv, value.$h ?? value, i), itemType, jniEnv);
+            const mPointer = value.$h ?? value;
+            if (mPointer instanceof NativePointer) {
+                const GetArrayItem = asFunction(jniEnv, JNI.GetObjectArrayElement);
+                size = asFunction(jniEnv, JNI.GetArrayLength)(jniEnv, mPointer);
+                getItem = (i: number) => vs(GetArrayItem(jniEnv, mPointer, i), itemType, jniEnv);
+            }
         }
 
         let messageSize = 0;
@@ -90,7 +93,7 @@ function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv
 
     if (classHandle) {
         const text = asLocalRef(jniEnv, classHandle, (ptr: NativePointer) => visualObject(ptr, type));
-        const handleStr = `${classHandle}`
+        const handleStr = `${classHandle}`;
         // console.log(value, type, typeof value, value.$h, value instanceof NativePointer);
         // return `${classHandle}`;
 
@@ -108,7 +111,7 @@ function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv
 
         return black(`${value}`);
     }
-    return red(`${value}`)
+    return red(`${value}`);
 }
 
 function visualObject(value: NativePointer, type?: string): string {

@@ -1,10 +1,10 @@
-import { Libc } from '@clockwork/common';
+import { Libc, Struct, isNully, Text } from '@clockwork/common';
 import { Color, logger } from '@clockwork/logging';
-import { unbox } from './index.js';
 import { addressOf, readFdPath } from './utils.js';
+import { unbox } from './index.js';
 // import { constants } from 'frida-fs';
-const [R_OK, W_OK, X_OK] = [1, 2, 4];
 const { bold, dim, green, red, gray, bgRed } = Color.use();
+const [R_OK, W_OK, X_OK] = [1, 2, 4];
 
 function ofResultColor(path: NativePointer | string | number, ret: NativePointer | number) {
     if (typeof path === 'number') path = `<fd:${path}>`;
@@ -14,7 +14,7 @@ function ofResultColor(path: NativePointer | string | number, ret: NativePointer
     return uri;
 }
 
-function hookAccess(predicate: (ptr: NativePointer) => boolean) {
+function hookAccess(predicate: (ptr: NativePointer) => boolean, fn?: (path) => void) {
     const empty = dim('-');
     function log(
         this: InvocationContext | CallbackContext,
@@ -41,6 +41,10 @@ function hookAccess(predicate: (ptr: NativePointer) => boolean) {
                     if (path?.endsWith('/su') || path?.startsWith('/system/bin/ls')) {
                         // Memory.proect(pathname, Process.pageSize, 'rw-');
                         pathname = Memory.allocUtf8String('/nya');
+                    }
+                    const reppath = fn?.(path);
+                    if (reppath) {
+                        pathname = Memory.allocUtf8String(reppath);
                     }
                     ret = Libc.access(pathname, mode);
                     log.call(this, pathname.readCString(), mode, ret, 'access');
@@ -202,7 +206,10 @@ function hookFopen(
         const strmod = `${mode}`.padEnd(2);
         const errstr = !isOk ? ` ${gray(dim(`{${errno}: "${Libc.strerror(errno).readCString()}}"`))}` : '';
 
-        logger.info({ tag: key }, `${struri} ${strmod} ${!stream ? '' : `->${stream}`}${errstr}`);
+        logger.info(
+            { tag: key },
+            `${struri} ${strmod} ${!stream ? '' : `->${stream}`}${errstr} ${addressOf(this.returnAddress)}`,
+        );
     }
 
     Interceptor.replace(
@@ -294,14 +301,61 @@ function hookOpendir(predicate: (ptr: NativePointer) => boolean) {
     );
 }
 
+function hookDirent(predicate: (ptr: NativePointer) => boolean) {
+    Interceptor.attach(Libc.readdir, {
+        onLeave(retval) {
+            if (predicate(this.returnAddress)) {
+                const dirent = !isNully(retval)
+                    ? Text.stringify(Struct.toObject(Struct.Dir.dirent(retval)))
+                    : ptr(0x0);
+                logger.info({ tag: 'readdir' }, `${dirent}`);
+            }
+        },
+    });
+    Interceptor.attach(Libc.seekdir, {
+        onEnter(args) {
+            if (predicate(this.returnAddress)) {
+                const dirent = !isNully(args[0])
+                    ? Text.stringify(Struct.toObject(Struct.Dir.dirent(args[0])))
+                    : ptr(0x0);
+                logger.info({ tag: 'seekdir' }, `${dirent} at 0x${args[1]}`);
+            }
+        },
+    });
+    Interceptor.attach(Libc.telldir, {
+        onEnter(args) {
+            if (predicate(this.returnAddress)) {
+                const dirent = !isNully(args[0])
+                    ? Text.stringify(Struct.toObject(Struct.Dir.dirent(args[0])))
+                    : ptr(0x0);
+                logger.info({ tag: 'telldir' }, `${dirent} at 0x${args[1]}`);
+            }
+        },
+    });
+    Interceptor.attach(Libc.scandir, {
+        onEnter({ 0: drip, 1: namelist, 2: filter, 3: compar }) {
+            this.drip = drip.readCString();
+            this.namelist = namelist;
+        },
+        onLeave(retval) {
+            const intRet = retval.toInt32();
+            logger.info({ tag: 'scandir' }, `${this.drip}: ${intRet}`);
+        },
+    });
+    Interceptor.attach(Libc.closedir, {
+        onEnter(args) {
+            if (predicate(this.returnAddress)) {
+                const dirent = !isNully(args[0])
+                    ? Text.stringify(Struct.toObject(Struct.Dir.dirent(args[0])))
+                    : ptr(0x0);
+                logger.info({ tag: 'closedir' }, `${dirent}`);
+            }
+        },
+    });
+}
+
 function hookStat(predicate: (ptr: NativePointer) => boolean) {
-    function log(
-        this: InvocationContext | CallbackContext,
-        uri: string | number | null,
-        statbuf: NativePointer,
-        ret: number,
-        tag: string,
-    ) {
+    function log(uri: string | number | null, statbuf: NativePointer, ret: number, tag: string) {
         const isFd = typeof uri === 'number';
         const strpath = isFd ? `<fd:${uri}>` : `${uri}`;
         const isOk = ret === 0;
@@ -402,4 +456,4 @@ function hookReadlink(predicate: (ptr: NativePointer) => boolean) {
     );
 }
 
-export { hookAccess, hookFopen, hookOpen, hookOpendir, hookReadlink, hookRemove, hookStat };
+export { hookAccess, hookStat, hookFopen, hookOpen, hookOpendir, hookRemove, hookReadlink, hookDirent };

@@ -1,4 +1,4 @@
-import { Classes, ClassesString, Text, stacktraceList, vs } from '@clockwork/common';
+import { Classes, ClassesString, Text, isIterable, stacktraceList, vs } from '@clockwork/common';
 import type { OmitFirstArg } from '@clockwork/common/src/types.js';
 import { Color, logger } from '@clockwork/logging';
 import type { LoggerOptions } from './types.js';
@@ -57,7 +57,7 @@ const HOOK_LOGGER = {
     },
 
     mapArgs(config: LoggerOptions, args: any[], types?: string[]): string {
-        if (args.length === 0) return '';
+        if (!isIterable(args) || !args.length || args.length === 0) return '';
         if (!config.arguments) return gray('...');
         const joinBy = config.multiline ? ', \n' : ', ';
         const joined = args

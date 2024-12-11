@@ -64,6 +64,18 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'closedir');
         return new NativeFunction(ptr, 'int', ['pointer']);
     },
+    telldir: () => {
+        const ptr = Module.getExportByName('libc.so', 'telldir');
+        return new NativeFunction(ptr, 'void', ['pointer']);
+    },
+    seekdir: () => {
+        const ptr = Module.getExportByName('libc.so', 'seekdir');
+        return new NativeFunction(ptr, 'void', ['pointer', 'long']);
+    },
+    scandir: () => {
+        const ptr = Module.getExportByName('libc.so', 'scandir');
+        return new NativeFunction(ptr, 'int', ['pointer', 'pointer', 'pointer', 'pointer']);
+    },
     // ssize_t readlink(const char *path, char *buf, size_t bufsiz);
     readlink: () => {
         const ptr = Module.getExportByName('libc.so', 'readlink');
@@ -138,6 +150,12 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'pthread_getname_np');
         return new NativeFunction(ptr, 'int', ['pointer', 'pointer', 'size_t']);
     },
+    // int rand();
+    rand: () => {
+        const ptr = Module.getExportByName('libc.so', 'rand');
+        return new NativeFunction(ptr, 'int', []);
+    },
+
     // double difftime(time_t __time1, time_t __time0)
     difftime: () => {
         const ptr = Module.getExportByName('libc.so', 'difftime');
@@ -184,6 +202,11 @@ const LibcFinder = {
     // int execv(const char *path, char *const argv[]);
     execv: () => {
         const ptr = Module.getExportByName('libc.so', 'execv');
+        return new NativeFunction(ptr, 'int', ['pointer', 'pointer']);
+    },
+    //int dladdr(const void *addr, Dl_info *info);
+    dladdr: () => {
+        const ptr = Module.getExportByName('libc.so', 'dladdr');
         return new NativeFunction(ptr, 'int', ['pointer', 'pointer']);
     },
     // void *dlopen(const char *filename, int flags);
@@ -428,8 +451,8 @@ const LibcFinder = {
     },
     // int posix_spawn(pid_t *restrict pid, const char *restrict path,
     //                 const posix_spawn_file_actions_t *restrict file_actions,
-    //                 const po six_spawnattr_t *restrict attrp, 
-    //                 char *const argv[restrict], 
+    //                 const po six_spawnattr_t *restrict attrp,
+    //                 char *const argv[restrict],
     //                 char *const envp[restrict]);
     posix_spawn: () => {
         const ptr = Module.getExportByName('libc.so', 'posix_spawn');
@@ -444,6 +467,11 @@ const LibcFinder = {
     signal: () => {
         const ptr = Module.getExportByName('libc.so', 'signal');
         return new NativeFunction(ptr, 'pointer', ['int', 'pointer']);
+    },
+    // int nanosleep(const struct timespec *duration, timespec *_Nullable rem);
+    nanosleep: () => {
+        const ptr = Module.getExportByName('libc.so', 'nanosleep');
+        return new NativeFunction(ptr, 'int', ['pointer', 'pointer']);
     },
     // char * __cxa_demangle (const char *mangled_name, char *output_buffer, size_t *length, int *status)
     __cxa_demangle: () => {

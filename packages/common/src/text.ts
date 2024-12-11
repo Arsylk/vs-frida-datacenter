@@ -41,12 +41,14 @@ function uuid() {
     return Array(len(8), len(4), len(4), len(4), len(12)).join('-');
 }
 
-const JavaPrimitiveReversed = Object.fromEntries(Reflect.ownKeys(JavaPrimitive).map((key) => [JavaPrimitive[key], key])) as {
-    [K in keyof (typeof JavaPrimitive) as (typeof JavaPrimitive)[K]]: K
-}
+const JavaPrimitiveReversed = Object.fromEntries(
+    Reflect.ownKeys(JavaPrimitive).map((key) => [JavaPrimitive[key], key]),
+) as {
+    [K in keyof typeof JavaPrimitive as (typeof JavaPrimitive)[K]]: K;
+};
 
 function toPrettyType(type: string): string {
-    const x = JavaPrimitive
+    const x = JavaPrimitive;
     const len = type.length;
     for (; type.charAt(0) === '['; type = type.substring(1));
     const depth = len - type.length;
@@ -79,11 +81,8 @@ function stringify(data: any) {
     const mapped = Reflect.ownKeys(data).map((k: symbol | string) => {
         const value = data[k as string];
         return `${gray(k as string)}: ${value}`;
-
-    })
-    return `{ ${mapped.join(', ')} }`
+    });
+    return `{ ${mapped.join(', ')} }`;
 }
 
-
 export { base64, maxLengh, noLines, stringify, stringNumber, toByteSize, toHex, toPrettyType, uuid };
-

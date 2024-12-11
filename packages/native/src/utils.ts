@@ -1,12 +1,12 @@
 import { Libc } from '@clockwork/common';
 import { Color, logger } from '@clockwork/logging';
-const { gray, black } = Color.use()
+const { gray, black } = Color.use();
 
 function dellocate(ptr: NativePointer) {
     try {
         const env = Java.vm.tryGetEnv();
         env?.ReleaseStringUTFChars(ptr);
-    } catch (_) { }
+    } catch (_) {}
 }
 
 function mkdir(path: string): boolean {
@@ -46,19 +46,19 @@ function getSelfFiles(): string {
 Object.defineProperties(addressOf, {
     transform: {
         writable: true,
-        value: (ptr: NativePointer) => ptr
-    }
+        value: (ptr: NativePointer) => ptr,
+    },
 });
 function addressOf(ptr: NativePointer, extended?: boolean) {
-    const surround = (str: any) => `${black('⟨')}${str}${black('⟩')}`
-    const debug = DebugSymbol.fromAddress(ptr)
-    ptr = (addressOf as any).transform(ptr)
+    const surround = (str: any) => `${black('⟨')}${str}${black('⟩')}`;
+    const debug = DebugSymbol.fromAddress(ptr);
+    ptr = (addressOf as any).transform(ptr);
 
     if (debug.moduleName) {
-        const rel = debug.name ?? `0x${ptr.toString(16)}`
-        return surround(`${debug.moduleName}${gray('!')}${rel} ${extended ? `0x${ptr.toString(16)}` : ''}`)
+        const rel = debug.name ?? `0x${ptr.toString(16)}`;
+        return surround(`${debug.moduleName}${gray('!')}${rel} ${extended ? `0x${ptr.toString(16)}` : ''}`);
     }
-    return surround(`0x${ptr.toString(16)}`)
+    return surround(`0x${ptr.toString(16)}`);
     // for (const { base, name, size } of Inject.modules.values()) {
     //     if (ptr > base && ptr < base.add(size) && !name.endsWith('.oat')) {
     //         return surround(`${name}${gray('!')}0x${ptr.sub(base).toString(16)} 0x${ptr.toString(16)}`)
@@ -137,7 +137,7 @@ function tryDemangle<T extends string | null>(name: T): T {
         const demangled = buf.readCString();
         dellocate(buf);
         if (demangled && demangled.length > 0) return demangled as T;
-    } catch (e) { }
+    } catch (e) {}
     return name;
 }
 
@@ -174,7 +174,6 @@ function tryResolveMapsSymbol(loc: NativePointer, pid: number = Process.id): Deb
 
             const template = Memory.allocUtf8String('%lx-%lx %s %lx %s %ld %s');
             while ((nread = Libc.fgets(linePtr, size, fd.value))) {
-
                 const read = sscanf(linePtr, template, begin, end, perm, foo, dev, inode, mapname);
                 logger.info({ tag: 'mapres' }, `${linePtr.readCString()} ${read}`);
             }
@@ -189,11 +188,14 @@ function tryResolveMapsSymbol(loc: NativePointer, pid: number = Process.id): Deb
 }
 
 export {
-    addressOf, dellocate,
+    addressOf,
+    dellocate,
     dumpFile,
     getSelfFiles,
-    getSelfProcessName, mkdir, readFdPath,
-    readTidName, tryDemangle,
-    tryResolveMapsSymbol
+    getSelfProcessName,
+    mkdir,
+    readFdPath,
+    readTidName,
+    tryDemangle,
+    tryResolveMapsSymbol,
 };
-

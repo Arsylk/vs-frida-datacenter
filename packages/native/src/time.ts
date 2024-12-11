@@ -1,5 +1,6 @@
 import { Libc, Struct } from '@clockwork/common';
 import { Color, logger } from '@clockwork/logging';
+import { addressOf } from './utils.js';
 const { gray, bold, black } = Color.use();
 
 function hookDifftime(predicate: (ptr: NativePointer) => boolean) {
@@ -11,7 +12,7 @@ function hookDifftime(predicate: (ptr: NativePointer) => boolean) {
                 if (predicate(this.returnAddress))
                     logger.info(
                         { tag: 'difftime' },
-                        `${gray(`${time_0}`)} - ${gray(`${time_1}`)} = ${bold(`${ret}`)}`,
+                        `${gray(`${time_0}`)} - ${gray(`${time_1}`)} = ${bold(`${ret}`)} ${addressOf(this.returnAddress)}`,
                     );
                 return ret;
             },
@@ -26,7 +27,8 @@ function hookTime(predicate: (ptr: NativePointer) => boolean) {
         new NativeCallback(
             function (time_t) {
                 const ret = Libc.time(time_t);
-                if (predicate(this.returnAddress)) logger.info({ tag: 'time' }, `${gray(`${time_t}`)}`);
+                if (predicate(this.returnAddress))
+                    logger.info({ tag: 'time' }, `${gray(`${time_t}`)} ${addressOf(this.returnAddress)}`);
                 return ret;
             },
             'pointer',

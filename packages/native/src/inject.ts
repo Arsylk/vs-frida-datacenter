@@ -1,4 +1,5 @@
 import { Color, logger } from '@clockwork/logging';
+import { Text } from '@clockwork/common';
 const { blue, red, magentaBright: pink } = Color.use();
 
 type NatveFunctionCallbacks = {
@@ -11,9 +12,9 @@ namespace Inject {
     export const modules = new ModuleMap();
     const initArrayCallbacks: ((this: InvocationContext, name: string) => void)[] = [];
 
-    let do_dlopen: NativePointer;
-    let call_ctor: NativePointer;
-    let prelink_image: NativePointer;
+    let do_dlopen: NativePointer | null = null;
+    let call_ctor: NativePointer | null = null;
+    let prelink_image: NativePointer | null = null;
 
     const linker = Process.getModuleByName(Process.pointerSize === 4 ? 'linker' : 'linker64');
     for (const { name, address } of linker.enumerateSymbols()) {
@@ -22,37 +23,61 @@ namespace Inject {
             continue;
         }
         if (name.includes('call_constructor')) {
-            call_ctor = address;
+            //call_ctor = address;
             continue;
         }
         if (name.includes('phdr_table_get_dynamic_section')) {
+            // __dl__Z30phdr_table_get_dynamic_sectionPK10elf64_phdrmyPP9Elf64_DynPj
             prelink_image = address;
             continue;
         }
     }
 
+    prelink_image &&
+        Interceptor.attach(prelink_image, {
+            onEnter(args) {
+                const ctx = this.context as Arm64CpuContext;
+                const x2_load_bias = ctx.x2 as NativePointer;
+                const thumb = 0; // 1 for thumb
+                const _init_offset = 0x15a8 + thumb;
+                const _init = x2_load_bias.add(_init_offset);
+
+                const { base, file } = Process.getRangeByAddress(prelink_image);
+                logger.info({ tag: 'range' }, `${base} => ${Text.stringify(file)}`);
+                Interceptor.attach(base.add(0x16750), () => {
+                    logger.info({ tag: 'mrand' }, `${file}: global constructor`);
+                });
+            },
+        });
+
     // TODO add just hook dlopen_ext
     // const android_dlopen_ext = Module.getExportByName(null, 'android_dlopen_ext');
-    Interceptor.attach(do_dlopen!, {
-        onEnter: function (args) {
-            const libPath = (this.libPath = args[0].readCString());
-            if (!libPath) return;
-            const libName = (this.libName = libPath.split('/').pop()!);
-            logger.info(`[${pink('dlopen')}] ${libPath}`);
-            modules.update();
+    do_dlopen &&
+        Interceptor.attach(do_dlopen, {
+            onEnter: function (args) {
+                const libPath = (this.libPath = args[0].readCString());
+                if (!libPath) return;
+                const libName = (this.libName = `${libPath.split('/').pop()}`);
+                logger.info(`[${pink('dlopen')}] ${libPath}`);
+                modules.update();
 
-            return;
-            // TODO investigate
-            let handle: InvocationListener | null = null;
-            const unhook = () => handle?.detach();
-            handle = Interceptor.attach(call_ctor, ctorListenerCallback(libName, unhook));
-        },
-        onLeave: function (retval) {
-            modules.update();
-            if (!this.libPath) return;
-            onAfterInitArray(this.libName, this);
-        },
-    });
+                //return;
+                // TODO investigate
+                //let handle: InvocationListener | null = null;
+                //const unhook = () => handle?.detach();
+                //call_ctor && (handle = Interceptor.attach(call_ctor, ctorListenerCallback(libName, unhook)));
+                let probeId: StalkerCallProbeId | null = null;
+                call_ctor &&
+                    (probeId = Stalker.addCallProbe(call_ctor, (args) => {
+                        logger.info({ tag: 'ctor' }, `${libName} ${args[0]}`);
+                    }));
+            },
+            onLeave: function (retval) {
+                modules.update();
+                if (!this.libPath) return;
+                onAfterInitArray(this.libName, this);
+            },
+        });
 
     // call_constructor callback
     const ctorListenerCallback: (libName: string, detach: () => void) => InvocationListenerCallbacks = (

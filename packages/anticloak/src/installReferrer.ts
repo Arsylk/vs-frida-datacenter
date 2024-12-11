@@ -53,10 +53,7 @@ function replace(details: ReferrerDetails = {}) {
     });
 }
 
-function performReplace(
-    details: ReferrerDetails,
-    client: Java.Wrapper,
-) {
+function performReplace(details: ReferrerDetails, client: Java.Wrapper) {
     const beforeInit = function (this: Java.Wrapper) {
         const paretnClass = findClass(this.$className);
         if (!paretnClass) {
@@ -64,7 +61,7 @@ function performReplace(
             return;
         }
         const [startMethod, getMethod] = matchReferrerClientMethods(paretnClass);
-        logger.info({ tag: 'ref' }, `startConnection:  ${startMethod} getInstallReferrer: ${getMethod}`)
+        logger.info({ tag: 'ref' }, `startConnection:  ${startMethod} getInstallReferrer: ${getMethod}`);
 
         hook(paretnClass, startMethod, {
             predicate: startConnectionPredicate,
@@ -76,7 +73,7 @@ function performReplace(
                 }
 
                 const onFinishedMethod = matchStateListenerMethod(listenerClass);
-                logger.info({ tag: 'ref' }, `onInstallReferrerSetupFinished:  ${onFinishedMethod}`)
+                logger.info({ tag: 'ref' }, `onInstallReferrerSetupFinished:  ${onFinishedMethod}`);
 
                 let msg = Color.method(startMethod);
                 msg += Color.bracket('(');
@@ -128,15 +125,15 @@ function matchReferrerClientMethods(clazz: Java.Wrapper): [string, string] {
                 const def: Java.MethodDispatcher = clazz[member];
                 if (!def) return;
                 for (const [i, overload] of def.overloads.entries()) {
-                    logger.info({ tag: 'ref start and get' }, `${overload}`)
+                    logger.info({ tag: 'ref start and get' }, `${overload}`);
                     if (startConnectionPredicate(overload, i)) {
-                        logger.info({ tag: 'ref start connection' }, 'found')
+                        logger.info({ tag: 'ref start connection' }, 'found');
                         startMethod ??= member;
                         continue;
                     }
 
                     if (getInstallReferrerPredicate(overload, i)) {
-                        logger.info({ tag: 'ref get isntall referrer' }, 'found')
+                        logger.info({ tag: 'ref get isntall referrer' }, 'found');
                         getMethod ??= member;
                     }
                 }
@@ -157,9 +154,9 @@ function matchStateListenerMethod(clazz: Java.Wrapper): string {
                 const def: Java.MethodDispatcher = clazz[member];
                 if (!def) return;
                 for (const [i, overload] of def.overloads.entries()) {
-                    logger.info({ tag: 'ref setupfinished' }, `${overload}`)
+                    logger.info({ tag: 'ref setupfinished' }, `${overload}`);
                     if (onInstallReferrerSetupFinishedPredicate(overload, i)) {
-                        logger.info({ tag: 'ref setupfinished' }, 'found')
+                        logger.info({ tag: 'ref setupfinished' }, 'found');
                         found ??= member;
                         return;
                     }
@@ -173,9 +170,12 @@ function matchStateListenerMethod(clazz: Java.Wrapper): string {
 }
 
 const startConnectionPredicate: MethodHookPredicate = ({ returnType, argumentTypes }) => {
-    const listener = findClass(ClassesString.InstallReferrerStateListener)
-    const argClass = argumentTypes[0]?.className && findClass(argumentTypes[0].className)
-    return (listener && argClass) && (
+    const listener = findClass(ClassesString.InstallReferrerStateListener);
+    const argClass = argumentTypes[0]?.className && findClass(argumentTypes[0].className);
+    console.log(argClass);
+    return (
+        listener?.class &&
+        argClass &&
         returnType.className === 'void' &&
         argumentTypes.length === 1 &&
         listener.class.isAssignableFrom(argClass.class)

@@ -1,11 +1,11 @@
 import { logger } from '@clockwork/logging';
 import { Inject } from './inject.js';
 
-function hookLogcat() {
+function hookLogcat(fn?: (this: InvocationContext, msg: string) => void) {
     const liblog = Process.getModuleByName('liblog.so');
-    const _isLoggable = liblog.getExportByName('__android_log_is_loggable');
+    const _isLoggable = Module.getExportByName(null, '__android_log_is_loggable');
     Interceptor.replaceFast(_isLoggable, new NativeCallback(() => 1, 'bool', ['int', 'pointer', 'int']));
-    const _logPrint = liblog.getExportByName('__android_log_print');
+    const _logPrint = Module.getExportByName(null, '__android_log_print');
     Interceptor.attach(_logPrint, {
         onEnter: function (args) {
             this.resultPtr = this.context.sp.sub(1112);
@@ -25,7 +25,9 @@ function hookLogcat() {
         onLeave: function (retval) {
             if (liblog.base <= this.returnAddress && liblog.base.add(liblog.size) >= this.returnAddress) {
                 const result = this.result;
-                logger.info({ tag: 'logcat' }, `${result.readCString()}`.trimEnd());
+                const msg = `${result.readCString()}`.trimEnd();
+                logger.info({ tag: 'logcat' }, msg);
+                fn?.call(this, msg);
                 // MemoryAccessMonitor.enable(
                 //     { base: result, size: 1024 },
                 //     {

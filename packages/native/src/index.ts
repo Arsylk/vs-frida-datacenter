@@ -1,7 +1,8 @@
 import { Std, tryNull } from '@clockwork/common';
-import { logger } from '@clockwork/logging';
+import { logger, Color } from '@clockwork/logging';
 import { HooahTrace } from './hooah.js';
 import { Inject } from './inject.js';
+import { addressOf, tryDemangle } from './utils.js';
 import { attachRegisterNatives } from './registerNatives.js';
 import { attachSystemPropertyGet } from './systemPropertyGet.js';
 export * as Files from './files.js';
@@ -12,11 +13,13 @@ export * as Syscall from './syscall.js';
 export * as System from './system.js';
 export * as TheEnd from './theEnd.js';
 export * as Time from './time.js';
+export * from './opengl.js';
 export { addressOf, dumpFile, getSelfFiles, mkdir, tryResolveMapsSymbol } from './utils.js';
+const { gray, magenta: pink } = Color.use();
 const mutex = Memory.alloc(Process.pointerSize === 4 ? 24 : 40);
 
 function gPtr(value: string | number): NativePointer {
-    return ptr(value).sub('0x100000');
+    return ptr(value).sub(0x100000);
 }
 
 function type<T extends object>(fn: (this: T, ...args: any[]) => void) {
@@ -36,6 +39,43 @@ function unbox<T extends NativeFunctionReturnValue>(box: SystemFunctionResult<T>
     return [box.value, Number.NaN];
 }
 
+const predicate: (r: NativePointer) => boolean = (r: NativePointer) => {
+    function isWithinOwnRange(ptr: NativePointer) {
+        const path = Inject.modules.findPath(ptr);
+        return path?.includes('/data') === true && !path.includes('/com.google.android.trichromelibrary');
+    }
+
+    if (!r) return false;
+    if (isWithinOwnRange(r)) return true;
+    // ? there was some reason for this at some point ...
+    return !true && Inject.modules.find(r) === null;
+};
+
+function hardBreakPoint(ptr: NativePointer, fn: () => void) {
+    const prot = Memory.queryProtection(ptr);
+    Process.setExceptionHandler(function (this: CallbackContext) {
+        const trace = Thread.backtrace(this.context, Backtracer.FUZZY)
+            .map((x) => addressOf(x))
+            .join('\n    ');
+        logger.info({ tag: 'hardbrk' }, `${ptr}\n    ${trace}`);
+        fn();
+        Memory.protect(ptr, Process.pointerSize, prot);
+    });
+    Memory.protect(ptr, Process.pointerSize, '---');
+}
+
+function memWatch(ptr: NativePointer, size: number, fn?: (details: MemoryAccessDetails) => void) {
+    MemoryAccessMonitor.enable(
+        { base: ptr, size: size },
+        {
+            onAccess(details) {
+                logger.info({ tag: 'memwatch' }, `${details.operation} ${ptr} <- ${addressOf(details.from)}`);
+                fn?.(details);
+            },
+        },
+    );
+}
+
 // * Currently unused
 function initLibart() {
     const module = Process.getModuleByName('libart.so');
@@ -52,13 +92,15 @@ function initLibart() {
             : undefined;
         anyJava.api['art::ArtMethod::Invoke'] ??=
             name.includes('Invoke') &&
-                name.includes('_ZN3art9ArtMethod') &&
-                name.includes('Thread') &&
-                name.includes('JValue')
+            name.includes('_ZN3art9ArtMethod') &&
+            name.includes('Thread') &&
+            name.includes('JValue')
                 ? new NativeFunction(address, 'pointer', ['pointer', 'pointer', 'int', 'pointer', 'pointer'])
                 : undefined;
     }
-    anyJava.api['art::DexFile::OpenMemory'] = module.findExportByName('_ZN3art7DexFile10OpenMemoryEPKhjRKNSt3__112basic_stringIcNS3_11char_traitsIcEENS3_9allocatorIcEEEEjPNS_6MemMapEPKNS_10OatDexFileEPS9_')
+    anyJava.api['art::DexFile::OpenMemory'] = module.findExportByName(
+        '_ZN3art7DexFile10OpenMemoryEPKhjRKNSt3__112basic_stringIcNS3_11char_traitsIcEENS3_9allocatorIcEEEEjPNS_6MemMapEPKNS_10OatDexFileEPS9_',
+    );
 }
 
 // * pointless ? no idea what could be the use case for this
@@ -99,6 +141,68 @@ function hookArtInvoke() {
     });
 }
 
+type HookParamteres = {
+    tag?: string;
+    call?: boolean | ((this: InvocationContext, args: InvocationArguments) => void);
+    ret?: boolean | ((this: InvocationContext, retval: InvocationReturnValue) => void);
+    logcat?: boolean;
+};
+function log(ptr: NativePointer, argdef: string, params?: HookParamteres) {
+    try {
+        const resolved = DebugSymbol.fromAddress(ptr);
+        const atag = resolved.name ? tryDemangle(resolved.name) : `0x${ptr.toString(16)}`;
+        const tag = params?.tag ?? atag;
+        const argSize = argdef.length;
+        Interceptor.attach(ptr, {
+            onEnter(args) {
+                if (params?.call !== false) {
+                    let sb = '';
+                    sb += '{ ';
+                    for (let i = 0; i < argSize; i += 1) {
+                        let value: any = args[i];
+                        switch (argdef[i]) {
+                            case 's':
+                                value = args[i].readCString();
+                                break;
+                            case 'i':
+                                value = args[i].readInt();
+                                break;
+                            case '_':
+                                value = '_';
+                                break;
+                            case 'h':
+                                value = `\n${hexdump(args[i])}\n`;
+                        }
+                        sb += `${gray(`arg${i}`)}: ${value}`;
+                        if (i < argSize - 1) sb += ', ';
+                    }
+                    sb += ' }';
+                    logger.info({ tag: tag }, sb);
+                    if (typeof params?.call === 'function') {
+                        params?.call.call(this, args);
+                    }
+                }
+                if (params?.logcat === true) {
+                    const stacktrace = Thread.backtrace(this.context, Backtracer.FUZZY)
+                        .map((x) => addressOf(x, true))
+                        .join('\n\t');
+                    logger.info({ tag: tag }, pink(stacktrace));
+                }
+            },
+            onLeave(retval) {
+                if (params?.ret !== false) {
+                    logger.info({ tag: tag }, `${gray('return')} ${retval}`);
+                    if (typeof params?.ret === 'function') {
+                        params?.ret.call(this, retval);
+                    }
+                }
+            },
+        });
+    } catch (e) {
+        logger.error({ tag: 'log' }, `${e}`);
+    }
+}
+
 function prettyMethod(methodID: NativePointer, withSignature: boolean) {
     const result = new Std.String();
     (Java as any).api['art::ArtMethod::PrettyMethod'](result, methodID, withSignature ? 1 : 0);
@@ -109,16 +213,11 @@ function sync(fn: () => void) {
     Libc.pthread_mutex_init(mutex, NULL);
     try {
         if (Libc.pthread_mutex_lock(mutex) === 0x0) {
-            fn()
+            fn();
         }
     } finally {
-        Libc.pthread_mutex_unlock(mutex)
+        Libc.pthread_mutex_unlock(mutex);
     }
-
-
-    const dumpedLibs = new Map();
-
-
 }
 
 export {
@@ -127,7 +226,14 @@ export {
     gPtr,
     HooahTrace,
     initLibart,
-    Inject, mutex, prettyMethod, sync, type,
-    unbox
+    Inject,
+    mutex,
+    prettyMethod,
+    sync,
+    type,
+    unbox,
+    hardBreakPoint,
+    log,
+    memWatch,
+    predicate,
 };
-

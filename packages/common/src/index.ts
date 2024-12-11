@@ -12,12 +12,19 @@ export * from './visualize.js';
 function tryNull<T>(fn: () => T): T | null {
     try {
         return fn();
-    } catch (_) { }
+    } catch (_) {}
     return null;
 }
 
 function isJWrapper(clazzOrName: Java.Wrapper | string): clazzOrName is Java.Wrapper {
     return typeof clazzOrName === 'object' ? Reflect.has(clazzOrName, '$className') : false;
+}
+
+function isIterable(obj: any) {
+    if (obj === null || obj === undefined) {
+        return false;
+    }
+    return typeof obj[Symbol.iterator] === 'function';
 }
 
 function stacktrace(e?: Java.Wrapper): string {
@@ -38,7 +45,7 @@ function getApplicationContext(): Java.Wrapper {
     return Classes.ActivityThread.currentApplication().getApplicationContext();
 }
 
-const isNully = (ptr: NativePointerValue) => !ptr || ptr == NULL || `${ptr}` === '0x0'
+const isNully = (ptr: NativePointerValue) => !ptr || ptr == NULL || `${ptr}` === '0x0';
 
 const emitter = new EventEmitter();
 declare global {
@@ -75,9 +82,11 @@ export {
     findClass,
     getApplicationContext,
     getFindUnique,
-    isJWrapper, isNully, LibcFinderProxy as Libc,
+    isJWrapper,
+    isNully,
+    LibcFinderProxy as Libc,
     stacktrace,
     stacktraceList,
-    tryNull
+    tryNull,
+    isIterable,
 };
-
