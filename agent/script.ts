@@ -541,10 +541,6 @@ Java.performNow(() => {
             case 'key_country':
             case 'Plat_Lang':
                 return 'BR';
-            case 'sing':
-                return C4_URL;
-            case 'f':
-                return true;
         }
     });
     hook(Classes.SharedPreferencesImpl$EditorImpl, 'putString');
@@ -662,7 +658,7 @@ Native.initLibart();
 //Dump.hookArtLoader();
 
 let enable = !true;
-setTimeout(() => (enable = true), 10000);
+setTimeout(() => (enable = true), 4000);
 JniTrace.attach(({ returnAddress }) => {
     return enable && predicate(returnAddress);
 }, false);

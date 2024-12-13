@@ -1,11 +1,124 @@
+# Frida Clockwork
+
+Frida Clockwork is a TypeScript-based utility for extending the functionality of Frida scripts. It streamlines the process of writing, managing, and deploying Frida hooks with a modern development approach.
+
+## Features
+
+- Modular TypeScript support for writing Frida scripts.
+- Bundling all TypeScript code into a single JavaScript file using Webpack.
+- Automated build tasks with `Build: watch` for efficient development.
+
+## Getting Started
+
+### Prerequisites
+
+Before you start, ensure you have the following installed:
+
+- [Node.js](https://nodejs.org/) (v14 or later)
+- [npm](https://www.npmjs.com/) (comes with Node.js)
+- [Webpack](https://webpack.js.org/) (installed via `npm` as part of the build process)
+
+### Installation
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/Arsylk/frida-clockwork.git
+   cd frida-clockwork
+   ```
+
+2. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+### Compiling TypeScript to a Single JavaScript File
+
+This project uses Webpack to bundle all TypeScript files into a single JavaScript file for deployment.
+
+1. Build the project:
+
+   ```bash
+   npm run webpack
+   ```
+
+   This command will:
+
+   - Compile the TypeScript code into defined Agents.
+
+2. The output will be located in the `agents/dist` directory.
+
+### Using the Watch tasks
+
+For a better development experience, you can use the ` watch:tsc` and `watch:webpack` tasks to automatically rebuild the project whenever you make changes to the TypeScript files.
+
+1. Start the watch mode:
+
+   ```bash
+   npm run watch:tsc
+   ```
+   ```bash
+   npm run watch:webpack
+   ```
+
+2. This will monitor your source files in the `src` directory. Any changes will trigger an automatic rebuild, updating the bundled file in the `dist` directory.
+
+### Running the Script with Frida
+
+Once your script is built, you can load it into Frida:
+
+```bash
+frida -U -n <target-app-name> -s agents/dist/script.js
+```
+or use the npm `spawn` or `attach` tasks
+```bash
+npm run spawn <target-app-name>
+```
+
+Replace `<target-app-name>` with the name of your target application.
+
+## Project Structure
+
+```plaintext
+``frida-clockwork/      # Project root
+├── packages/           # Directory with all the Modules
+│   ├── anticloak/
+│   ├── cocos2dx/
+│   ├── common/
+│   ├── dump/
+│   ├── hooks/
+│   ├── jnitrace/
+│   ├── logging/
+│   ├── native/
+│   ├── network/
+│   └── unity/
+├── agent/               # Directory with Agent files
+│   ├── dist/
+│   │   └── script.js    # Compiled Agent which can be injected by frida
+│   └── script.ts        # Single Agent file defined in webpack
+├── package.json         # Root project metadata and scripts
+├── tsconfig.json        # TypeScript configuration for entire project
+├── tsconfig.base.json   # Base TypeScript configuration for every module
+├── webpack.config.js    # Webpack configuration
+## Scripts
+
+The following npm scripts are available:
+
+- **`npm run build`**: Compiles TypeScript and bundles with Webpack.
+- **`npm run watch`**: Runs the build process in watch mode.
+
+## Contributing
+
+Contributions are welcome! Feel free to submit issues or pull requests to improve this project.
+
+## License
+
+This project is licensed under the [MIT License](https://opensource.org/license/mit).
+
+---
+
+If you have any questions or feedback, feel free to reach out by opening an issue in the repository. Happy coding!"
+}
+
 # frida-clockwork
-
- -pkg:com.applovin -pkg:com.google  -pkg:com.facebook -pkg:com.ironsource -pkg:androidx -pkg:com.onesignal -pkg:com.startapp -pkg:com.iab -pkg:kotlin -pkg:com.flurry -pkg:com.yandex -pkg:io.reactive -pkg:com.bytedance -pkg:com.mbridge -pkg:com.inmobi -pkg:com.fyber -pkg:com.tapjoy -pkg:com.adcolony -pkg:com.chartboost -pkg:com.safedk -pkg:com.smaato -pkg:com.vungle -pkg:com.adjust.sdk -pkg:com.anythink -pkg:com.my.target regex:yes src:"([A-Za-z]+://)([-\w]+(?:\.\w[-\w]*)+)(:\d+)?(/[^.!,?"<>\[\]{}\s\x7F-\xFF]*(?:[.!,?]+[^.!,?"<>\[\]{}\s\x7F1-\xFF]+)*)?"
-
- -pkg:com.applovin -pkg:com.google -pkg:com.facebook -pkg:com.ironsource -pkg:androidx -pkg:com.onesignal -pkg:com.startapp -pkg:com.iab -pkg:kotlin -pkg:com.flurry -pkg:com.yandex -pkg:io.reactive -pkg:com.bytedance -pkg:com.mbridge -pkg:com.inmobi -pkg:com.fyber -pkg:com.tapjoy -pkg:com.adcolony -pkg:com.chartboost -pkg:com.safedk -pkg:com.smaato -pkg:com.vungle -pkg:com.adjust.sdk -pkg:com.anythink -pkg:com.my.target regex:yes src:"\.loadUrl\("
-
-src:"getcookie | csrf | c_user | mnemonic | seed phrase | sec ret phrase" regex:yes
-
-set CMD bat --paging=never session.txt;  bat --style=numbers --paging=never --lines session.txt | fzf --ansi --keep-right  --layout=reverse --preview-window :follow --prompt '> ' --header 'Session logs' --bind "start:reload:$CMD" --bind "change:reload:speed 0.1; $CMD || true" -e -i
-
-bat --style=grid,header-filename,header-filesize session.txt | nl -v -4 -s (set_color black; echo ' │ ') | fzf --ansi -i --track --no-sort --layout=reverse --scrollbar=':' --preview 'printf %s {2} | bat -pp --color=always' --delimiter ' │ ' --preview-window 'hidden' --bind 'f2:change-preview-window(right,40%,border-left,wrap|hidden)' --nth 2.

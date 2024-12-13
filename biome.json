@@ -49,7 +49,7 @@
     },
     "files": {
         "ignore": ["dist/**", "node_modules/**"],
-        "include": ["*.ts"],
+        "include": ["*.ts", "*.js", "*.json"],
         "maxSize": 10485760
     }
 }

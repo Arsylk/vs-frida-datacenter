@@ -1,20 +1,19 @@
 {
     "name": "frida-clockwork",
     "version": "1.0.0",
-    "description": "Collection various frida toys",
+    "description": "Collection oof various frida toys",
     "type": "module",
     "scripts": {
-        "prepublish": "npm run tsc",
         "prepare": "npm run webpack",
+        "prepublish": "npm run tsc",
         "tsc": "npx tsc --build",
         "webpack": "npx webpack --config webpack.config.js",
+        "watch:tsc": "npx tsc -b -w",
+        "watch:webpack": "npx webpack --config webpack.config.js --watch",
         "attach": "run() { frida -U \"$1\" -l ./script.js --runtime=v8 -o ./session.txt; }; run",
-        "spawn": "run() { frida -U -f \"$1\" -l ./script.js --runtime=v8 --debug -o ./session.txt; }; run",
-        "app-spawn": "npm run spawn com.AAzzztecGodAzT.ecgdz"
+        "spawn": "run() { frida -U -f \"$1\" -l ./script.js --runtime=v8 -o ./session.txt; }; run"
     },
-    "keywords": [
-        "frida"
-    ],
+    "keywords": ["frida"],
     "author": "Arsylk",
     "license": "ISC",
     "bugs": {
