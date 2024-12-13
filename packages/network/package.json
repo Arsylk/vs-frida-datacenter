@@ -9,6 +9,7 @@
     "dependencies": {
         "@clockwork/common": "^1.0.0",
         "@clockwork/logging": "^1.0.0",
-        "@clockwork/hooks": "^1.0.0"
+        "@clockwork/hooks": "^1.0.0",
+        "@clockwork/native": "^1.0.0"
     }
 }

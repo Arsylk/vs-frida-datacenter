@@ -4,6 +4,7 @@
     "description": "Collection oof various frida toys",
     "type": "module",
     "scripts": {
+        "clean": "rm -rf packages/*/*.tsbuildinfo && rm -rf packages/*/dist && rm -rf node_modules/",
         "prepare": "npm run webpack",
         "prepublish": "npm run tsc",
         "tsc": "npx tsc --build",

@@ -14,7 +14,14 @@ export * as System from './system.js';
 export * as TheEnd from './theEnd.js';
 export * as Time from './time.js';
 export * from './opengl.js';
-export { addressOf, dumpFile, getSelfFiles, mkdir, tryResolveMapsSymbol } from './utils.js';
+export {
+    addressOf,
+    dumpFile,
+    getSelfFiles,
+    getSelfProcessName,
+    mkdir,
+    tryResolveMapsSymbol,
+} from './utils.js';
 const { gray, magenta: pink } = Color.use();
 const mutex = Memory.alloc(Process.pointerSize === 4 ? 24 : 40);
 

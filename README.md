@@ -31,6 +31,7 @@ Before you start, ensure you have the following installed:
    ```bash
    npm install
    ```
+    * Note: first run may crash, run it again and it should start working, not sure why this happens
 
 ### Compiling TypeScript to Agent files
 

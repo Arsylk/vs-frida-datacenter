@@ -1,6 +1,5 @@
 import { subLogger } from '@clockwork/logging';
-import { getSelfFiles } from '@clockwork/native';
-import { mkdir } from '@clockwork/native/dist/utils.js';
+import { getSelfFiles, mkdir } from '@clockwork/native';
 const logger = subLogger('dexdump');
 
 const FLAG_ENABLE_DEEP_SEARCH = false;
