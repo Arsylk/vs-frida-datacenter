@@ -5,8 +5,7 @@ Frida Clockwork is a TypeScript-based utility for extending the functionality of
 ## Features
 
 - Modular TypeScript support for writing Frida scripts.
-- Bundling all TypeScript code into a single JavaScript file using Webpack.
-- Automated build tasks with `Build: watch` for efficient development.
+- Bundling TypeScript code into standalone Agents using Webpack.
 
 ## Getting Started
 
@@ -33,9 +32,9 @@ Before you start, ensure you have the following installed:
    npm install
    ```
 
-### Compiling TypeScript to a Single JavaScript File
+### Compiling TypeScript to Agent files
 
-This project uses Webpack to bundle all TypeScript files into a single JavaScript file for deployment.
+This project uses Webpack to bundle all TypeScript files into JavaScript Agent files ready for deployment.
 
 1. Build the project:
 
@@ -81,7 +80,7 @@ Replace `<target-app-name>` with the name of your target application.
 ## Project Structure
 
 ```plaintext
-``frida-clockwork/      # Project root
+frida-clockwork/        # Project root
 ├── packages/           # Directory with all the Modules
 │   ├── anticloak/
 │   ├── cocos2dx/
@@ -100,13 +99,9 @@ Replace `<target-app-name>` with the name of your target application.
 ├── package.json         # Root project metadata and scripts
 ├── tsconfig.json        # TypeScript configuration for entire project
 ├── tsconfig.base.json   # Base TypeScript configuration for every module
-├── webpack.config.js    # Webpack configuration
-## Scripts
+└── webpack.config.js    # Webpack configuration
+```
 
-The following npm scripts are available:
-
-- **`npm run build`**: Compiles TypeScript and bundles with Webpack.
-- **`npm run watch`**: Runs the build process in watch mode.
 
 ## Contributing
 
