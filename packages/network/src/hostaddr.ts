@@ -1,5 +1,6 @@
-import { Libc } from '@clockwork/common';
+import { Libc, Text } from '@clockwork/common';
 import { Color, logger } from '@clockwork/logging';
+import { addressOf } from '@clockwork/native';
 
 function attachGetHostByName() {
     Interceptor.attach(Libc.gethostbyname, {
@@ -7,7 +8,10 @@ function attachGetHostByName() {
             this.name = args[0].readCString();
         },
         onLeave(retval) {
-            logger.info({ tag: 'gethostbyname' }, `${Color.url(this.name)} -> result: ${retval}`);
+            logger.info(
+                { tag: 'gethostbyname' },
+                `${Color.url(this.name)} -> result: ${retval} ${addressOf(this.returnAddress)}`,
+            );
         },
     });
 }
@@ -23,7 +27,10 @@ function attachGetAddrInfo(detailed = false) {
             const resInt = retval.toUInt32();
             const text = !this.port || this.port === 'null' ? `${this.host}` : `${this.host}:${this.port}`;
             const result = resInt === 0x0 ? 'success' : 'failure';
-            logger.info({ tag: 'getaddrinfo' }, `${Color.url(text)} -> ${result}`);
+            logger.info(
+                { tag: 'getaddrinfo' },
+                `${Color.url(text)} -> ${result} ${addressOf(this.returnAddress)}`,
+            );
             if (resInt === 0x0) {
                 let ptr: NativePointer = this.result;
                 if (!detailed) return;
@@ -36,23 +43,18 @@ function attachGetAddrInfo(detailed = false) {
                 const aiAddr = (ptr = ptr.add(4)).readPointer();
                 const aiCannonName = (ptr = ptr.add(8)).readCString();
                 const aiNext = (ptr = ptr.add(8)).readPointer();
-                logger.info(
-                    { tag: 'getaddrinfo' },
-                    JSON.stringify(
-                        {
-                            aiFlags: aiFlags,
-                            aiFamilty: aiFamilty,
-                            aiSockType: aiSockType,
-                            aiProtocol: aiProtocol,
-                            aiAddrLen: aiAddrLen,
-                            aiAddr: aiAddr,
-                            aiCannonName: aiCannonName,
-                            aiNext: aiNext,
-                        },
-                        null,
-                        2,
-                    ),
-                );
+
+                const text = Text.stringify({
+                    aiFlags: aiFlags,
+                    aiFamilty: aiFamilty,
+                    aiSockType: aiSockType,
+                    aiProtocol: aiProtocol,
+                    aiAddrLen: aiAddrLen,
+                    aiAddr: aiAddr,
+                    aiCannonName: aiCannonName,
+                    aiNext: aiNext,
+                });
+                logger.info({ tag: 'getaddrinfo' }, `${text} ${addressOf(this.returnAddress)}`);
             }
         },
     });
@@ -64,7 +66,7 @@ function attachInteAton() {
             this.addr = args[0].readCString();
         },
         onLeave(retval) {
-            logger.info({ tag: 'inet_aton' }, `${this.addr} -> ${retval}`);
+            logger.info({ tag: 'inet_aton' }, `${this.addr} -> ${retval} ${addressOf(this.returnAddress)}`);
         },
     });
 }

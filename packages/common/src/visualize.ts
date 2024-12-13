@@ -2,6 +2,7 @@ import { JNI, asFunction, asLocalRef } from '@clockwork/jnitrace';
 import { Color } from '@clockwork/logging';
 import { ClassesString } from './define/java.js';
 import { toHex } from './text.js';
+import { isNully } from './index.js';
 const { black, gray, red, green, orange, dim, italic, bold, yellow, hidden } = Color.use();
 
 function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv()?.handle): string {
@@ -88,16 +89,12 @@ function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv
 
     // * should only have java objects in here
     const classHandle = value.$h ?? value;
-    const handleStr = `${classHandle}`;
-    // console.log(value, type, typeof value, value.$h, value instanceof NativePointer);
-
     if (classHandle) {
-        const text = asLocalRef(jniEnv, classHandle, (ptr: NativePointer) => visualObject(ptr, type));
         const handleStr = `${classHandle}`;
         // console.log(value, type, typeof value, value.$h, value instanceof NativePointer);
         // return `${classHandle}`;
 
-        if (handleStr === '0x0') {
+        if (handleStr === '0x0' || isNully(classHandle)) {
             return Color.number(null);
         }
 

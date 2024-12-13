@@ -32,10 +32,12 @@ Native.Files.hookFopen(predicate, true, (path) => {
         return path.replace(/\/su$/, '/nya');
     }
 });
+
+Native.Strings.hookStrstr(predicate);
+Native.Strings.hookStrlen(predicate);
+Native.Strings.hookStrcpy(predicate);
+Native.Strings.hookStrcmp(predicate);
 //Native.Strings.hookStrcmp(predicate);
-//Native.Strings.hookStrstr(predicate);
-//Native.Strings.hookStrlen(predicate);
-//Native.Strings.hookStrcpy(predicate);
 //Native.Strings.hookStrtoLong(predicate);
 Native.System.hookSystem();
 Native.System.hookGetauxval();
@@ -105,23 +107,25 @@ Interceptor.replace(
     ),
 );
 
-//initSoDump();
-
+Native.TheEnd.hook(predicate);
 let done = false;
 Native.Inject.afterInitArrayModule((module: Module) => {
+    logger.info({ tag: 'base' }, Text.stringify(module));
     const { base, name, size } = module;
-    if (name === 'libcovault-appsec.so') {
-        logger.info({ tag: 'base' }, Text.stringify(module));
+    if (name === 'libcovault-appsec.so' || name === '.so' || name === 'libUiControl.so') {
         if (!done) {
-            Native.Strings.hookStrstr(predicate);
-            Native.TheEnd.hook(predicate);
             Native.Files.hookDirent(predicate);
             Native.Files.hookAccess(predicate);
-            Native.Files.hookOpendir(predicate);
+            Native.Files.hookOpendir(predicate, (path) => {
+                if (
+                    (path?.startsWith('/proc') && (path?.endsWith('/task') || path?.endsWith('/fd'))) ||
+                    path?.endsWith('/sys/module') ||
+                    path?.endsWith('/system/priv-app')
+                )
+                    return '/dev/null';
+            });
             Native.Files.hookStat(predicate);
             Native.Files.hookRemove(predicate);
-            //Native.Strings.hookStrcmp(predicate);
-            //Native.TheEnd.hook(predicate);
             done = true;
         }
     }

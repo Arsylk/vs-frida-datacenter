@@ -345,9 +345,9 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
     if (!full) return;
 
     const CallObjects = [
-        //JNI.CallObjectMethod,
-        //JNI.CallObjectMethodA,
-        //JNI.CallObjectMethodV,
+        JNI.CallObjectMethod,
+        JNI.CallObjectMethodA,
+        JNI.CallObjectMethodV,
         JNI.CallIntMethod,
         JNI.CallIntMethodA,
         JNI.CallIntMethodV,

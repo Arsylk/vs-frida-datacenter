@@ -270,16 +270,25 @@ function hookFopen(
     );
 }
 
-function hookOpendir(predicate: (ptr: NativePointer) => boolean) {
+function hookOpendir(predicate: (ptr: NativePointer) => boolean, fn?: (path: string | null) => any) {
     Interceptor.replace(
         Libc.opendir,
         new NativeCallback(
             function (pathname) {
-                const ret = Libc.opendir(pathname);
-                if (predicate(this.returnAddress)) {
-                    logger.info({ tag: 'opendir' }, ofResultColor(pathname, ret));
+                let ret: NativePointer | null = null;
+                if (predicate(this.returnAddress) || true) {
+                    const pathnameStr = pathname.readCString();
+                    const replaceStr = fn?.(pathnameStr);
+                    const pathArg = replaceStr ? Memory.allocUtf8String(replaceStr) : pathname;
+                    ret = Libc.opendir(pathArg);
+
+                    const msg = ofResultColor(
+                        replaceStr ? `${pathnameStr} -> ${replaceStr}` : `${pathnameStr}`,
+                        ret,
+                    );
+                    logger.info({ tag: 'opendir' }, `${msg} ${addressOf(this.returnAddress)}`);
                 }
-                return ret;
+                return ret ?? Libc.opendir(pathname);
             },
             'pointer',
             ['pointer'],

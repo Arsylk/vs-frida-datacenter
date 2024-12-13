@@ -29,6 +29,7 @@ const uniqHook = getHookUnique(false);
 const uniqFind = getFindUnique(false);
 
 function hookActivity() {
+    7893429;
     hook(Classes.Activity, '$init', {
         after() {
             logger.info({ tag: 'activity' }, `${gray('$init')}: ${this.$className}`);
@@ -420,10 +421,6 @@ function hookFirestore() {
             hook(DocumentSnapshot, '$init', { logging: { short: true } });
             'get' in DocumentSnapshot && hook(DocumentSnapshot, 'get', { logging: { short: true } });
         }
-
-        uniqHook('s8.g', '$init', { logging: { short: true } });
-        uniqHook('x8.m', '$init', { logging: { short: true } });
-        uniqHook('x8.i', '$init', { logging: { short: true } });
     };
     ClassLoader.perform(fn);
 }
@@ -638,7 +635,7 @@ Process.setExceptionHandler((exception: ExceptionDetails) => {
 });
 
 Native.initLibart();
-// Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x0080004c), fn_key: ptr(0x006f9170) });
+//Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x0080004c), fn_key: ptr(0x006f9170) });
 // Cocos2dx.hookLocalStorage(function (key) {
 //     switch (key) {
 //         case '__FirstLanuchTime':
@@ -651,35 +648,37 @@ Native.initLibart();
 //     }
 // });
 
-//Unity.setVersion('2023.1.5f1');
+//Unity.setVersion('2023.2.19f1');
 //Unity.patchSsl();
 //Unity.attachScenes();
 //Unity.attachStrings();
-//Dump.hookArtLoader();
 
 let enable = !true;
 setTimeout(() => (enable = true), 4000);
 JniTrace.attach(({ returnAddress }) => {
     return enable && predicate(returnAddress);
-}, false);
+}, true);
 
-//Native.Files.hookAccess(predicate);
-//Native.Files.hookOpendir(predicate);
-//Native.Files.hookDirent(predicate);
-//Native.Files.hookReadlink(predicate);
+Native.Files.hookAccess(predicate);
+Native.Files.hookOpendir(predicate, (path) => {
+    if (path?.startsWith('/proc') && (path?.endsWith('/task') || path?.endsWith('/fd'))) return '/dev/null';
+});
+Native.Files.hookDirent(predicate);
+Native.Files.hookReadlink(predicate);
 //Native.Files.hookOpen(predicate);
-
-//        return `/data/data/${getSelfProcessName()}/files/fake_maps`;
-//    }
-//    if (path?.endsWith('/su')) {https://jayinfotek.com/
-//        return path.replace(/\/su$/, '/nya');
-//    }
-//});
-//Native.Files.hookStat(predicate);
-//Native.Files.hookRemove(predicate);
-//Native.Strings.hookStrlen(predicate);
+Native.Files.hookFopen(predicate, true, (path) => {
+    if (path?.endsWith('/maps')) {
+        return `/data/data/${getSelfProcessName()}/files/fake_maps`;
+    }
+    if (path?.endsWith('/su')) {
+        return path.replace(/\/su$/, '/nya');
+    }
+});
+Native.Files.hookStat(predicate);
+Native.Files.hookRemove(predicate);
+Native.Strings.hookStrlen(predicate);
 //Native.Strings.hookStrcpy(predicate);
-// Native.Strings.hookStrcmp(predicate);
+Native.Strings.hookStrcmp(predicate);
 //Native.Strings.hookStrstr(predicate);
 // Native.Strings.hookStrtoLong(predicate);
 
@@ -727,9 +726,9 @@ Interceptor.replace(
     Libc.nanosleep,
     new NativeCallback(
         function () {
-            if (predicate(this.returnAddress)) {
-                logger.info({ tag: 'nanosleep' }, `${Native.addressOf(this.returnAddress)}`);
-            }
+            //if (predicate(this.returnAddress)) {
+            //    logger.info({ tag: 'nanosleep' }, `${Native.addressOf(this.returnAddress)}`);
+            //}
             return 0;
         },
         'int',
