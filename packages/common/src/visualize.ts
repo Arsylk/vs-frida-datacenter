@@ -2,7 +2,6 @@ import { JNI, asFunction, asLocalRef } from '@clockwork/jnitrace';
 import { Color } from '@clockwork/logging';
 import { ClassesString } from './define/java.js';
 import { toHex } from './text.js';
-import { isNully } from './index.js';
 const { black, gray, red, green, orange, dim, italic, bold, yellow, hidden } = Color.use();
 
 function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv()?.handle): string {
@@ -94,7 +93,7 @@ function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv
         // console.log(value, type, typeof value, value.$h, value instanceof NativePointer);
         // return `${classHandle}`;
 
-        if (handleStr === '0x0' || isNully(classHandle)) {
+        if (handleStr === '0x0' || classHandle === NULL || !classHandle) {
             return Color.number(null);
         }
 
