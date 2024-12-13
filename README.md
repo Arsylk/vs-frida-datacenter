@@ -46,7 +46,7 @@ This project uses Webpack to bundle all TypeScript files into JavaScript Agent f
 
    - Compile the TypeScript code into defined Agents.
 
-2. The output will be located in the `agents/dist` directory.
+2. The output will be located in the `agent/dist` directory.
 
 ### Using the Watch tasks
 

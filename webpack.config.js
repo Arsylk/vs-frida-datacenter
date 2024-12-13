@@ -50,8 +50,8 @@ const base = {
 };
 export default [
     Object.assign(Object.assign({}, base), {
-        name: 'index',
-        entry: './agent/index.ts',
+        name: 'script',
+        entry: './agent/script.ts',
         output: {
             filename: 'script.js',
             path: resolve('./agent/dist'),
