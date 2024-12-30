@@ -9,27 +9,54 @@ type NatveFunctionCallbacks = {
 
 // using namespace for singleton with all callbacks
 namespace Inject {
+    export const ctorIgnored = [
+        'org.apache.http.legacy.odex',
+        'androidx.window.sidecar.odex',
+        'com.android.location.provider.odex',
+        'com.android.media.remotedisplay.odex',
+        'split_MeasurementDynamite_installtime.odex',
+        'libwebviewchromium_plat_support.so',
+        'base.odex',
+        'libandroid.so',
+        'libmonochrome_64.so',
+        'libEGL.so',
+        'libEGL_emulation.so',
+        'libGLESv1_CM.so',
+        'libGLESv1_CM_emulation.so',
+        'libGLESv2.so',
+        'libGLESv2_emulation.so',
+        'liblog.so',
+        'libc.so',
+        'libsentry.so',
+        'libsentry-android.so',
+    ];
+
     export const modules = new ModuleMap();
     const initArrayCallbacks: ((this: InvocationContext, name: string) => void)[] = [];
+    const prelinkCallbacks: ((module: Module) => void)[] = [];
+    const prelinkOnceCallbacks: ((module: Module) => void)[] = [];
+    const prelinked = new Set<string>();
 
     let do_dlopen: NativePointer | null = null;
     let call_ctor: NativePointer | null = null;
     let prelink_image: NativePointer | null = null;
 
     const linker = Process.getModuleByName(Process.pointerSize === 4 ? 'linker' : 'linker64');
-    for (const { name, address } of linker.enumerateSymbols()) {
+    for (const sym of linker.enumerateSymbols()) {
+        const { name, address } = sym;
         if (name.includes('do_dlopen')) {
+            logger.debug({ tag: 'do_dlopen' }, Text.stringify(sym));
             do_dlopen = address;
             continue;
         }
         if (name.includes('call_constructor')) {
-            //call_ctor = address;
+            logger.debug({ tag: 'call_constructor' }, Text.stringify(sym));
+            call_ctor = address;
             continue;
         }
         if (name.includes('phdr_table_get_dynamic_section')) {
             // __dl__Z30phdr_table_get_dynamic_sectionPK10elf64_phdrmyPP9Elf64_DynPj
             prelink_image = address;
-            continue;
         }
     }
 
@@ -42,11 +69,11 @@ namespace Inject {
                 const _init_offset = 0x15a8 + thumb;
                 const _init = x2_load_bias.add(_init_offset);
 
-                const { base, file } = Process.getRangeByAddress(prelink_image);
-                logger.info({ tag: 'range' }, `${base} => ${Text.stringify(file)}`);
-                Interceptor.attach(base.add(0x16750), () => {
-                    logger.info({ tag: 'mrand' }, `${file}: global constructor`);
-                });
+                // this is some black magic stuff
+                const module = Process.getModuleByAddress(_init);
+                logger.info({ tag: 'phdr_init' }, `${Text.stringify(module)}`);
+                modules.update();
+                doOnPrelink(module);
             },
         });
 
@@ -58,24 +85,19 @@ namespace Inject {
                 const libPath = (this.libPath = args[0].readCString());
                 if (!libPath) return;
                 const libName = (this.libName = `${libPath.split('/').pop()}`);
-                logger.info(`[${pink('dlopen')}] ${libPath}`);
+                logger.info({ tag: 'do_dlopen' }, `${libPath}`);
                 modules.update();
 
-                //return;
-                // TODO investigate
-                //let handle: InvocationListener | null = null;
-                //const unhook = () => handle?.detach();
-                //call_ctor && (handle = Interceptor.attach(call_ctor, ctorListenerCallback(libName, unhook)));
-                let probeId: StalkerCallProbeId | null = null;
-                call_ctor &&
-                    (probeId = Stalker.addCallProbe(call_ctor, (args) => {
-                        logger.info({ tag: 'ctor' }, `${libName} ${args[0]}`);
-                    }));
+                if (ctorIgnored.includes(libName)) return;
+                // TODO investigat
+                let handle: InvocationListener | null = null;
+                const unhook = () => handle?.detach();
+                call_ctor && (handle = Interceptor.attach(call_ctor, ctorListenerCallback(libName, unhook)));
             },
             onLeave: function (retval) {
                 modules.update();
-                if (!this.libPath) return;
-                onAfterInitArray(this.libName, this);
+                const libName = this.libName;
+                if (libName) onAfterInitArray(libName, this);
             },
         });
 
@@ -89,14 +111,37 @@ namespace Inject {
         },
         onLeave(retval) {
             logger.info({ tag: 'ctor' }, `${libName} ${blue('<-')} ${retval}`);
+            modules.update();
             detach();
         },
     });
+
+    function doOnPrelink(module: Module) {
+        const key = module.name;
+        const unique = !prelinked.has(key);
+        prelinked.add(key);
+        if (unique) {
+            for (const cb of prelinkOnceCallbacks) {
+                cb(module);
+            }
+        }
+        for (const cb of prelinkCallbacks) {
+            cb(module);
+        }
+    }
 
     function onAfterInitArray(libName: string, ctx: InvocationContext) {
         for (const cb of initArrayCallbacks) {
             cb.call(ctx, libName);
         }
+    }
+
+    export function onPrelink(fn: (module: Module) => void) {
+        prelinkCallbacks.push(fn);
+    }
+
+    export function onPrelinkOnce(fn: (module: Module) => void) {
+        prelinkCallbacks.push(fn);
     }
 
     export function afterInitArray(fn: (this: InvocationContext, name: string) => void) {
@@ -151,7 +196,6 @@ namespace Inject {
         afterInitArrayModule(({ name, base }: Module) => {
             if (name === module) {
                 const ptr = base.add(offset);
-                console.log('attach to: ', ptr);
                 Interceptor.attach(ptr, callback);
             }
         });

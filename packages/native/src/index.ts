@@ -1,4 +1,4 @@
-import { Std, tryNull } from '@clockwork/common';
+import { Std, tryNull, Text } from '@clockwork/common';
 import { logger, Color } from '@clockwork/logging';
 import { HooahTrace } from './hooah.js';
 import { Inject } from './inject.js';
@@ -20,6 +20,8 @@ export {
     getSelfFiles,
     getSelfProcessName,
     mkdir,
+    readFpPath,
+    readFdPath,
     tryResolveMapsSymbol,
 } from './utils.js';
 const { gray, magenta: pink } = Color.use();
@@ -153,37 +155,47 @@ type HookParamteres = {
     call?: boolean | ((this: InvocationContext, args: InvocationArguments) => void);
     ret?: boolean | ((this: InvocationContext, retval: InvocationReturnValue) => void);
     logcat?: boolean;
+    predicate?: (returnAddress: NativePointer) => boolean;
 };
 function log(ptr: NativePointer, argdef: string, params?: HookParamteres) {
     try {
+        logger.info({ tag: 'log' }, `in: ${ptr} ${argdef}`);
         const resolved = DebugSymbol.fromAddress(ptr);
         const atag = resolved.name ? tryDemangle(resolved.name) : `0x${ptr.toString(16)}`;
         const tag = params?.tag ?? atag;
         const argSize = argdef.length;
+        logger.info({ tag: 'log' }, `${resolved} ${tag}`);
         Interceptor.attach(ptr, {
             onEnter(args) {
+                if (params?.predicate !== undefined && !params?.predicate?.(this.returnAddress)) return;
                 if (params?.call !== false) {
                     let sb = '';
                     sb += '{ ';
                     for (let i = 0; i < argSize; i += 1) {
-                        let value: any = args[i];
+                        const value: any = args[i];
+                        let strvalue = `${args[i]}`;
                         switch (argdef[i]) {
                             case 's':
-                                value = args[i].readCString();
+                                strvalue = value.readCString();
+                                break;
+                            case 'l':
+                                strvalue = value.readLong();
                                 break;
                             case 'i':
-                                value = args[i].readInt();
+                                strvalue = value.toUInt32();
                                 break;
                             case '_':
-                                value = '_';
+                                strvalue = '_';
                                 break;
                             case 'h':
-                                value = `\n${hexdump(args[i])}\n`;
+                                strvalue = `\n${hexdump(args[i])}\n`;
+                                break;
                         }
-                        sb += `${gray(`arg${i}`)}: ${value}`;
+                        sb += `${gray(`arg${i}`)}: ${strvalue}`;
                         if (i < argSize - 1) sb += ', ';
                     }
                     sb += ' }';
+                    sb += ` ${addressOf(this.returnAddress)}`;
                     logger.info({ tag: tag }, sb);
                     if (typeof params?.call === 'function') {
                         params?.call.call(this, args);
@@ -197,16 +209,17 @@ function log(ptr: NativePointer, argdef: string, params?: HookParamteres) {
                 }
             },
             onLeave(retval) {
+                if (params?.predicate !== undefined && !params?.predicate?.(this.returnAddress)) return;
                 if (params?.ret !== false) {
                     logger.info({ tag: tag }, `${gray('return')} ${retval}`);
                     if (typeof params?.ret === 'function') {
-                        params?.ret.call(this, retval);
+                        params?.ret?.call(this, retval);
                     }
                 }
             },
         });
-    } catch (e) {
-        logger.error({ tag: 'log' }, `${e}`);
+    } catch (e: any) {
+        logger.error({ tag: 'log' }, `ptr: ${ptr}, argdef: ${argdef}\n${Text.stringify(e)} ${e.stack}`);
     }
 }
 

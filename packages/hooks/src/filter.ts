@@ -134,6 +134,7 @@ const Filter = {
         switch (key) {
             case 'persist.sys.fflag.override.settings_auto_text_wrapping':
             case 'debug.force_rtl':
+            case 'ro.build.version.sdk':
                 return false;
         }
         return true;

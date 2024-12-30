@@ -1,4 +1,6 @@
 import { resolve } from 'path';
+import * as url from 'url';
+const __dirname = url.fileURLToPath(new URL('..', import.meta.url));
 
 const base = {
     name: 'base',
@@ -13,6 +15,9 @@ const base = {
     },
     resolve: {
         extensions: ['.ts', '.js'],
+        alias: {
+            '@reversense/interruptor': resolve(__dirname, 'node_modules/@reversense/interruptor'),
+        },
         fallback: {
             assert: '@frida/assert',
             'base64-js': '@frida/base64-js',
@@ -48,37 +53,15 @@ const base = {
     mode: 'development',
     devtool: 'inline-source-map',
 };
-export default [
-    Object.assign(Object.assign({}, base), {
-        name: 'script',
-        entry: './agent/script.ts',
+const mkbase = () => Object.assign({}, base);
+const mkobject = (name) =>
+    Object.assign(mkbase(), {
+        name: name,
+        entry: `./agent/${name}.ts`,
         output: {
-            filename: 'script.js',
+            filename: `${name}.js`,
             path: resolve('./agent/dist'),
         },
-    }),
-    Object.assign(Object.assign({}, base), {
-        name: 'justdump',
-        entry: './agent/justdump.ts',
-        output: {
-            filename: 'justdump.js',
-            path: resolve('./agent/dist'),
-        },
-    }),
-    Object.assign(Object.assign({}, base), {
-        name: 'justcocos',
-        entry: './agent/justcocos.ts',
-        output: {
-            filename: 'justcocos.js',
-            path: resolve('./agent/dist'),
-        },
-    }),
-    Object.assign(Object.assign({}, base), {
-        name: 'caller',
-        entry: './agent/caller.ts',
-        output: {
-            filename: 'caller.js',
-            path: resolve('./agent/dist'),
-        },
-    }),
-];
+    });
+
+export default [mkobject('script'), mkobject('justdump'), mkobject('justcocos'), mkobject('justcli')];

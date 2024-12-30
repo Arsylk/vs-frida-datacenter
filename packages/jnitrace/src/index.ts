@@ -434,7 +434,7 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
                     }
                 }
                 switch (method?.className) {
-                    case 'com.cocos.lib/CocosHelper':
+                    case 'com.cocos.lib.CocosHelper':
                     case 'com.cocos.lib.CanvasRenderingContext2DImpl':
                         this.ignore = true;
                         if (this.ignore) return;

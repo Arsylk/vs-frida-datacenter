@@ -1,27 +1,45 @@
-import { a_type } from "@clockwork/common/dist/define/enum.js";
-import { Color, logger } from "@clockwork/logging";
+import { Consts } from '@clockwork/common';
+import { Color, logger } from '@clockwork/logging';
 const { gray } = Color.use();
+const { a_type } = Consts;
 
 function hookGetauxval() {
-    Interceptor.replace(
-        Libc.getauxval,
-        new NativeCallback(
-            (type) => {
-                const retval = Libc.getauxval(type);
-                logger.info({ tag: 'getauxval' }, `${gray(a_type[type as a_type])}: ${ptr(retval)}`);
-                return retval;
-            },
-            'uint32',
-            ['uint32'],
-        ),
-    )
+    // ? found single case where this would hang the app forever, attach version works fine
+    //Interceptor.replace(
+    //    Libc.getauxval,
+    //    new NativeCallback(
+    //        (type) => {
+    //            const retval = Libc.getauxval(type);
+    //            logger.info({ tag: 'getauxval' }, `${gray(a_type[type as a_type])}: ${ptr(retval)}`);
+    //            return retval;
+    //        },
+    //        'uint32',
+    //        ['uint32'],
+    //    ),
+    //);
+    Interceptor.attach(Libc.getauxval, {
+        onEnter({ 0: type }) {
+            this.type = type;
+        },
+        onLeave(retval) {
+            const numType = Number(this.type);
+            logger.info({ tag: 'getauxval' }, `${gray(a_type[numType])}: ${retval}`);
+        },
+    });
 }
 
 function hookSystem() {
-    Interceptor.replace(Libc.system, new NativeCallback((command) => {
-        const retval = Libc.system(command);
-        return retval;
-    }, 'int', ['pointer']));
+    Interceptor.replace(
+        Libc.system,
+        new NativeCallback(
+            (command) => {
+                const retval = Libc.system(command);
+                return retval;
+            },
+            'int',
+            ['pointer'],
+        ),
+    );
 }
 
 function hookPosixSpawn() {
@@ -36,6 +54,4 @@ function hookPosixSpawn() {
     });
 }
 
-
 export { hookGetauxval, hookPosixSpawn, hookSystem };
-

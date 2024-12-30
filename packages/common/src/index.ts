@@ -2,12 +2,24 @@ import { EventEmitter } from 'events';
 import { ClassesProxy, ClassesString, type ClassesType } from './define/java.js';
 import { LibcFinderProxy, type LibcType } from './define/libc.js';
 import { enumerateMembers, findChoose, findClass, getFindUnique } from './search.js';
-export * as Enum from './define/enum.js';
+export * as Consts from './define/consts.js';
 export * as Std from './define/std.js';
 export * as Struct from './define/struct.js';
 export * as Text from './text.js';
 export * from './types.js';
 export * from './visualize.js';
+
+type Success<T> = [T, null];
+
+type Failure<E extends Error> = [null, E];
+
+function tryErr<T, E extends Error>(fn: () => T): Success<T> | Failure<E> {
+    try {
+        return [fn(), null] as Success<T>;
+    } catch (e: any) {
+        return [null, e] as Failure<E>;
+    }
+}
 
 function tryNull<T>(fn: () => T): T | null {
     try {
@@ -45,7 +57,7 @@ function getApplicationContext(): Java.Wrapper {
     return Classes.ActivityThread.currentApplication().getApplicationContext();
 }
 
-const isNully = (ptr: NativePointerValue) => !ptr || ptr == NULL || `${ptr}` === '0x0';
+const isNully = (ptr: NativePointerValue) => !ptr || ptr === NULL || `${ptr}` === '0x0';
 
 const emitter = new EventEmitter();
 declare global {
@@ -88,5 +100,6 @@ export {
     stacktrace,
     stacktraceList,
     tryNull,
+    tryErr,
     isIterable,
 };

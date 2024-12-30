@@ -1,3 +1,4 @@
+import { tryNull, tryErr } from '@clockwork/common';
 import { subLogger } from '@clockwork/logging';
 import { getSelfFiles, mkdir } from '@clockwork/native';
 const logger = subLogger('dexdump');
@@ -15,7 +16,7 @@ function dump() {
             logger.trace(typeof buf);
 
             let buffer;
-            if (buf?.slice(0, 4) != getBytesFromString('dex\n')) {
+            if (buf?.slice(0, 4) !== getBytesFromString('dex\n')) {
                 // const buffer =
                 // getConcatByteArrays(getBytesFromString("dex\n035\x00"),buf.slice(8,buf.byteLength))
                 // const concatenated = await new Blob([
@@ -107,13 +108,13 @@ function dump() {
                         if (dex_base < range.base) {
                             return;
                         }
-                        if (dex_base.readCString(4) != 'dex\n' && verify(dex_base, range, true)) {
+                        if (dex_base.readCString(4) !== 'dex\n' && verify(dex_base, range, true)) {
                             const dex_size = dex_base.add(0x20).readUInt();
                             result.push({ addr: dex_base, size: dex_size });
                         }
                     });
                 } else {
-                    if (range.base.readCString(4) != 'dex\n' && verify(range.base, range, true)) {
+                    if (range.base.readCString(4) !== 'dex\n' && verify(range.base, range, true)) {
                         const dex_size = range.base.add(0x20).readUInt();
                         result.push({ addr: range.base, size: dex_size });
                     }
@@ -159,9 +160,8 @@ function verify(dexptr: NativePointer, range: RangeDetails | null, enable_verify
                 return false;
             }
             return verifyByMaps(dexptr, maps_address);
-        } else {
-            return dexptr.add(0x3c).readUInt() === 0x70;
         }
+        return dexptr.add(0x3c).readUInt() === 0x70;
     }
 }
 
@@ -183,19 +183,17 @@ function verifyByMaps(dexptr: NativePointer, mapsptr: NativePointer) {
 /**
  * The entrypoint function.
  */
-function scheduleDexDump(delay = 10_000) {
-    setTimeout(() => {
-        Java.performNow(() => {
-            logger.info('start dumping');
-            try {
-                dump();
-            } catch (err: any) {
-                logger.warn(`failed to dump:${err.message}`);
-                return;
-            }
-            logger.info('finish dumping');
-        });
-    }, delay);
+function initDexDump() {
+    Java.performNow(() => {
+        logger.info('start dumping');
+        const [dex, err] = tryErr(() => dump());
+        try {
+        } catch (err: any) {
+            logger.warn(`failed to dump:${err.message}`);
+            return;
+        }
+        logger.info('finish dumping');
+    });
 }
 
 function hookArtLoader() {
@@ -246,4 +244,4 @@ function hookArtLoader() {
     }
 }
 
-export { verify as dexBytesVerify, scheduleDexDump, hookArtLoader };
+export { verify as dexBytesVerify, initDexDump, hookArtLoader };

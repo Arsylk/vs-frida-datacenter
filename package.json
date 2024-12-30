@@ -14,7 +14,9 @@
         "attach": "run() { frida -U \"$1\" -l ./script.js --runtime=v8 -o ./session.txt; }; run",
         "spawn": "run() { frida -U -f \"$1\" -l ./script.js --runtime=v8 -o ./session.txt; }; run"
     },
-    "keywords": ["frida"],
+    "keywords": [
+        "frida"
+    ],
     "author": "Arsylk",
     "license": "ISC",
     "bugs": {
@@ -32,7 +34,7 @@
         "frida-il2cpp-bridge": "^0.9.1",
         "ts-loader": "^9.5.1",
         "webpack": "^5.95.0",
-        "webpack-cli": "^5.1.4"
+        "webpack-cli": "^6.0.1"
     },
     "workspaces": [
         "packages/logging",

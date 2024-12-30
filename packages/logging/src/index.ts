@@ -5,10 +5,10 @@ import * as Color from './color.js';
 const logger = pino({
     browser: {
         write: (o: any) => {
-            const msg = o['msg'],
-                level = o['level'],
-                tag = o['tag'],
-                id = o['id'];
+            const msg = o.msg;
+            const level = o.level;
+            const tag = o.tag;
+            const id = o.id;
             let print: string | null = `${msg}`;
             if (tag) {
                 const color = getColor(tag);

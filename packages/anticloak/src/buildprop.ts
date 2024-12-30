@@ -1,4 +1,3 @@
-
 function propMapper(key: string): string | undefined {
     if (key.includes('qemu') || key.includes('goldfish') || key.includes('ranchu')) return '';
 
@@ -34,7 +33,7 @@ function propMapper(key: string): string | undefined {
             return 'hi6250';
         case 'ro.hardware.egl':
             // return 'emulation';
-            return 'qcom'
+            return 'qcom';
         case 'ro.build.product':
             return 'nya64a';
         case 'ro.bootloader':
@@ -47,12 +46,19 @@ function propMapper(key: string): string | undefined {
         case 'ro.build.description':
         case 'ro.build.display.id':
             return 'xiaomi-raven 14 SQ1D.220205.003 8069835 release-keys';
+        case 'ro.boot.verifiedbootstate':
+            return 'verified';
+        case 'sys.oem_unlock_allowed':
+            return `${0}`;
         case 'persist.sys.timezone':
         case 'ro.hardware.power':
         case 'init.svc.adbd':
         case 'sys.usb.controller':
         case 'sys.usb.state':
+        case 'debug.atrace.tags.enableflags':
             return '';
+        case 'ro.boot.vbmeta.digest':
+            return '0000000000000000000000000000000000000000000000000000000000000000';
     }
 }
 
@@ -64,9 +70,9 @@ function buildMapper(key: string): string | undefined {
         case 'MANUFACTURER':
         case 'SOC_MANUFACTURER':
             return 'Xiaomi';
-        // case 'DEVICE':
-        // case 'PRODUCT': // this can be problematic for EGLConfig
-        //     return 'nya_arm64';
+        //case 'DEVICE':
+        //case 'PRODUCT': // this can be problematic for EGLConfig
+        //    return 'nya_arm64';
         case 'HARDWARE':
             return 'qcom';
         case 'BOARD':
@@ -98,10 +104,12 @@ function buildMapper(key: string): string | undefined {
     }
 }
 
-function systemMapper(key: string): string | undefined {
+function systemMapper(key: string, fallback: () => string | null): string | undefined {
     switch (key) {
         case 'http.agent':
             return 'Mozilla/5.0 (Linux; Android 14; Go 6 Pro Build/SQ1D.220205.003) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.66.Mobile Safari/537.36';
+        case 'os.version':
+            return fallback()?.replace(/dirty|ksu|kernelsu|magisk|apatch|lineage/gi, 'nya');
     }
 }
 

@@ -1,5 +1,5 @@
 import { Color } from '@clockwork/logging';
-import { JavaPrimitive } from './define/enum.js';
+import { JavaPrimitive } from './define/consts.js';
 const { gray } = Color.use();
 
 function maxLengh(message: any, length: number): string {
@@ -79,8 +79,24 @@ function base64(input: string) {
 
 function stringify(data: any) {
     const mapped = Reflect.ownKeys(data).map((k: symbol | string) => {
-        const value = data[k as string];
-        return `${gray(k as string)}: ${value}`;
+        const value = data[k];
+
+        let strValue = `${value}`;
+        if (typeof value === 'object' && strValue === '[object Object]') {
+            strValue = stringify(value);
+        }
+        if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') {
+            strValue = Color.number(strValue);
+        }
+        if (typeof value === 'string') {
+            strValue = Color.string(strValue);
+        }
+        if (typeof value === 'function') {
+            strValue = Color.method(strValue);
+            strValue = `${strValue} ${value.name}(${value.arguments})`;
+        }
+
+        return `${gray(String(k))}: ${strValue}`;
     });
     return `{ ${mapped.join(', ')} }`;
 }

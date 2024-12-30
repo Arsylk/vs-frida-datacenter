@@ -276,7 +276,7 @@ function hookOpendir(predicate: (ptr: NativePointer) => boolean, fn?: (path: str
         new NativeCallback(
             function (pathname) {
                 let ret: NativePointer | null = null;
-                if (predicate(this.returnAddress) || true) {
+                if (predicate(this.returnAddress)) {
                     const pathnameStr = pathname.readCString();
                     const replaceStr = fn?.(pathnameStr);
                     const pathArg = replaceStr ? Memory.allocUtf8String(replaceStr) : pathname;

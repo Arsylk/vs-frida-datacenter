@@ -1,4 +1,4 @@
-import { Libc } from '@clockwork/common';
+import { Libc, Consts } from '@clockwork/common';
 import { Color, logger } from '@clockwork/logging';
 const { gray, black } = Color.use();
 
@@ -105,7 +105,7 @@ function dumpFile(stringPtr: NativePointer, size: number, relativePath: string, 
     return true;
 }
 
-function readFdPath(fd: number, bufsize: number = Process.pageSize): string | null {
+function readFdPath(fd: number, bufsize: number = Consts.PATH_MAX): string | null {
     const buf = Memory.alloc(bufsize);
     const path = Memory.allocUtf8String(`/proc/self/fd/${fd}`);
 
@@ -114,6 +114,14 @@ function readFdPath(fd: number, bufsize: number = Process.pageSize): string | nu
     dellocate(buf);
     dellocate(path);
     return str;
+}
+
+function readFpPath(fp: NativePointer): string | null {
+    const { value: fd } = Libc.fileno(fp) as UnixSystemFunctionResult<number>;
+    if (fd !== -1) {
+        return readFdPath(fd);
+    }
+    return null;
 }
 
 function readTidName(tid: number): string {
@@ -195,6 +203,7 @@ export {
     getSelfProcessName,
     mkdir,
     readFdPath,
+    readFpPath,
     readTidName,
     tryDemangle,
     tryResolveMapsSymbol,

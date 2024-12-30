@@ -475,7 +475,7 @@ export namespace HooahTrace {
                 const postLines: PrintInfo[] = [];
                 currentExecutionBlockStackRegisters.forEach((reg) => {
                     const contextVal = getRegisterValue(context, reg.reg);
-                    if (contextVal && contextVal != reg.value) {
+                    if (contextVal && contextVal !== reg.value) {
                         const toStr = contextVal.toString();
                         let str = getSpacer(spaceAtOpStr);
                         if (colored) {
@@ -622,7 +622,7 @@ export namespace HooahTrace {
                             result += asStr;
                         }
                         break;
-                    } else {
+                    }
                         if (colored) {
                             result += Color.colorify(asStr, 'red');
                         } else {
@@ -641,7 +641,6 @@ export namespace HooahTrace {
                                 resLen += str.length + 3;
                             }
                         } catch (e) {}
-                    }
                     if (count === 5) {
                         break;
                     }

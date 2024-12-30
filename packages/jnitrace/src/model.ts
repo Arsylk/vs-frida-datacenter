@@ -1,5 +1,5 @@
 import { Text } from '@clockwork/common';
-import { jFieldID, jMethodID } from './jni.js';
+import type { jFieldID, jMethodID } from './jni.js';
 
 enum JniInvokeMode {
     Normal = 0,

@@ -12,7 +12,7 @@ function hookExit(predicate: (ptr: NativePointer) => boolean) {
             new NativeCallback(
                 function (code) {
                     const stacktrace = Thread.backtrace(this.context, Backtracer.FUZZY)
-                        .map(x => addressOf(x, true))
+                        .map((x) => addressOf(x, true))
                         .join('\n\t');
                     logger.info({ tag: key }, `code: ${code} ${stacktrace}`);
                     return 0;
@@ -28,7 +28,7 @@ function hookExit(predicate: (ptr: NativePointer) => boolean) {
         new NativeCallback(
             function (err) {
                 const stacktrace = Thread.backtrace(this.context, Backtracer.FUZZY)
-                    .map(x => addressOf(x, true))
+                    .map((x) => addressOf(x, true))
                     .join('\n\t');
                 logger.info({ tag: 'raise' }, `err: ${err} ${addressOf(this.returnAddress)} ${stacktrace}`);
                 return 0;
@@ -75,25 +75,43 @@ function hookSignal(predicate: (ptr: NativePointer) => boolean) {
                 ['int', 'pointer'],
             ),
         );
-
     } catch (e) {
         Interceptor.attach(Libc.signal, {
             onEnter({ 0: sig, 1: handler }) {
-
                 const stacktrace = Thread.backtrace(this.context, Backtracer.FUZZY).join('\n\t');
                 logger.info(
                     { tag: 'signal' },
                     `signal(${sig}, ${handler}) ${addressOf(this.returnAddress)} ${stacktrace}`,
                 );
             },
-        })
+        });
     }
 }
 
+function hookPError(predicate: (ptr: NativePointer) => boolean) {
+    try {
+        Interceptor.replace(
+            Libc.perror,
+            new NativeCallback(
+                (err) => {
+                    const stacktrace = Thread.backtrace(this.context, Backtracer.FUZZY).join('\n\t');
+                    logger.info(
+                        { tag: 'perror' },
+                        `perror(${err.readCString()}) ${addressOf(this.returnAddress)} ${stacktrace}`,
+                    );
+                    return Libc.perror(err);
+                },
+                'void',
+                ['pointer'],
+            ),
+        );
+    } catch (error) {}
+}
 function hook(predicate: (ptr: NativePointer) => boolean) {
     hookKill(predicate);
     hookExit(predicate);
-    hookSignal(predicate)
+    hookSignal(predicate);
+    hookPError(predicate);
 }
 
 export { hook, hookExit, hookKill };

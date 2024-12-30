@@ -3,6 +3,7 @@ import * as Anticloak from '@clockwork/anticloak';
 import {
     Classes,
     ClassesString,
+    Consts,
     Struct,
     Text,
     emitter,
@@ -13,7 +14,7 @@ import {
     stacktrace,
     tryNull,
 } from '@clockwork/common';
-import { toHex } from '@clockwork/common/dist/text';
+import { toHex, uuid } from '@clockwork/common/dist/text';
 import * as Dump from '@clockwork/dump';
 import { ClassLoader, Filter, always, compat, getHookUnique, hook, ifKey } from '@clockwork/hooks';
 import type { FridaMethodThisCompat } from '@clockwork/hooks/dist/types';
@@ -21,7 +22,7 @@ import * as JniTrace from '@clockwork/jnitrace';
 import { Color, logger } from '@clockwork/logging';
 import * as Native from '@clockwork/native';
 import { predicate } from '@clockwork/native';
-import { getSelfProcessName } from '@clockwork/native/dist/utils.js';
+import { getSelfProcessName } from '@clockwork/native/dist/utils';
 import * as Network from '@clockwork/network';
 import * as Unity from '@clockwork/unity';
 const { red, green, redBright, magentaBright: pink, gray, dim, black } = Color.use();
@@ -233,7 +234,7 @@ function hookCrypto() {
                 //@ts-ignore
                 transformed ??= `${Classes.String.valueOf(returnValue)}`;
                 logger.info({ tag: 'decrypt' }, `${transformed}`);
-                logger.info({ tag: 'decrypt' }, pink(stacktrace()));
+                //logger.info({ tag: 'decrypt' }, pink(stacktrace()));
             }
         },
         logging: { arguments: false, return: false },
@@ -464,7 +465,10 @@ function bypassReceiverFlags() {
 
             return method.call(this, ...args);
         },
-        logging: { call: false, return: false },
+        logging: {
+            call: false,
+            return: false,
+        },
     });
 
     hook('android.app.AlarmManager', 'setExact', {
@@ -492,11 +496,11 @@ Java.performNow(() => {
     const C4_URL = 'https://google.pl/search?q=hi';
     const AD_ID = 'fwqna41l-mrux-l4pi-mi6q-imrr3t83da4n';
     const INSTALL_REFERRER =
-        'utm_source=facebook_ads&utm_medium=Non-rganic&media_source=true_network&http_referrer=BingSearch';
+        'utm_source=facebook_ads&utm_medium=Non-organic&media_source=true_network&http_referrer=BingSearch';
     hookActivity();
     hookWebview(true);
     hookNetwork();
-    hookJson(function (key, _method, fallback) {
+    hookJson((key, _method, fallback) => {
         switch (key) {
             case 'errer':
             case 'referrer':
@@ -594,10 +598,11 @@ Java.performNow(() => {
     hook(Classes.System, 'getProperty', {
         loggingPredicate: Filter.systemprop,
         logging: { multiline: false, short: true },
-        replace: ifKey((key) => {
-            const value = Anticloak.BuildProp.systemMapper(key);
-            return value;
-        }),
+        replace(method, ...args) {
+            const fallback = () => method.call(this, ...args);
+            const value = Anticloak.BuildProp.systemMapper(args[0], fallback);
+            return value ?? fallback();
+        },
     });
 
     hook(Classes.DisplayManager, 'createVirtualDisplay');
@@ -605,13 +610,25 @@ Java.performNow(() => {
     hook(Classes.SimpleDateFormat, 'parse', {
         logging: { short: true, multiline: false },
     });
-
     hook(Classes.DexPathList, '$init', {
         logging: { short: true, multiline: false },
     });
 
+    hook(Classes.URLEncoder, 'encode', {
+        logging: { short: true, multiline: false },
+    });
+
     // hook(Classes.Runtime, 'loadLibrary0', { logging: { short: true, yymultiline: false } });
-    ClassLoader.perform(() => {});
+    const conf = { logging: { short: true, multiline: false } };
+    ClassLoader.perform(() => {
+        uniqFind('EventFlowToLiveData.AdapterFlowToFlowCategorize', (clazz) => {
+            enumerateMembers(clazz, {
+                onMatchMethod(clazz, member, depth) {
+                    hook(clazz, member, conf);
+                },
+            });
+        });
+    });
 });
 
 Network.injectSsl();
@@ -628,14 +645,16 @@ Native.attachSystemPropertyGet((key) => {
 Process.setExceptionHandler((exception: ExceptionDetails) => {
     const ctx = exception.context as Arm64CpuContext;
     //logger.error(
-    //    { tag: 'exception' },
-    //    `${black(exception.type)}: ${exception.memory?.operation} ${exception.memory?.address} at: ${gray(`${exception.address}`)} x0: ${red(`${ctx.x0}`)} x1: ${red(`${ctx.x1}`)}`,
-    //);
+    //{ tag: 'exception' },
+    //`${black(exception.type)}: ${exception.memory?.operation} ${exception.memory?.address} at: ${gray(`${exception.address}`)} x0: ${red(`${ctx.x0}`)} x1: ${red(`${ctx.x1}`)}`,
+
     return exception.type === 'abort';
 });
 
 Native.initLibart();
-//Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x0080004c), fn_key: ptr(0x006f9170) });
+//Dump.initSoDump();
+//Dump.hookArtLoader();
+//Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x0080fbcc), fn_key: ptr(0x00702580) });
 // Cocos2dx.hookLocalStorage(function (key) {
 //     switch (key) {
 //         case '__FirstLanuchTime':
@@ -653,64 +672,60 @@ Native.initLibart();
 //Unity.attachScenes();
 //Unity.attachStrings();
 
-let enable = !true;
-setTimeout(() => (enable = true), 4000);
+let enable = true;
 JniTrace.attach(({ returnAddress }) => {
     return enable && predicate(returnAddress);
 }, true);
+emitter.on('jni', (_) => (enable = !enable));
+emitter.on('so', (lib, sync) => Dump.dumpLib(lib, sync === true));
+emitter.on('dex', () => Dump.initDexDump());
+emitter.on('il2cpp', Unity.listGameObjects);
 
-Native.Files.hookAccess(predicate);
-Native.Files.hookOpendir(predicate, (path) => {
-    if (path?.startsWith('/proc') && (path?.endsWith('/task') || path?.endsWith('/fd'))) return '/dev/null';
-});
-Native.Files.hookDirent(predicate);
-Native.Files.hookReadlink(predicate);
-//Native.Files.hookOpen(predicate);
+Native.Pthread.hookPthread_create();
+Native.Pthread.hookPthread_join();
+
 Native.Files.hookFopen(predicate, true, (path) => {
-    if (path?.endsWith('/maps')) {
+    if (path?.endsWith('/smaps') || path?.includes('/proc/self/environ')) {
         return `/data/data/${getSelfProcessName()}/files/fake_maps`;
     }
     if (path?.endsWith('/su')) {
         return path.replace(/\/su$/, '/nya');
     }
+    if (
+        path?.includes('magisk') ||
+        path?.includes('supolicy') ||
+        path?.toLowerCase()?.includes('superuser')
+    ) {
+        return path.replace(/(magisk|supolicy|superuser)/gi, 'nya');
+    }
 });
-Native.Files.hookStat(predicate);
-Native.Files.hookRemove(predicate);
-Native.Strings.hookStrlen(predicate);
-//Native.Strings.hookStrcpy(predicate);
-Native.Strings.hookStrcmp(predicate);
-//Native.Strings.hookStrstr(predicate);
-// Native.Strings.hookStrtoLong(predicate);
+//Native.Strings.hookStrtoLong(predicate);
 
 Native.hookGlGetString();
-Native.TheEnd.hook(predicate);
-
 Native.System.hookSystem();
 Native.System.hookGetauxval();
+Native.TheEnd.hook(predicate);
 
-//Native.Time.hookDifftime(predicate);
-//Native.Time.hookTime(predicate);
-// Native.Time.hookLocaltime(predicate);
-// Native.Time.hookGettimeofday(predicate);
-Anticloak.Debug.hookPtrace();
-Native.Pthread.hookPthread_create();
-//Native.Logcat.hookLogcat();
-// Anticloak.Jigau.memoryPatch();
-
-emitter.on('jni', (_) => (enable = !enable));
-emitter.on('so', (lib, sync) => Dump.dumpLib(lib, sync === true));
-emitter.on('dex', () => Dump.scheduleDexDump(0));
-emitter.on('il2cpp', Unity.listGameObjects);
-
-Interceptor.attach(Libc.sprintf, {
-    onEnter(args) {
-        this.dst = args[0];
-    },
-    onLeave(retval) {
-        const text = this.dst.readCString();
-        logger.info({ tag: 'sprintf' }, `${text}`);
-    },
-});
+//Interceptor.attach(Libc.vsnprintf, {
+//    onEnter(args) {
+//        this.dst = args[0];
+//    },
+//    onLeave(retval) {
+//        if (predicate(this.returnAddress)) {
+//            const text = this.dst.readCString();
+//            logger.info({ tag: 'vsnprintf' }, `${text} ${Native.addressOf(this.returnAddress)}`);
+//        }
+//    },
+//});
+//Interceptor.attach(Libc.sprintf, {
+//    onEnter(args) {
+//        this.dst = args[0];
+//    },
+//    onLeave(retval) {
+//        const text = this.dst.readCString();
+//        logger.info({ tag: 'sprintf' }, `${text}`);
+//    },
+//});
 
 Interceptor.attach(Libc.posix_spawn, {
     onEnter({ 0: pid, 1: path, 2: action }) {
@@ -725,7 +740,7 @@ Interceptor.attach(Libc.posix_spawn, {
 Interceptor.replace(
     Libc.nanosleep,
     new NativeCallback(
-        function () {
+        () => {
             //if (predicate(this.returnAddress)) {
             //    logger.info({ tag: 'nanosleep' }, `${Native.addressOf(this.returnAddress)}`);
             //}
@@ -741,9 +756,9 @@ Interceptor.replace(
     new NativeCallback(
         function () {
             const retval = Libc.fork();
+            //const retval = -1;
             logger.info({ tag: 'fork' }, `${retval} ${Native.addressOf(this.returnAddress)}`);
             return retval;
-            // return -1;
         },
         'int',
         [],
@@ -756,8 +771,25 @@ Interceptor.replace(
         function (buffer, size, fp) {
             const retval = Libc.fgets(buffer, size, fp);
             if (predicate(this.returnAddress)) {
-                // const endUserMssg = buffer.readCString()?.trimEnd();
-                // logger.info({ tag: 'fgets' }, `${endUserMssg}`);
+                const endUserMssg = buffer.readCString()?.trimEnd();
+                if (
+                    endUserMssg?.includes('KSU') ||
+                    endUserMssg?.includes('debug_ramdisk') ||
+                    endUserMssg?.includes('devpts') ||
+                    endUserMssg?.includes('tracefs') ||
+                    endUserMssg?.includes('tmpfs') ||
+                    endUserMssg?.includes('ramdisk') ||
+                    endUserMssg?.includes('virtio') ||
+                    endUserMssg?.includes('magisk')
+                ) {
+                    logger.info({ tag: 'fgets' }, `${endUserMssg} ${red('SKIP')}`);
+                    Libc.fclose(fp);
+                    return Libc.fgets(buffer, size, fp);
+                }
+                //logger.info(
+                //    { tag: 'fgets' },
+                //    `${endUserMssg} ${strOneLine(fp.readPointer(), 100)} ${fp.add(Process.pointerSize).readPointer()}`,
+                //);
             }
             return retval;
         },
@@ -766,19 +798,116 @@ Interceptor.replace(
     ),
 );
 
-Native.Inject.afterInitArrayModule((module) => {
+Native.Inject.afterInitArrayModule((module: Module) => {
     const { base, name, size } = module;
-    if (name === 'libnuclideTubulinAraneology.so') {
-        Native.log(base.add(0xa6be4), 'ss');
-        Native.log(base.add(0x62ef4), 'ss');
-        Native.log(base.add(0xcdce0), 'ss');
-        Native.log(base.add(0xa7954), 'ss');
-        Native.log(base.add(0x64844), '_sss');
+    if (name === 'libreveny.so') {
+        for (const range of module.enumerateRanges('--x')) {
+            logger.info({ tag: 'range' }, `${Text.stringify(range)}`);
+            Memory.scan(range.base, range.size, 'D4 00 00 4?', {
+                onMatch(address, size) {
+                    logger.info({ tag: 'memsvc' }, `${address}`);
+                },
+            });
+        }
     }
 });
 
-// setTimeout(() => {
-//    const dir = '/data/data/io.smscash/files';
+Native.Inject.onPrelinkOnce((module) => {
+    const { base, name, size } = module;
+    if (name === 'libgojni.so' || name === 'libreveny.so') {
+        Interceptor.attach(Libc.syscall, {
+            onEnter: function (args) {
+                if (predicate(this.returnAddress)) {
+                    const ctx = this.context as Arm64CpuContext;
+                    const attr = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                        .map((i) => `x${i}`)
+                        .map((k) => [k, Reflect.get(ctx, k)]);
+                    const cttx = Object.fromEntries(attr);
+                    logger.info(
+                        { tag: 'syscall:in' },
+                        `${Text.stringify(cttx)} ${Native.addressOf(this.returnAddress)}`,
+                    );
+                }
+            },
+            onLeave(retval) {
+                if (predicate(this.returnAddress)) {
+                    const ctx = this.context as Arm64CpuContext;
+                    const attr = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                        .map((i) => `x${i}`)
+                        .map((k) => [k, Reflect.get(ctx, k)]);
+                    const cttx = Object.fromEntries(attr);
+                    logger.info(
+                        { tag: 'syscall:out' },
+                        `${Text.stringify(cttx)} ${Native.addressOf(this.returnAddress)}`,
+                    );
+                }
+            },
+        });
+        //Interceptor.replace(
+        //    Module.getExportByName(null, 'fcntl'),
+        //    new NativeCallback(
+        //        function (fd, op) {
+        //            const ctx = this.context as Arm64CpuContext;
+        //            const ret = Libc.fcntl(fd, op);
+        //
+        //            const key = Consts.keyname(Consts.cmd, op);
+        //            logger.info(
+        //                { tag: 'fcntl' },
+        //                `${ctx.x5.readCString()} ${String(key)} ${ctx.x0} ${ctx.x1} ${ctx.x2} ${ctx.x3} ${ctx.x4} ${ctx.x5} ${ctx.x6} ${ctx.x7} -> ${ret}`,
+        //            );
+        //
+        //            return ret;
+        //        },
+        //        'int',
+        //        ['int', 'int'],
+        //    ),
+        //);
+        Anticloak.Debug.hookPtrace();
+        Native.Strings.hookStrcpy(predicate);
+        //Native.Strings.hookStrcmp(predicate);
+        //Native.Strings.hookStrlen(predicate);
+        Native.Strings.hookStrstr(predicate);
+        Native.Strings.hookStrchr(predicate);
+        Native.Strings.hookStrcat(predicate);
+        Native.Files.hookOpen(predicate);
+
+        Native.Files.hookAccess(predicate);
+        Native.Files.hookReadlink(predicate);
+        Native.Files.hookStat(predicate);
+        Native.Files.hookRemove(predicate);
+        Native.Files.hookDirent(predicate);
+        Native.Files.hookOpendir(predicate, (path) => {
+            if (path?.startsWith('/proc') && (path?.endsWith('/task') || path?.endsWith('/fd')))
+                return '/dev/null';
+            if (path?.includes('/proc/fs/jbd2')) {
+                return '/nya/nya/nya';
+            }
+        });
+
+        //@ts-ignore
+        //Native.log(module.findExportByName('dlsym'), {});
+
+        //Interceptor.replace(
+        //    Libc.dlsym,
+        //    new NativeCallback(
+        //        function (handle, name) {
+        //            const ret = Libc.dlsym(handle, name);
+        //            const strName = name.readCString();
+        //            logger.info(
+        //                { tag: 'dlsym' },
+        //                `${Text.stringify({ handle: handle, name: strName })} -> ${ret}`,
+        //            );
+        //            return ret;
+        //        },
+        //        'pointer',
+        //        ['pointer', 'pointer'],
+        //    ),
+        //);
+    }
+});
+
+//setTimeout(() => {
+//    const dir = '/data/data/com.reveny.nativecheck/files';
 //    Libc.system(Memory.allocUtf8String(`mkdir -p ${dir}`));
 //
 //    // @ts-ignore

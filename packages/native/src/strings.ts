@@ -1,4 +1,4 @@
-import { Libc } from '@clockwork/common';
+import { isNully, Libc } from '@clockwork/common';
 import { Color, logger } from '@clockwork/logging';
 import { addressOf } from './utils.js';
 const { dim, green, red, italic, gray } = Color.use();
@@ -16,12 +16,19 @@ function hookStrstr(predicate: (ptr: NativePointer) => boolean) {
             new NativeCallback(
                 function (this: InvocationContext, haystack, needle) {
                     const strNeedle = needle.readCString();
-                    if (strNeedle === 'gmain' || strNeedle === 'gum-js-loop') {
+                    if (strNeedle === 'gmain' || strNeedle === 'gum-js-loop' || strNeedle.includes('Name')) {
                         return NULL;
                     }
+                    const strHaystack = haystack.readCString();
                     const ret = func(haystack, needle);
 
-                    if (predicate(this.returnAddress) && !strNeedle.includes('"frida:rpc"')) {
+                    if (
+                        predicate(this.returnAddress) &&
+                        !strNeedle.includes('"frida:rpc"') &&
+                        !strHaystack.includes('Noto Serif') &&
+                        !strHaystack.includes('Noto Sans') &&
+                        !strHaystack.includes('Roboto')
+                    ) {
                         const isFound = ret && !ret.isNull();
                         const strhay = gray(`"${strOneLine(haystack)}"`.slice(0, 100));
                         const strned = isFound
@@ -95,7 +102,10 @@ function hookStrcmp(predicate: (ptr: NativePointer, threadId: number) => boolean
         Interceptor.attach(func, {
             onEnter({ 0: a, 1: b }) {
                 if (predicate(this.returnAddress, this.threadId)) {
-                    logger.info({ tag: key }, `${a.readCString()} ? ${b.readCString()}`);
+                    logger.info(
+                        { tag: key },
+                        `${a.readCString()} ? ${b.readCString()} ${addressOf(this.returnAddress)}`,
+                    );
                 }
             },
             onLeave(retval) {},
@@ -121,6 +131,47 @@ function hookStrcmp(predicate: (ptr: NativePointer, threadId: number) => boolean
         // 	),
         // );
     }
+}
+
+function hookStrcat(predicate: (ptr: NativePointer) => boolean) {
+    Interceptor.replace(
+        Libc.strcat,
+        new NativeCallback(
+            function (dst, src) {
+                const ret = Libc.strcat(dst, src);
+                if (predicate(this.returnAddress)) {
+                    const strs = gray(`"${strOneLine(ret)}"`);
+                    logger.info({ tag: 'strcat' }, `${strs}`);
+                }
+
+                return ret;
+            },
+            'pointer',
+            ['pointer', 'pointer'],
+        ),
+    );
+}
+function hookStrchr(predicate: (ptr: NativePointer) => boolean) {
+    Interceptor.replace(
+        Libc.strchr,
+        new NativeCallback(
+            function (str, z) {
+                const ret = Libc.strchr(str, z);
+                if (predicate(this.returnAddress)) {
+                    const strs = gray(`"${strOneLine(str)}"`);
+                    const strRet = isNully(ret) ? Color.keyword(NULL) : ret.sub(str);
+                    logger.info(
+                        { tag: 'strchr' },
+                        `${strs} ? ${String.fromCharCode(z)} # -> ${strRet} ${addressOf(this.returnAddress)}`,
+                    );
+                }
+
+                return ret;
+            },
+            'pointer',
+            ['pointer', 'int'],
+        ),
+    );
 }
 
 function hookStrtoLong(predicate: (ptr: NativePointer) => boolean) {
@@ -159,4 +210,4 @@ function hookStrtoLong(predicate: (ptr: NativePointer) => boolean) {
     );
 }
 
-export { hookStrcmp, hookStrcpy, hookStrlen, hookStrstr, hookStrtoLong };
+export { hookStrcmp, hookStrcpy, hookStrlen, hookStrstr, hookStrchr, hookStrcat, hookStrtoLong };

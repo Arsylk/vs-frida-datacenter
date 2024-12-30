@@ -1,5 +1,5 @@
-import { EnvWrapper } from './envWrapper.js';
-import { JniMethodDefinition, type jMethodID, type jclass, type jobject } from './jni.js';
+import type { EnvWrapper } from './envWrapper.js';
+import type { JniMethodDefinition, jMethodID, jclass, jobject } from './jni.js';
 import { JniInvokeMode, type JavaMethod } from './model.js';
 import { resolveMethod } from './tracer.js';
 

@@ -13,6 +13,7 @@ const ClassesString = {
     StringBuilder: 'java.lang.StringBuilder',
     Class: 'java.lang.Class',
     URL: 'java.net.URL',
+    URLEncoder: 'java.net.URLEncoder',
     Cipher: 'javax.crypto.Cipher',
     SecretKeySpec: 'javax.crypto.spec.SecretKeySpec',
     Object: 'java.lang.Object',
