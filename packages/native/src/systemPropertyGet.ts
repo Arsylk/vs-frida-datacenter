@@ -46,27 +46,27 @@ function attachSystemPropertyGet(
         },
     });
 
-    Interceptor.attach(Libc.__system_property_find, {
-        onEnter({ 0: name }) {
-            this.name = name;
-        },
-        onLeave(retval) {
-            const key = this.name?.readCString();
-            const value = !isNully(retval) ? retval.readCString() : null;
-            const result = fn?.call(this, key, value);
-
-            if (result === null && value !== null) {
-                logger.info({ tag: 'sysfind' }, `${gray(key)}: ${red(value)} -> ${Color.keyword(null)}`);
-                return;
-            }
-            if (value !== null) {
-                logger.info({ tag: 'sysfind' }, `${gray(key)}: ${result}`);
-                return;
-            }
-
-            logger.info({ tag: 'sysfind' }, `${gray(key)}: ${Color.keyword(null)}`);
-        },
-    });
+    //Interceptor.attach(Libc.__system_property_find, {
+    //    onEnter({ 0: name }) {
+    //        this.name = name;
+    //    },
+    //    onLeave(retval) {
+    //        const key = this.name?.readCString();
+    //        const value = !isNully(retval) ? retval.readCString() : null;
+    //        const result = fn?.call(this, key, value);
+    //
+    //        if (result === null && value !== null) {
+    //            logger.info({ tag: 'sysfind' }, `${gray(key)}: ${red(value)} -> ${Color.keyword(null)}`);
+    //            return;
+    //        }
+    //        if (value !== null) {
+    //            logger.info({ tag: 'sysfind' }, `${gray(key)}: ${result}`);
+    //            return;
+    //        }
+    //
+    //        logger.info({ tag: 'sysfind' }, `${gray(key)}: ${Color.keyword(null)}`);
+    //    },
+    //});
 }
 
 export { attachSystemPropertyGet };

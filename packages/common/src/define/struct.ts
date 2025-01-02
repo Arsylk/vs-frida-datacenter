@@ -117,6 +117,17 @@ const Elf = {
     }),
 };
 
+const Linker = {
+    soinfo: proxyStruct({
+        phdr: 'pointer',
+        phnum: 'uint64',
+        base: 'pointer',
+        size: 'uint64',
+        dynamic: 'pointer',
+        next: 'pointer',
+    }),
+};
+
 function malloc<T extends { [key: string]: StructTypes }>(struct: StructCreator<T>) {
     return struct(Memory.alloc(struct.size));
 }
@@ -131,4 +142,4 @@ function toObject<T extends { [key: string]: StructTypes }>(struct: PropertyStru
     );
 }
 
-export { Dir, Elf, Stat, Time, Unity, malloc, toObject };
+export { Dir, Elf, Stat, Time, Unity, Linker, malloc, toObject };

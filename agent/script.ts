@@ -1,10 +1,10 @@
-import * as Cocos2dx from '@clockwork/Cocos2dx';
 import * as Anticloak from '@clockwork/anticloak';
 import {
     Classes,
     ClassesString,
     Consts,
     Struct,
+    Linker,
     Text,
     emitter,
     enumerateMembers,
