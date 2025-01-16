@@ -3,8 +3,13 @@ import { Color, logger } from '@clockwork/logging';
 import { addressOf } from './utils.js';
 const { dim, green, red, italic, gray } = Color.use();
 
-function strOneLine(ptr: NativePointer): string {
-    return `${ptr.readCString()}`.replace(/\n/g, '\\n');
+function strOneLine(ptr: NativePointer, max = -1): string {
+    const all = `${ptr.readCString()}`.replace(/\n/g, '\\n');
+    return max !== -1 ? all.substring(0, max) : all;
+}
+
+function colorsign(success: boolean): string {
+    return success ? green('?') : red('?');
 }
 
 function hookStrstr(predicate: (ptr: NativePointer) => boolean) {
@@ -30,12 +35,12 @@ function hookStrstr(predicate: (ptr: NativePointer) => boolean) {
                         !strHaystack.includes('Roboto')
                     ) {
                         const isFound = ret && !ret.isNull();
-                        const strhay = gray(`"${strOneLine(haystack)}"`.slice(0, 100));
-                        const strned = isFound
-                            ? `"${strOneLine(needle)}"`
-                            : gray(`"${strOneLine(needle)}"`.slice(0, 100));
-                        const colorsign = isFound ? green : (x: any) => x;
-                        logger.info({ tag: key }, `${strhay} ${colorsign('?')} ${strned} ${this.threadId}`);
+                        const strhay = gray(`"${strOneLine(haystack)}"`);
+                        const strned = isFound ? `"${strOneLine(needle)}"` : gray(`"${strOneLine(needle)}"`);
+                        logger.info(
+                            { tag: key },
+                            `${strhay} ${colorsign(isFound)} ${strned} &${this.threadId}`,
+                        );
                     }
 
                     return ret;
@@ -96,7 +101,7 @@ function hookStrcpy(predicate: (ptr: NativePointer) => boolean) {
 
 // hooking strcmp appears to kill the app regardless of what app it is ?
 function hookStrcmp(predicate: (ptr: NativePointer, threadId: number) => boolean) {
-    const array: ('strcmp' | 'strncmp')[] = ['strcmp', 'strncmp'];
+    const array: ('strcmp' | 'strncmp' | 'strcasecmp')[] = ['strcmp', 'strncmp', 'strcasecmp'];
     for (const key of array.slice(-1)) {
         const func = Libc[key];
         Interceptor.attach(func, {
@@ -158,11 +163,13 @@ function hookStrchr(predicate: (ptr: NativePointer) => boolean) {
             function (str, z) {
                 const ret = Libc.strchr(str, z);
                 if (predicate(this.returnAddress)) {
-                    const strs = gray(`"${strOneLine(str)}"`);
-                    const strRet = isNully(ret) ? Color.keyword(NULL) : ret.sub(str);
+                    const isFound = !isNully(ret);
+                    const strs = gray(`"${strOneLine(str, 100)}"`);
+                    const strChar = gray(`'${String.fromCharCode(z).replace(/\n/g, '\\n')}'`);
+                    const strRet = isFound ? `= ${ret.sub(str)}` : '';
                     logger.info(
                         { tag: 'strchr' },
-                        `${strs} ? ${String.fromCharCode(z)} # -> ${strRet} ${addressOf(this.returnAddress)}`,
+                        `${strs} ${colorsign(isFound)} ${strChar} ${strRet} ${addressOf(this.returnAddress)}`,
                     );
                 }
 
@@ -210,4 +217,42 @@ function hookStrtoLong(predicate: (ptr: NativePointer) => boolean) {
     );
 }
 
-export { hookStrcmp, hookStrcpy, hookStrlen, hookStrstr, hookStrchr, hookStrcat, hookStrtoLong };
+function hookStrtok(predicate: (ptr: NativePointer) => boolean) {
+    Interceptor.replace(
+        Libc.strtok,
+        new NativeCallback(
+            function (src, delim) {
+                if (predicate(this.returnAddress)) {
+                    const ret = Libc.strtok(src, delim);
+                    const msg = `${dim(`"${strOneLine(src)}") : "${dim(`${strOneLine(delim)}" = ${strOneLine(ret)}`)}`)}`;
+                    logger.info({ tag: 'strtoll' }, `${msg}`);
+                    return ret;
+                }
+
+                return Libc.strtok(src, delim);
+            },
+            'pointer',
+            ['pointer', 'pointer'],
+        ),
+    );
+
+    Interceptor.replace(
+        Libc.strtok_r,
+        new NativeCallback(
+            function (src, delim, saveptr) {
+                if (predicate(this.returnAddress)) {
+                    const ret = Libc.strtok_r(src, delim, saveptr);
+                    const msg = `${dim(`"${src}" : "${dim(`${strOneLine(delim)}" = ${ret}`)}`)} { save: ${saveptr.readCString()} }`;
+                    logger.info({ tag: 'strtok_r' }, `${msg}`);
+                    return ret;
+                }
+
+                return Libc.strtok_r(src, delim, saveptr);
+            },
+            'pointer',
+            ['pointer', 'pointer', 'pointer'],
+        ),
+    );
+}
+
+export { hookStrcmp, hookStrcpy, hookStrlen, hookStrstr, hookStrchr, hookStrcat, hookStrtok, hookStrtoLong };

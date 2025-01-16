@@ -1,4 +1,4 @@
-import { stacktrace } from '@clockwork/common';
+import { ClassesString, stacktrace } from '@clockwork/common';
 
 const prefsMeasurementInternalIgnored = [
     'consent_settings',
@@ -159,6 +159,13 @@ const Filter = {
             case 'guava.concurrent.generate_cancellation_cause':
                 return false;
         }
+        return true;
+    },
+    urlencoder: (_: any, ...args: any[]) => {
+        let trace = stacktrace();
+        trace = trace.substring(trace.indexOf('\n'));
+
+        if (trace.includes('at java.net.URLEncoder.encode')) return false;
         return true;
     },
 };

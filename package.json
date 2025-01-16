@@ -5,7 +5,6 @@
     "type": "module",
     "scripts": {
         "clean": "rm -rf packages/*/*.tsbuildinfo && rm -rf packages/*/dist && rm -rf node_modules/",
-        "prepare": "npm run webpack",
         "prepublish": "npm run tsc",
         "tsc": "npx tsc --build",
         "webpack": "npx webpack --config webpack.config.js",
@@ -26,6 +25,7 @@
     "dependencies": {
         "@reversense/interruptor": "^1.0.12",
         "frida-compile": "^16.4.1",
+        "frida-panic": "^3.0.0",
         "il2cpp-hooker": "^1.0.7"
     },
     "devDependencies": {

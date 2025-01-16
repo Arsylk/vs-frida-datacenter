@@ -1,5 +1,5 @@
-function propMapper(key: string): string | undefined {
-    if (key.includes('qemu') || key.includes('goldfish') || key.includes('ranchu')) return '';
+function propMapper(key: string): string | undefined | null {
+    if (key.includes('qemu') || key.includes('goldfish') || key.includes('ranchu')) return null;
 
     switch (key) {
         case 'ro.arch':
@@ -15,14 +15,17 @@ function propMapper(key: string): string | undefined {
         case 'ro.build.type':
             return 'release';
         case 'ro.build.tags':
+        case 'ro.bootimage.build.tags':
             return 'release-keys';
         case 'ro.build.flavor':
             return 'raven-release';
         case 'ro.product.model':
+        case 'ro.product.real_model':
         case 'ro.product.name':
             return 'Raven';
         case 'ro.product.manufacturer':
         case 'ro.product.brand':
+        case 'ro.product.vendor.manufacturer':
         case 'ro.soc.manufacturer':
             return 'Xiaomi';
         case 'ro.hardware':
@@ -49,7 +52,7 @@ function propMapper(key: string): string | undefined {
         case 'ro.boot.verifiedbootstate':
             return 'verified';
         case 'sys.oem_unlock_allowed':
-            return `${0}`;
+            return '0';
         case 'persist.sys.timezone':
         case 'ro.hardware.power':
         case 'init.svc.adbd':
@@ -58,8 +61,10 @@ function propMapper(key: string): string | undefined {
         case 'debug.atrace.tags.enableflags':
             return '';
         case 'ro.boot.vbmeta.digest':
+        case 'ro.bootimage.build.fingerprint':
             return '0000000000000000000000000000000000000000000000000000000000000000';
     }
+    return undefined;
 }
 
 function buildMapper(key: string): string | undefined {
@@ -106,6 +111,8 @@ function buildMapper(key: string): string | undefined {
 
 function systemMapper(key: string, fallback: () => string | null): string | undefined {
     switch (key) {
+        case 'ro.product.real_model':
+            return 'Go 6 Pro';
         case 'http.agent':
             return 'Mozilla/5.0 (Linux; Android 14; Go 6 Pro Build/SQ1D.220205.003) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.66.Mobile Safari/537.36';
         case 'os.version':

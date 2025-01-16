@@ -15,20 +15,40 @@ namespace Inject {
         'com.android.location.provider.odex',
         'com.android.media.remotedisplay.odex',
         'split_MeasurementDynamite_installtime.odex',
+        'split_DynamiteLoader_installtime.odex',
+        'DynamiteLoader.uncompressed.odex',
         'libwebviewchromium_plat_support.so',
         'base.odex',
         'libandroid.so',
         'libmonochrome_64.so',
         'libEGL.so',
         'libEGL_emulation.so',
+        'libOpenSLES.so',
+        'libGLES_mali.so',
         'libGLESv1_CM.so',
         'libGLESv1_CM_emulation.so',
+        'libGLESv1_CM_adreno.so',
         'libGLESv2.so',
         'libGLESv2_emulation.so',
+        'libGLESv2_adreno.so ',
         'liblog.so',
         'libc.so',
+        'libstats_jni.so',
         'libsentry.so',
         'libsentry-android.so',
+        'libframework-connectivity-tiramisu-jni.so',
+        'android.hardware.graphics.mapper@4.0-impl.so',
+        'libFirebaseCppApp-8_6_2.so',
+        'libil2cpp.so',
+        'libmain.so',
+        'libunity.so',
+        'libvulkan.so',
+        'libswappy.so',
+        'liblog.so',
+        'libz.so',
+        'libm.so',
+        'libstdc++.so',
+        'libdl.so',
     ];
 
     export const modules = new ModuleMap();
@@ -88,6 +108,7 @@ namespace Inject {
                 logger.info({ tag: 'do_dlopen' }, `${libPath}`);
                 modules.update();
 
+                // biome-ignore lint/correctness/noConstantCondition: <explanation>
                 if (ctorIgnored.includes(libName)) return;
                 // TODO investigat
                 let handle: InvocationListener | null = null;

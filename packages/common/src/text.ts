@@ -15,6 +15,14 @@ function toHex(decimal: any, length = 2): string {
     return `${'0'.repeat(length - 1)}${Number(decimal).toString(16)}`.slice(-length);
 }
 
+function toHexString(array: ArrayBuffer | null, separator = ' ') {
+    if (!array) return;
+    const buff = new Uint8Array(array);
+    const mapped: string[] = [];
+    for (const n of buff) mapped.push(toHex(n));
+    return mapped.join(separator);
+}
+
 function toByteSize(size: number): string {
     const i = size === 0 ? 0 : Math.floor(Math.log(size) / Math.log(1024));
     return `${Number((size / 1024 ** i).toFixed(2)) * 1} ${['B', 'kB', 'MB', 'GB', 'TB'][i]}`;
@@ -101,4 +109,15 @@ function stringify(data: any) {
     return `{ ${mapped.join(', ')} }`;
 }
 
-export { base64, maxLengh, noLines, stringify, stringNumber, toByteSize, toHex, toPrettyType, uuid };
+export {
+    base64,
+    maxLengh,
+    noLines,
+    stringify,
+    stringNumber,
+    toByteSize,
+    toHex,
+    toHexString,
+    toPrettyType,
+    uuid,
+};

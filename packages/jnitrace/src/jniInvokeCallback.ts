@@ -3,7 +3,6 @@ import type { JniMethodDefinition, jMethodID, jclass, jobject } from './jni.js';
 import { JniInvokeMode, type JavaMethod } from './model.js';
 import { resolveMethod } from './tracer.js';
 
-
 function hasThisRef(mode: JniInvokeMode) {
     switch (mode) {
         case JniInvokeMode.Normal:
@@ -25,7 +24,6 @@ interface JniInvokeCallback {
     javaArgs: NativePointer[];
 }
 
-
 type Optional<Type> = { [Property in keyof Type]+?: Type[Property] };
 
 type JniInvokeContext = PortableInvocationContext & {
@@ -39,8 +37,8 @@ type JniInvokeContext = PortableInvocationContext & {
 };
 
 type JniInvokeScriptListenerCallbacks = {
-    onEnter?: ((this: InvocationContext, context: JniInvokeContext) => void)
-    onLeave?: ((this: InvocationContext, context: JniInvokeContext, retval: InvocationReturnValue) => void)
+    onEnter?: (this: InvocationContext, context: JniInvokeContext) => void;
+    onLeave?: (this: InvocationContext, context: JniInvokeContext, retval: InvocationReturnValue) => void;
 };
 
 function JniInvokeCallbacks(
@@ -55,32 +53,32 @@ function JniInvokeCallbacks(
         onEnter(rawargs) {
             if (!predicate(this)) return;
 
-            let env: NativePointer
-            let obj: NativePointer
-            let clazz: NativePointer
-            let methodID: NativePointer
-            let args: NativePointer
+            let env: NativePointer;
+            let obj: NativePointer;
+            let clazz: NativePointer;
+            let methodID: NativePointer;
+            let args: NativePointer;
             if (mode === JniInvokeMode.Constructor || mode === JniInvokeMode.Static) {
                 // const { 0: env, 1: clazz, 2: methodID, 3: args } = rawargs
-                env = rawargs[0]
+                env = rawargs[0];
                 obj = NULL;
-                clazz = rawargs[1]
-                methodID = rawargs[2]
-                args = rawargs[3]
+                clazz = rawargs[1];
+                methodID = rawargs[2];
+                args = rawargs[3];
             } else if (mode === JniInvokeMode.Normal) {
                 // const { 0: env, 1: obj, 2: methodID, 3: args } = rawargs
-                env = rawargs[0]
-                obj = rawargs[1]
+                env = rawargs[0];
+                obj = rawargs[1];
                 clazz = NULL;
-                methodID = rawargs[2]
-                args = rawargs[3]
+                methodID = rawargs[2];
+                args = rawargs[3];
             } else {
                 // const { 0: env, 1: obj, 2: clazz, 3: methodID, 4: args } = rawargs
-                env = rawargs[0]
-                obj = rawargs[1]
-                clazz = rawargs[2]
-                methodID = rawargs[3]
-                args = rawargs[4]
+                env = rawargs[0];
+                obj = rawargs[1];
+                clazz = rawargs[2];
+                methodID = rawargs[3];
+                args = rawargs[4];
             }
             const context: JniInvokeContext = {
                 ...this,
@@ -94,7 +92,11 @@ function JniInvokeCallbacks(
             };
             const isStatic = (context.isStatic = mode === JniInvokeMode.Static);
             const method = (context.method = resolveMethod(env, clazz, methodID, isStatic));
-            context.jArgs = envWrapper.jniInterceptor.getCallMethodArgs(name, [env, clazz, methodID, args], method);
+            context.jArgs = envWrapper.jniInterceptor.getCallMethodArgs(
+                name,
+                [env, clazz, methodID, args],
+                method,
+            );
 
             this._key = context;
             callback.onEnter?.call(this, context);
@@ -113,7 +115,7 @@ function JniInvokeCallbacks(
                 (context as any).argStruct = null;
                 (context as any).method = null;
                 (context as any).jArgs = null;
-            } catch (e) { }
+            } catch (e) {}
         },
     };
     return cb;

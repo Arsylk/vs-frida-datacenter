@@ -1,11 +1,17 @@
-import { isNully } from '@clockwork/common';
+import { ClassesString, isNully } from '@clockwork/common';
 import { JavaPrimitive } from '@clockwork/common/dist/define/enum.js';
 import type { JavaMethod } from './model.js';
+import { asLocalRef, type EnvWrapper } from './envWrapper.js';
 
 const UNION_SIZE = 8;
 
 abstract class JNIEnvInterceptor {
-    #missingIds = new Set<string>();
+    #primitives = Reflect.ownKeys(JavaPrimitive);
+    envWrapper: () => EnvWrapper;
+
+    constructor(envWrapper: () => EnvWrapper) {
+        this.envWrapper = envWrapper;
+    }
 
     public getCallMethodArgs(
         caller: string,
@@ -13,11 +19,11 @@ abstract class JNIEnvInterceptor {
         method: JavaMethod | null,
     ): NativeCallbackArgumentValue[] | null {
         // instant skip when method is missing
-        if (!method) return null
+        if (!method) return null;
 
         const isVaList = caller.endsWith('va_list') || caller.endsWith('V');
 
-        const callArgs = Array(method.jParameterTypes.length)
+        const callArgs = Array(method.jParameterTypes.length);
         const callArgsPtr = args[args.length - 1] as NativePointer;
         if (isVaList) this.setUpVaListArgExtract(callArgsPtr);
 
@@ -42,11 +48,16 @@ abstract class JNIEnvInterceptor {
         type: string,
         extend?: boolean,
     ): NativeCallbackArgumentValue | null {
+        //console.log(`${currentPtr} ${type} ${extend}`);
         if (isNully(currentPtr)) {
-            if (type in Reflect.ownKeys(JavaPrimitive)) {
-                return 0
+            if (type in this.#primitives) {
+                return 0;
             }
-            return null
+            return null;
+        }
+
+        if (`${currentPtr}`.length !== 12 && !(type in this.#primitives)) {
+            return this.envWrapper().getLocalRef(currentPtr, (x) => x);
         }
 
         let value: NativeCallbackArgumentValue;

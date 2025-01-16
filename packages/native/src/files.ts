@@ -183,7 +183,7 @@ function hookOpen(
 function hookFopen(
     predicate: (ptr: NativePointer) => boolean,
     statfd = false,
-    fn?: (path: string | null) => string | undefined,
+    fn?: (this: CpuContext, path: string | null) => string | undefined,
 ) {
     function log(
         this: InvocationContext | CallbackContext,
@@ -218,7 +218,7 @@ function hookFopen(
             function (pathname, mode) {
                 if (predicate(this.returnAddress)) {
                     const pathnameStr = pathname.readCString();
-                    const replaceStr = fn?.(pathnameStr);
+                    const replaceStr = fn?.call(this?.context as Arm64CpuContext, pathnameStr);
                     const pathArg = replaceStr ? Memory.allocUtf8String(replaceStr) : pathname;
 
                     const ret = Libc.fopen(pathArg, mode);
@@ -244,11 +244,21 @@ function hookFopen(
         Libc.fdopen,
         new NativeCallback(
             function (fd, mode) {
-                const [ret, errno] = unbox(Libc.fdopen(fd, mode));
+                let ret: any;
                 if (predicate(this.returnAddress)) {
+                    let replaceStr = fn?.call(this?.context as Arm64CpuContext, `${fd}`);
+                    if (statfd) replaceStr ??= fn?.call(this?.context as Arm64CpuContext, readFdPath(fd));
+
+                    let errno: any;
+                    if (replaceStr) {
+                        const replacePtr = Memory.allocUtf8String(replaceStr);
+                        [ret, errno] = unbox(Libc.fopen(replacePtr, mode));
+                    } else {
+                        [ret, errno] = unbox(Libc.fdopen(fd, mode));
+                    }
                     log.call(this, fd, mode.readCString(), null, errno, 'fdopen');
                 }
-                return ret;
+                return ret ?? Libc.fdopen(fd, mode).value;
             },
             'pointer',
             ['int', 'pointer'],
@@ -461,6 +471,23 @@ function hookReadlink(predicate: (ptr: NativePointer) => boolean) {
             },
             'int',
             ['pointer', 'pointer', 'int'],
+        ),
+    );
+    Interceptor.replace(
+        Libc.readlinkat,
+        new NativeCallback(
+            function (fd, pathname, buf, bufsize) {
+                const ret = Libc.readlinkat(fd, pathname, buf, bufsize);
+                if (predicate(this.returnAddress)) {
+                    const lnstring = pathname.readCString();
+                    const rlstring = buf.readCString(ret);
+                    const frlstring = rlstring; // .replace(/�.*$/g, '')
+                    logger.info({ tag: 'readlinkat' }, `"${lnstring}" -> "${frlstring}"`);
+                }
+                return ret;
+            },
+            'int',
+            ['int', 'pointer', 'pointer', 'int'],
         ),
     );
 }

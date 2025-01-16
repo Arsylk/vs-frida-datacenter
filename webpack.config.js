@@ -2,8 +2,19 @@ import { resolve } from 'path';
 import * as url from 'url';
 const __dirname = url.fileURLToPath(new URL('..', import.meta.url));
 
-const base = {
-    name: 'base',
+export default {
+    name: 'agent',
+    entry: {
+        script: './agent/script.ts',
+        justdump: './agent/justdump.ts',
+        justcocos: './agent/justcocos.ts',
+        justcli: './agent/justcli.ts',
+        justcloak: './agent/justcloak.ts',
+    },
+    output: {
+        filename: '[name].js',
+        path: resolve('./agent/dist'),
+    },
     module: {
         rules: [
             {
@@ -53,15 +64,3 @@ const base = {
     mode: 'development',
     devtool: 'inline-source-map',
 };
-const mkbase = () => Object.assign({}, base);
-const mkobject = (name) =>
-    Object.assign(mkbase(), {
-        name: name,
-        entry: `./agent/${name}.ts`,
-        output: {
-            filename: `${name}.js`,
-            path: resolve('./agent/dist'),
-        },
-    });
-
-export default [mkobject('script'), mkobject('justdump'), mkobject('justcocos'), mkobject('justcli')];

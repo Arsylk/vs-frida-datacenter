@@ -125,11 +125,9 @@ function readFpPath(fp: NativePointer): string | null {
 }
 
 function readTidName(tid: number): string {
-    //@ts-ignore issue with File from esnext 5.4
-    const file: any = new File(`/proc/self/task/${tid}/comm`, 'r');
-    const str = file.readLine().slice(0, -1);
-    file.close();
-    return str;
+    if (tid <= 0) return '';
+    //@ts-ignore
+    return File.readAllText(`/proc/self/task/${tid}/comm`);
 }
 
 function tryDemangle<T extends string | null>(name: T): T {

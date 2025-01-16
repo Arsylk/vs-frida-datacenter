@@ -11,7 +11,7 @@ function hookExit(predicate: (ptr: NativePointer) => boolean) {
             func,
             new NativeCallback(
                 function (code) {
-                    const stacktrace = Thread.backtrace(this.context, Backtracer.FUZZY)
+                    const stacktrace = Thread.backtrace(this?.context, Backtracer.FUZZY)
                         .map((x) => addressOf(x, true))
                         .join('\n\t');
                     logger.info({ tag: key }, `code: ${code} ${stacktrace}`);
@@ -27,10 +27,13 @@ function hookExit(predicate: (ptr: NativePointer) => boolean) {
         Libc.raise,
         new NativeCallback(
             function (err) {
-                const stacktrace = Thread.backtrace(this.context, Backtracer.FUZZY)
+                const stacktrace = Thread.backtrace(this?.context, Backtracer.FUZZY)
                     .map((x) => addressOf(x, true))
                     .join('\n\t');
-                logger.info({ tag: 'raise' }, `err: ${err} ${addressOf(this.returnAddress)} ${stacktrace}`);
+                logger.info(
+                    { tag: 'raise' },
+                    `err: ${err} ${addressOf(this?.returnAddress ?? NULL)} ${stacktrace}`,
+                );
                 return 0;
             },
             'int',
@@ -43,13 +46,11 @@ function hookKill(predicate: (ptr: NativePointer) => boolean) {
     Interceptor.replace(
         Libc.kill,
         new NativeCallback(
+            // for some reason entire `this` object can be undefined here ?
             (pid, code) => {
-                const stacktrace = Thread.backtrace(this.context, Backtracer.FUZZY).join('\n\t');
-                logger.info(
-                    { tag: 'kill' },
-                    `kill(${pid}, ${code}) ${addressOf(this.returnAddress)} ${stacktrace}`,
-                );
-                logger.info({ tag: 'kill' }, `kill(${pid}, ${code}) called !`);
+                const stacktrace = Thread.backtrace(this?.context, Backtracer.FUZZY).join('\n\t');
+                const strAddress = addressOf(this?.returnAddress ?? NULL);
+                logger.info({ tag: 'kill' }, `kill(${pid}, ${code}) ${strAddress}\n${stacktrace}`);
                 return 0;
             },
             'int',

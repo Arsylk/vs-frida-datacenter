@@ -18,7 +18,7 @@ function hookPtrace() {
                     { tag: 'ptrace' },
                     `${request} ${pid} ${addr} ${data} ${addressOf(this.returnAddress)}`,
                 );
-                return 0;
+                return -1;
             },
             'long',
             ['int', 'int', 'pointer', 'pointer'],

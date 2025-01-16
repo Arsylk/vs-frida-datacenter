@@ -81,6 +81,11 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'readlink');
         return new NativeFunction(ptr, 'int', ['pointer', 'pointer', 'int']);
     },
+    // int readlinkat(int dirfd, char *pathname, char *buf, size_t bufsiz);
+    readlinkat: () => {
+        const ptr = Module.getExportByName('libc.so', 'readlinkat');
+        return new NativeFunction(ptr, 'int', ['int', 'pointer', 'pointer', 'size_t']);
+    },
     // ssize_t read(int fd, void buf[.count], size_t count);
     read: () => {
         const ptr = Module.getExportByName('libc.so', 'read');
@@ -155,12 +160,26 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'pthread_getname_np');
         return new NativeFunction(ptr, 'int', ['pointer', 'pointer', 'size_t']);
     },
+    // void *malloc(size_t size);
+    malloc: () => {
+        const ptr = Module.getExportByName('libc.so', 'malloc');
+        return new NativeFunction(ptr, 'pointer', ['size_t']);
+    },
+    // int prctl(int __option, ...)
+    prctl: () => {
+        const ptr = Module.getExportByName('libc.so', 'prctl');
+        return new NativeFunction(ptr, 'int', ['int', '...']);
+    },
+    // void free(void *ptr);
+    free: () => {
+        const ptr = Module.getExportByName('libc.so', 'free');
+        return new NativeFunction(ptr, 'int', []);
+    },
     // int rand();
     rand: () => {
         const ptr = Module.getExportByName('libc.so', 'rand');
         return new NativeFunction(ptr, 'int', []);
     },
-
     // double difftime(time_t __time1, time_t __time0)
     difftime: () => {
         const ptr = Module.getExportByName('libc.so', 'difftime');
@@ -239,6 +258,11 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'dlclose');
         return new NativeFunction(ptr, 'int', ['pointer']);
     },
+    //void *mmap(void addr[.length], size_t length, int prot, int flags, int fd, off_t offset);
+    mmap: () => {
+        const ptr = Module.getExportByName('libc.so', 'mmap');
+        return new NativeFunction(ptr, 'pointer', ['pointer', 'size_t', 'int', 'int', 'uint', 'long']);
+    },
     // int gettimeofday(struct timeval *restrict tv, struct timezone *_Nullable restrict tz);
     gettimeofday: () => {
         const ptr = Module.getExportByName('libc.so', 'gettimeofday');
@@ -289,6 +313,11 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'strncmp');
         return new NativeFunction(ptr, 'int', ['pointer', 'pointer']);
     },
+    // int strcasecmp(const char *s1, const char *s2);
+    strcasecmp: () => {
+        const ptr = Module.getExportByName('libc.so', 'strcasecmp');
+        return new NativeFunction(ptr, 'int', ['pointer', 'pointer']);
+    },
     // char *stpcpy(char *restrict dst, const char *restrict src);
     stpcpy: () => {
         const ptr = Module.getExportByName('libc.so', 'stpcpy');
@@ -298,6 +327,11 @@ const LibcFinder = {
     strcpy: () => {
         const ptr = Module.getExportByName('libc.so', 'strcpy');
         return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer']);
+    },
+    // char *strcpy(char *restrict dst, const char *restrict src);
+    strncpy: () => {
+        const ptr = Module.getExportByName('libc.so', 'strncpy');
+        return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer', 'size_t']);
     },
     // char *strchr(char * str, int character);
     strchr: () => {
@@ -458,6 +492,21 @@ const LibcFinder = {
     strtoull: () => {
         const ptr = Module.getExportByName('libc.so', 'strtoull');
         return new NativeFunction(ptr, 'uint64', ['pointer', 'pointer', 'int']);
+    },
+    // char *strtok(char *str, const char *delim);
+    strtok: () => {
+        const ptr = Module.getExportByName('libc.so', 'strtok');
+        return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer']);
+    },
+    // char *strtok_r(char *str, const char *delim, char **saveptr)));
+    strtok_r: () => {
+        const ptr = Module.getExportByName('libc.so', 'strtok_r');
+        return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer', 'pointer']);
+    },
+    // void* memcpy( void* dest, const void* src, std::size_t count );
+    memcpy: () => {
+        const ptr = Module.getExportByName('libc.so', 'memcpy');
+        return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer', 'int']);
     },
     // int memcmp (const void * ptr1, const void * ptr2, size_t num);
     memcmp: () => {

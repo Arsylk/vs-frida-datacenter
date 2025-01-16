@@ -108,6 +108,7 @@ const ClassesString = {
     OpenSSLX509Certificate: 'com.android.org.conscrypt.OpenSSLX509Certificate',
     Certificate: 'java.security.cert.Certificate',
     UUID: 'java.util.UUID',
+    Logger: 'java.util.logging.Logger',
 };
 
 type ClassesType = PropertyJavaUseMapper<typeof ClassesString>;

@@ -83,6 +83,16 @@ const Configurations: { [key: string]: Config } = {
         country: 'ph',
         operator: 'Smart',
     },
+    US: {
+        timezoneId: 'America/New_York',
+        mcc: '312',
+        mnc: '080',
+        code: '63',
+        mccmnc: `${515}${3}`,
+        locale: ['EN', 'us'],
+        country: 'us',
+        operator: 'AT&T Mobility',
+    },
 };
 
 function mock(key: keyof typeof Configurations): void;
@@ -117,8 +127,8 @@ function mock(keyOrConfig: Config | keyof typeof Configurations) {
     hook(Classes.TimeZone, 'getID', { replace: always(config.timezoneId) });
     hook(Classes.TimeZone, 'getDefault', {
         replace() {
-            return Classes.TimeZone.getTimeZone('timezoneId')
-        }
+            return Classes.TimeZone.getTimeZone('timezoneId');
+        },
     });
     hook(Classes.Locale, 'getDefault', {
         replace: () => Classes.Locale.$new(config.locale[1], config.locale[0]),

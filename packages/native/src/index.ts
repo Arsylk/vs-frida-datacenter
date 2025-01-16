@@ -211,10 +211,10 @@ function log(ptr: NativePointer, argdef: string, params?: HookParamteres) {
             onLeave(retval) {
                 if (params?.predicate !== undefined && !params?.predicate?.(this.returnAddress)) return;
                 if (params?.ret !== false) {
-                    logger.info({ tag: tag }, `${gray('return')} ${retval}`);
                     if (typeof params?.ret === 'function') {
                         params?.ret?.call(this, retval);
                     }
+                    logger.info({ tag: tag }, `${gray('return')} ${retval}`);
                 }
             },
         });

@@ -2,40 +2,19 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "hide": true,
-            "label": "AVD Manager: frida spawn",
-            "command": "${command:avdmanager.frida-spawn}"
-        },
-        {
-            "label": "run-frida-debug",
+            "label": "run frida",
+            "detail": "start a frida session",
             "command": "frida",
-            "args": ["-s", "${config:adb.serialId} ", "-f", "${input:appPackage}", "-l", "script.js", "--debug"],
-            "isBackground": true,
-            "type": "shell",
-            "problemMatcher": [
-                {
-                    "pattern": [
-                        {
-                            "regexp": ".",
-                            "file": 1,
-                            "location": 2,
-                            "message": 3
-                        }
-                    ],
-                    "background": {
-                        "activeOnStart": true,
-                        "beginsPattern": "Chrome Inspector server listening on port",
-                        "endsPattern": "\\d+"
-                    }
-                }
+            "args": [
+                "-D",
+                "${config:adb.serialId}",
+                "-o",
+                "session.txt",
+                "-f",
+                "${input:appPackage}",
+                "-l",
+                "${config:frida.script}"
             ],
-            "hide": true
-        },
-        {
-            "label": "Run Frida",
-            "detail": "Start a frida session",
-            "command": "frida",
-            "args": ["-D", "${config:adb.serialId}", "-o", "session.txt", "-f", "${input:appPackage}", "-l", "${config:frida.script}"],
             "type": "shell",
             "group": "test",
             "runOptions": {
@@ -68,7 +47,8 @@
             ]
         },
         {
-            "label": "Build: watch",
+            "label": "build: watch",
+            "detail": "tsc: watch & webpack: watch",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -127,48 +107,6 @@
             "icon": {
                 "color": "terminal.ansiYellow"
             }
-        },
-        {
-            "label": "Android Clear App Data",
-            "detail": "Perform pm clear on selected package",
-            "type": "shell",
-            "command": "adb -s ${config:adb.serialId} shell pm clear ${input:appPackage}",
-            "icon": {
-                "id": "trashcan"
-            },
-            "presentation": {
-                "reveal": "never",
-                "close": true
-            },
-            "problemMatcher": [
-                {
-                    "pattern": {
-                        "regexp": "^adb: (.*)"
-                    }
-                }
-            ]
-        },
-        {
-            "label": "Cocos2dx Dump",
-            "detail": "Pull dumped cocos2dx scr ipts",
-            "type": "shell",
-            "command": "adb-files-workspace ${input:appPackage} files/dump_cocos2dx_${input:appPackage}",
-            "icon": {
-                "id": "debug-reverse-continue"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Copy Package Name",
-            "detail": "Pick and copy to clipboard package name",
-            "type": "shell",
-            "command": "echo ${input:appPackage} | pbcopy",
-            "presentation": {
-                "reveal": "silent",
-                "revealProblems": "onProblem",
-                "close": true
-            },
-            "problemMatcher": []
         }
     ],
     "inputs": [

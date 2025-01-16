@@ -1,11 +1,11 @@
 import { EventEmitter } from 'events';
 import { ClassesProxy, ClassesString, type ClassesType } from './define/java.js';
 import { LibcFinderProxy, type LibcType } from './define/libc.js';
+import { hookException, printStacktrace } from './define/linker.js';
 import { enumerateMembers, findChoose, findClass, getFindUnique } from './search.js';
 export * as Consts from './define/consts.js';
 export * as Std from './define/std.js';
 export * as Struct from './define/struct.js';
-export * as Linker from './define/linker.js';
 export * as Text from './text.js';
 export * from './types.js';
 export * from './visualize.js';
@@ -103,4 +103,6 @@ export {
     tryNull,
     tryErr,
     isIterable,
+    hookException,
+    printStacktrace,
 };

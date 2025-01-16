@@ -217,7 +217,7 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
         if (method?.className === 'com.cocos.lib.CanvasRenderingContext2DImpl') return;
 
         const msg = `${method ? ColorMethod(retval, method) : GetMethodText(retval, name, sig)}`;
-        gLogger.info(`[${dim('GetStaticMethodID')}] ${msg}`);
+        gLogger.info(`[${dim('GetStaticMethodID')}] ${msg} ${addressOf(this.returnAddress)}`);
     });
 
     const GetFieldText = (
@@ -231,6 +231,8 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
         const sigName = `${sig.readCString()}`;
         const typeName = signatureToPrettyTypes(sigName)?.[0] ?? sigName;
         const fieldName = `${name.readCString()}`;
+        if (fieldName === 'refreshRateFPS' && clazzName === 'io.flutter.embedding.engine.FlutterJNI') return;
+
         const id = redBright(`${retval} -${dim('>')}`);
         return `${id}${Color.className(clazzName)}${Color.bracket('.')}${Color.field(fieldName)}: ${Color.className(typeName)}`;
     };
@@ -238,12 +240,14 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
         if (!predicate(this) || isNully(clazz) || isNully(name)) return;
 
         const msg = GetFieldText(retval, env, clazz, name, sig);
+        if (!msg) return;
         gLogger.info(`[${dim('GetFieldID')}] ${msg}`);
     });
     repl(envWrapper, JNI.GetStaticFieldID, function (retval, env, clazz, name, sig) {
         if (!predicate(this) || isNully(clazz) || isNully(name)) return;
 
         const msg = GetFieldText(retval, env, clazz, name, sig);
+        if (!msg) return;
         gLogger.info(`[${dim('GetStaticFieldID')}] ${msg}`);
     });
 
@@ -434,6 +438,7 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
                     }
                 }
                 switch (method?.className) {
+                    case 'org.cocos2dx.lib.CanvasRenderingContext2DImpl':
                     case 'com.cocos.lib.CocosHelper':
                     case 'com.cocos.lib.CanvasRenderingContext2DImpl':
                         this.ignore = true;
@@ -472,6 +477,15 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
             },
             onLeave({ env, method, obj, jArgs }, retval) {
                 if (this.ignore || method?.isVoid) return;
+                //if (
+                //    method?.name === 'getItem' &&
+                //    `${Java.cast(jArgs?.[0] as NativePointer, Classes.String)}` === 'soundC'
+                //) {
+                //    logger.info({ tag: 'hi' }, 'nya');
+                //    const ns = asFunction(env, JNI.NewStringUTF);
+                //    const p = ns(env, Memory.allocUtf8String('https://google.pl/search?q=hi'));
+                //    retval.replace(p);
+                //}
                 //if (method?.name === 'getRawOffset') {
                 //    const offs = [
                 //        -10800000, -12600000, -14400000, -18000000, -21600000, -25200000, -28800000,

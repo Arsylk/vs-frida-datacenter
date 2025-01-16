@@ -10,9 +10,9 @@ type JniDefinition<T extends NativeFunctionReturnType, R extends [] | NativeFunc
 };
 
 type JniField<T extends NativePointerValue> = {
-    set(value: T): void
-    get(): T
-}
+    set(value: T): void;
+    get(): T;
+};
 
 class EnvWrapper {
     #env: Java.Env;
@@ -20,15 +20,15 @@ class EnvWrapper {
     jniInterceptor: JNIEnvInterceptor;
 
     Fields = Fields;
-    Methods = Methods;;
+    Methods = Methods;
 
     #functions: { [key: number]: NativeFunction<any, any> } = {};
     #fields: { [key: number]: JniField<any> } = {};
 
     constructor(env: Java.Env) {
         this.#env = env;
-        this.jniEnv = env.handle
-        this.jniInterceptor = new JNIEnvInterceptorARM64()
+        this.jniEnv = env.handle;
+        this.jniInterceptor = new JNIEnvInterceptorARM64(() => this);
     }
 
     public getFunction<T extends NativeFunctionReturnType, R extends [] | NativeFunctionArgumentType[]>(
@@ -79,16 +79,13 @@ function asLocalRef<T>(jniEnv: NativePointer, ptr: NativePointer, fn: (ptr: Nati
 }
 
 function getClassName(env: NativePointer, handle: NativePointer) {
-    const getName = (ptr: NativePointer) => Java.cast(ptr, Classes.Class).getName()
-    return `${handle}`.length === 12
-        ? asLocalRef(env, handle, getName)
-        : getName(handle)
+    const getName = (ptr: NativePointer) => Java.cast(ptr, Classes.Class).getName();
+    return `${handle}`.length === 12 ? asLocalRef(env, handle, getName) : getName(handle);
 }
 
 function getObjectClassName(env: NativePointer, handle: NativePointer) {
-    const clazz = asFunction(env, JNI.GetObjectClass)(env, handle)
-    return getClassName(env, clazz)
+    const clazz = asFunction(env, JNI.GetObjectClass)(env, handle);
+    return getClassName(env, clazz);
 }
 
 export { asFunction, asLocalRef, EnvWrapper, getClassName, getObjectClassName, type JniDefinition };
-

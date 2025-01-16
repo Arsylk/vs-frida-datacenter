@@ -3,6 +3,8 @@ import * as Native from '@clockwork/native';
 import 'frida-il2cpp-bridge';
 const logger = subLogger('unity');
 
+Object.defineProperty(global, 'Il2Cpp', { value: Il2Cpp, writable: false });
+
 function setVersion(version: string) {
     (globalThis as typeof globalThis & { IL2CPP_UNITY_VERSION: string }).IL2CPP_UNITY_VERSION = version;
 }
