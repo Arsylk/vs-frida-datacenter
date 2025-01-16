@@ -1,5 +1,5 @@
 import { Classes, ClassesString, Text, isNully, vs } from '@clockwork/common';
-import { JavaPrimitive } from '@clockwork/common/dist/define/enum.js';
+import { Consts } from '@clockwork/common';
 import { Color, logger as gLogger, subLogger } from '@clockwork/logging';
 import { addressOf } from '@clockwork/native';
 import {
@@ -16,6 +16,7 @@ import { JNIMethod, type JavaMethod, JniInvokeMode } from './model.js';
 import { resolveMethod, signatureToPrettyTypes } from './tracer.js';
 const logger = subLogger('jnitrace');
 const { black, gray, dim, redBright, magenta, orange, lavender } = Color.use();
+const { JavaPrimitive } = Consts;
 
 function ColorMethod(jMethodId: NativePointer, method: JavaMethod): string {
     let sb = '';

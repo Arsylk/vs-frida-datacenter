@@ -13,6 +13,7 @@
         "forceConsistentCasingInFileNames": true,
         "noImplicitAny": false,
         "noImplicitThis": false,
+        "allowArbitraryExtensions": true,
         "composite": true
     }
 }

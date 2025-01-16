@@ -1,6 +1,6 @@
 {
     "name": "frida-clockwork",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Collection oof various frida toys",
     "type": "module",
     "scripts": {
@@ -13,9 +13,7 @@
         "attach": "run() { frida -U \"$1\" -l ./script.js --runtime=v8 -o ./session.txt; }; run",
         "spawn": "run() { frida -U -f \"$1\" -l ./script.js --runtime=v8 -o ./session.txt; }; run"
     },
-    "keywords": [
-        "frida"
-    ],
+    "keywords": ["frida"],
     "author": "Arsylk",
     "license": "ISC",
     "bugs": {
@@ -46,6 +44,7 @@
         "packages/cocos2dx",
         "packages/unity",
         "packages/anticloak",
-        "packages/dump"
+        "packages/dump",
+        "packages/cmodules"
     ]
 }

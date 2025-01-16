@@ -14,6 +14,7 @@ export default {
     output: {
         filename: '[name].js',
         path: resolve('./agent/dist'),
+        assetModuleFilename: 'clang/[hash][ext]',
     },
     module: {
         rules: [
@@ -21,6 +22,10 @@ export default {
                 test: /\.ts$/,
                 use: 'ts-loader',
                 exclude: /node_modules/,
+            },
+            {
+                test: /\.c$/,
+                type: 'asset',
             },
         ],
     },
@@ -60,7 +65,6 @@ export default {
             fs: 'frida-fs',
         },
     },
-    //mode: 'production',
     mode: 'development',
     devtool: 'inline-source-map',
 };

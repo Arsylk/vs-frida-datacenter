@@ -1,5 +1,8 @@
 import * as Anticloak from '@clockwork/anticloak';
 import * as Cocos2dx from '@clockwork/cocos2dx';
+=======
+import * as CM from '@clockwork/cmodules';
+>>>>>>> Stashed changes
 import {
     Classes,
     ClassesString,

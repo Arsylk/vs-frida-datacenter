@@ -1,7 +1,7 @@
-import { ClassesString, isNully } from '@clockwork/common';
-import { JavaPrimitive } from '@clockwork/common/dist/define/enum.js';
 import type { JavaMethod } from './model.js';
-import { asLocalRef, type EnvWrapper } from './envWrapper.js';
+import type { EnvWrapper } from './envWrapper.js';
+import { isNully, Consts } from '@clockwork/common';
+const { JavaPrimitive } = Consts;
 
 const UNION_SIZE = 8;
 
@@ -58,6 +58,10 @@ abstract class JNIEnvInterceptor {
 
         if (`${currentPtr}`.length !== 12 && !(type in this.#primitives)) {
             return this.envWrapper().getLocalRef(currentPtr, (x) => x);
+            // if (type in Reflect.ownKeys(JavaPrimitive)) {
+            //     return 0;
+            // }
+            // return null;
         }
 
         let value: NativeCallbackArgumentValue;
