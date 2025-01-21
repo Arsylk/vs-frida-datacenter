@@ -13,7 +13,9 @@
         "attach": "run() { frida -U \"$1\" -l ./script.js --runtime=v8 -o ./session.txt; }; run",
         "spawn": "run() { frida -U -f \"$1\" -l ./script.js --runtime=v8 -o ./session.txt; }; run"
     },
-    "keywords": ["frida"],
+    "keywords": [
+        "frida"
+    ],
     "author": "Arsylk",
     "license": "ISC",
     "bugs": {
@@ -22,6 +24,7 @@
     "homepage": "https://github.com/Arsylk/frida-clockwork",
     "dependencies": {
         "@reversense/interruptor": "^1.0.12",
+        "copy-webpack-plugin": "^12.0.2",
         "frida-compile": "^16.4.1",
         "frida-panic": "^3.0.0",
         "il2cpp-hooker": "^1.0.7"

@@ -7,17 +7,6 @@ import { InstallReferrer } from '@clockwork/anticloak';
 
 //Unity.patchSsl();
 //Unity.attachStrings();
-Java.performNow(() => {
-    const FLAG_SECURE = 0x2000;
-    const Window = Java.use('android.view.Window');
-    const setFlags = Window.setFlags; //.overload("int", "int")
-
-    setFlags.implementation = function (flags, mask) {
-        console.log('Disabling FLAG_SECURE...');
-        flags &= ~FLAG_SECURE;
-        setFlags.call(this, flags, mask);
-    };
-});
 InstallReferrer.replace();
 
 emitter.on('dexart', () => hookArtLoader());

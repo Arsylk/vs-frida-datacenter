@@ -7,8 +7,14 @@
     "type": "module",
     "author": "Arsylk",
     "license": "ISC",
+    "scripts": {
+        "build": "tsc && copyfiles -u 1 \"src/**/*.c\" dist",
+        "watch": "concurrently \"tsc --watch\" \"copyfiles -u 1 \"src/**/*.c\" dist -w\""
+    },
     "dependencies": {
         "@clockwork/logging": "^1.0.0",
-        "@clockwork/common": "^1.0.0"
+        "@clockwork/common": "^1.0.0",
+        "copyfiles": "^2.4.1",
+        "concurrently": "^8.0.0"
     }
 }

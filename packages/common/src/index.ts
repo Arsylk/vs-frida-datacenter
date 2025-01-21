@@ -3,6 +3,8 @@ import { ClassesProxy, ClassesString, type ClassesType } from './define/java.js'
 import { LibcFinderProxy, type LibcType } from './define/libc.js';
 import { hookException, printStacktrace } from './define/linker.js';
 import { enumerateMembers, findChoose, findClass, getFindUnique } from './search.js';
+import { SYSCALLS } from './define/syscalls.js';
+export { SYSCALLS as Syscalls };
 export * as Consts from './define/consts.js';
 export * as Std from './define/std.js';
 export * as Struct from './define/struct.js';

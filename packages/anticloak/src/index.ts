@@ -115,12 +115,24 @@ function hookHasFeature() {
     });
 }
 
+function hookWindowFlags() {
+    hook(Classes.Window, 'setFlags', {
+        replace(method, ...args) {
+            const FLAG_SECURE = 0x2000;
+            args[0] &= ~FLAG_SECURE;
+            return method.call(this, ...args);
+        },
+        logging: { call: false, return: false },
+    });
+}
+
 function generic() {
     hookInstallerPackage();
     hookLocationHardware();
     hookSensor();
     hookVerify();
     hookHasFeature();
+    hookWindowFlags();
 }
 
 export { generic, hookAdId, hookDevice, hookInstallerPackage, hookSettings };

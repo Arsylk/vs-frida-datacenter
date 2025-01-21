@@ -24,7 +24,7 @@ function attachSystemPropertyGet(
         onLeave: function (retval) {
             const key: string = this.name;
             const value: string = this.value.readCString();
-            const fValue = value && value.length >= 0 ? value : null;
+            const fValue = value && value.length > 0 ? value : null;
             const result = fn?.call(this, key, fValue);
 
             if (spammyKeys.includes(key)) {
@@ -38,7 +38,7 @@ function attachSystemPropertyGet(
             }
 
             if (result === null) {
-                this.value.writeByteArray(new Uint8Array(value.length + 1).map((_) => 0x0));
+                this.value.writeByteArray(new Uint8Array(value.length).fill(0x0));
                 logger.info(`${gray(key)}: ${red(value ?? '')} -> `);
                 return;
             }

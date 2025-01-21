@@ -7,4 +7,5 @@ report.md
 report.json
 report.sql
 .vscode/settings.json
-c/
+packages/cmodules/src/.gitignore
+packages/cmodules/src/.cache

@@ -1,9 +1,9 @@
 import { ClassLoader, hook } from '@clockwork/hooks';
-export { dump } from './dump.js';
+import { dump } from './dump.js';
 
 type CocosLocalStorageScope = {
-    fallback(): string | null
-}
+    fallback(): string | null;
+};
 
 function hookLocalStorage(fn?: (this: CocosLocalStorageScope, key: string) => string | undefined) {
     let Cocos2dxLocalStorage: any | undefined;
@@ -13,15 +13,17 @@ function hookLocalStorage(fn?: (this: CocosLocalStorageScope, key: string) => st
             (Cocos2dxLocalStorage = findClass('org.cocos2dx.lib.Cocos2dxLocalStorage'))
         ) {
             hook(Cocos2dxLocalStorage, 'getItem', {
-                replace: fn ? function (method, ...args) {
-                    const fallback: () => string | null = () => method.call(this, ...args);
-                    const result = fn.call({ fallback: fallback }, args[0])
-                    return result !== undefined ? result : method.call(this, ...args);
-                } : undefined,
+                replace: fn
+                    ? function (method, ...args) {
+                          const fallback: () => string | null = () => method.call(this, ...args);
+                          const result = fn.call({ fallback: fallback }, args[0]);
+                          return result !== undefined ? result : method.call(this, ...args);
+                      }
+                    : undefined,
                 logging: { multiline: false },
             });
         }
     });
 }
 
-export { hookLocalStorage };
+export { hookLocalStorage, dump };

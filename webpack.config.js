@@ -33,6 +33,7 @@ export default {
         extensions: ['.ts', '.js'],
         alias: {
             '@reversense/interruptor': resolve(__dirname, 'node_modules/@reversense/interruptor'),
+            '@src': '../src/',
         },
         fallback: {
             assert: '@frida/assert',

@@ -103,6 +103,7 @@ const ClassesString = {
     Base64: 'java.util.Base64',
     DatagramChannelImpl: 'sun.nio.ch.DatagramChannelImpl',
     InputDevice: 'android.view.InputDevice',
+    Window: 'android.view.Window',
     WindowInsets: 'android.view.WindowInsets',
     X509Certificate: 'java.security.cert.X509Certificate',
     OpenSSLX509Certificate: 'com.android.org.conscrypt.OpenSSLX509Certificate',

@@ -14,8 +14,8 @@ type Cocos2dxOffset = {
 
 function hookLegacy(): NativePointer[] {
     //@ts-ignore
-    const array = Module.enumerateExportsSync(libname).filter(({ name }) =>
-        name.includes('evalString') && name.includes('ScriptEngine')
+    const array = Module.enumerateExportsSync(libname).filter(
+        ({ name }) => name.includes('evalString') && name.includes('ScriptEngine'),
     );
     return array;
 }
@@ -44,7 +44,7 @@ const hookEvalString: InvocationListenerCallbacks = {
         const result = dumpFile(scripts, length, path, 'cocos2dx');
         logger.info(`${path} ${result ? dim(Text.toByteSize(length)) : 'error'}`);
     },
-    onLeave() { },
+    onLeave() {},
 };
 
 const hookLuaLLoadbuffer: InvocationListenerCallbacks = {
@@ -63,7 +63,7 @@ const hookLuaLLoadbuffer: InvocationListenerCallbacks = {
         const result = dumpFile(scripts, length, path, 'cocos2dx');
         logger.info(`${path} ${result ? dim(Text.toByteSize(length)) : 'error'}`);
     },
-    onLeave() { },
+    onLeave() {},
 };
 
 function dump(...targets: Cocos2dxOffset[]) {
@@ -179,9 +179,7 @@ function dump(...targets: Cocos2dxOffset[]) {
 
         const xxteaResourcesDecode = module.findExportByName('_ZN15ResourcesDecode11setXXTeaKeyEPKciS1_i');
         if (xxteaResourcesDecode) {
-            logger.info(
-                `xxtea_resources_decode: ${module.name} ${addressOf(xxteaResourcesDecode)}`,
-            );
+            logger.info(`xxtea_resources_decode: ${module.name} ${addressOf(xxteaResourcesDecode)}`);
             Interceptor.attach(xxteaResourcesDecode, {
                 onEnter(args) {
                     const keylen = Math.min(args[2].toUInt32(), 16);
@@ -191,7 +189,7 @@ function dump(...targets: Cocos2dxOffset[]) {
                         `key -> ${args[1].readCString(keylen)} sign -> ${args[3].readCString(siglen)}`,
                     );
                 },
-                onLeave() { },
+                onLeave() {},
             });
         }
 
@@ -211,7 +209,7 @@ function dump(...targets: Cocos2dxOffset[]) {
                             `key -> ${args[2].readCString(Math.min(args[3].toUInt32(), 16))}`,
                         );
                     },
-                    onLeave: () => { },
+                    onLeave: () => {},
                 });
             } catch (e) {
                 logger.warn(`could not attach to xxtea_decrypt at ${address}`);

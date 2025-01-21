@@ -21,7 +21,7 @@ function hookStrstr(predicate: (ptr: NativePointer) => boolean) {
             new NativeCallback(
                 function (this: InvocationContext, haystack, needle) {
                     const strNeedle = needle.readCString();
-                    if (strNeedle === 'gmain' || strNeedle === 'gum-js-loop' || strNeedle.includes('Name')) {
+                    if (strNeedle === 'gmain' || strNeedle === 'gum-js-loop') {
                         return NULL;
                     }
                     const strHaystack = haystack.readCString();

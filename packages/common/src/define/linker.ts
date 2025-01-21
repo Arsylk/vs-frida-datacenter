@@ -145,7 +145,7 @@ extern int dladdr(const void *addr, Dl_info *info);
 extern int sscanf(const char * s, const char * format, ...);
 extern char *strcpy(char * destination, const char * source);
 extern char *strncpy(char * destination, const char * source, size_t num);
-extern char * strchr(const char * str, int z);
+extern char *strchr(const char * str, int z);
 extern int open(const char * path, int flags);
 extern FILE *fopen(const char * restrict path, const char * restrict mode);
 extern FILE *fdopen(int fildes, const char *options);
@@ -416,7 +416,7 @@ function hookException(nums: number[], params: SyscallParams) {
                 args[i] = Reflect.get(details.context, `x${i}`);
                 rawargs.add((i + 1) * Process.pointerSize).writePointer(args[i]);
             }
-            //logger.info({ tag: 'syscall' }, `${num} -> ${stringify(SYSCALLS[`${num}`])}`);
+            logger.info({ tag: 'syscall' }, `${num} -> ${stringify(SYSCALLS[`${num}`])}`);
 
             params.onBefore?.(details.context as Arm64CpuContext, num);
             const retval = CM_enqueue_task(sysThread, rawargs, 0);
