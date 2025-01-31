@@ -14,6 +14,6 @@
         "noImplicitAny": false,
         "noImplicitThis": false,
         "allowArbitraryExtensions": true,
-        "composite": false
+        "composite": true
     }
 }

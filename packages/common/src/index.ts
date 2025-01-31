@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { ClassesProxy, ClassesString, type ClassesType } from './define/java.js';
 import { LibcFinderProxy, type LibcType } from './define/libc.js';
-import { hookException, printStacktrace } from './define/linker.js';
+import { Linker, hookException, printStacktrace } from './define/linker.js';
 import { enumerateMembers, findChoose, findClass, getFindUnique } from './search.js';
 import { SYSCALLS } from './define/syscalls.js';
 export { SYSCALLS as Syscalls };
@@ -90,6 +90,7 @@ Object.defineProperties(global, {
 });
 
 export {
+    Linker,
     ClassesProxy as Classes,
     ClassesString,
     emitter,

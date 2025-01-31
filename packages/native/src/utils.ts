@@ -1,3 +1,4 @@
+import { ProcMaps } from '@clockwork/cmodules';
 import { Libc, Consts } from '@clockwork/common';
 import { Color, logger } from '@clockwork/logging';
 const { gray, black } = Color.use();
@@ -50,6 +51,9 @@ Object.defineProperties(addressOf, {
     },
 });
 function addressOf(ptr: NativePointer, extended?: boolean) {
+    const str = ProcMaps.addressOf(ptr);
+    return str;
+
     const surround = (str: any) => `${black('⟨')}${str}${black('⟩')}`;
     const debug = DebugSymbol.fromAddress(ptr);
     ptr = (addressOf as any).transform(ptr);
@@ -204,5 +208,4 @@ export {
     readFpPath,
     readTidName,
     tryDemangle,
-    tryResolveMapsSymbol,
 };

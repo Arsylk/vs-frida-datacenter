@@ -42,7 +42,7 @@ namespace Inject {
         'libil2cpp.so',
         'libmain.so',
         'libunity.so',
-        'libvulkan.so',
+        //'libvulkan.so',
         'libswappy.so',
         'liblog.so',
         'libz.so',
@@ -108,7 +108,6 @@ namespace Inject {
                 logger.info({ tag: 'do_dlopen' }, `${libPath}`);
                 modules.update();
 
-                // biome-ignore lint/correctness/noConstantCondition: <explanation>
                 if (ctorIgnored.includes(libName)) return;
                 // TODO investigat
                 let handle: InvocationListener | null = null;

@@ -1,4 +1,4 @@
-import { Libc, Struct, isNully, Text } from '@clockwork/common';
+import { Libc, Struct, isNully, Text, printStacktrace } from '@clockwork/common';
 import { Color, logger } from '@clockwork/logging';
 import { addressOf, readFdPath } from './utils.js';
 import { unbox } from './index.js';
@@ -183,7 +183,7 @@ function hookOpen(
 function hookFopen(
     predicate: (ptr: NativePointer) => boolean,
     statfd = false,
-    fn?: (this: CpuContext, path: string | null) => string | undefined,
+    fn?: (this: InvocationContext | CallbackContext, path: string | null) => string | undefined,
 ) {
     function log(
         this: InvocationContext | CallbackContext,
@@ -218,7 +218,7 @@ function hookFopen(
             function (pathname, mode) {
                 if (predicate(this.returnAddress)) {
                     const pathnameStr = pathname.readCString();
-                    const replaceStr = fn?.call(this?.context as Arm64CpuContext, pathnameStr);
+                    const replaceStr = fn?.call(this, pathnameStr);
                     const pathArg = replaceStr ? Memory.allocUtf8String(replaceStr) : pathname;
 
                     const ret = Libc.fopen(pathArg, mode);
@@ -246,9 +246,10 @@ function hookFopen(
             function (fd, mode) {
                 let ret: any;
                 if (predicate(this.returnAddress)) {
-                    let replaceStr = fn?.call(this?.context as Arm64CpuContext, `${fd}`);
-                    if (statfd) replaceStr ??= fn?.call(this?.context as Arm64CpuContext, readFdPath(fd));
+                    let replaceStr = fn?.call(this, `${fd}`);
+                    if (statfd) replaceStr ??= fn?.call(this, readFdPath(fd));
 
+                    printStacktrace.call(this.context, this.returnAddress);
                     let errno: any;
                     if (replaceStr) {
                         const replacePtr = Memory.allocUtf8String(replaceStr);
@@ -288,7 +289,7 @@ function hookOpendir(predicate: (ptr: NativePointer) => boolean, fn?: (path: str
                 let ret: NativePointer | null = null;
                 if (predicate(this.returnAddress)) {
                     const pathnameStr = pathname.readCString();
-                    const replaceStr = fn?.(pathnameStr);
+                    const replaceStr = fn?.call(this, pathnameStr);
                     const pathArg = replaceStr ? Memory.allocUtf8String(replaceStr) : pathname;
                     ret = Libc.opendir(pathArg);
 
@@ -492,4 +493,50 @@ function hookReadlink(predicate: (ptr: NativePointer) => boolean) {
     );
 }
 
-export { hookAccess, hookStat, hookFopen, hookOpen, hookOpendir, hookRemove, hookReadlink, hookDirent };
+function hookFgets(predicate: (ptr: NativePointer) => boolean, fn?: (line: string) => string | undefined) {
+    const array: ('fgets' | 'fgets_unlocked')[] = ['fgets', 'fgets_unlocked'];
+    for (const key of array) {
+        const func = Libc[key];
+        function callback(buffer: NativePointer, size: number, fp: NativePointer) {
+            const retval = func(buffer, size, fp);
+
+            if (predicate(this.returnAddress)) {
+                const endUserMssg = buffer.readCString()?.trimEnd();
+                if (
+                    endUserMssg?.includes('shadow map') ||
+                    endUserMssg?.includes('KSU') ||
+                    endUserMssg?.includes('debug_ramdisk') ||
+                    endUserMssg?.includes('devpts') ||
+                    endUserMssg?.includes('tracefs') ||
+                    endUserMssg?.includes('tmpfs') ||
+                    endUserMssg?.includes('ramdisk') ||
+                    endUserMssg?.includes('virtio') ||
+                    endUserMssg?.includes('weishu') ||
+                    endUserMssg?.includes('magisk') ||
+                    endUserMssg?.includes('frida') ||
+                    endUserMssg?.includes('gbond') ||
+                    endUserMssg?.includes('termux')
+                ) {
+                    logger.info({ tag: key }, `${endUserMssg} ${red('SKIP')}`);
+                    buffer.writeByteArray(new Array(size).fill(0x0));
+                    retval.writeByteArray(new Array(size).fill(0x0));
+                    return callback.call(this, buffer, size, fp);
+                }
+            }
+            return retval;
+        }
+        Interceptor.replace(func, new NativeCallback(callback, 'pointer', ['pointer', 'int', 'pointer']));
+    }
+}
+
+export {
+    hookAccess,
+    hookStat,
+    hookFopen,
+    hookOpen,
+    hookOpendir,
+    hookRemove,
+    hookReadlink,
+    hookDirent,
+    hookFgets,
+};

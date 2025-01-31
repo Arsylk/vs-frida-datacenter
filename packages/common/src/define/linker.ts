@@ -42,8 +42,16 @@ class SoInfo {
         this.#struct = soinfo(ptr);
     }
 
-    getNext(): SoInfo {
-        return new SoInfo(this.#struct.next.value);
+    setNext(ptr: SoInfo | null) {
+        Memory.protect(this.#struct.next.ptr, Process.pointerSize, 'rwx');
+        const value = ptr ? ptr.#struct.ptr : NULL;
+        this.#struct.next.ptr.writePointer(value);
+    }
+
+    getNext(): SoInfo | null {
+        const ptr = this.#struct.next.value;
+        if (ptr.isNull()) return null;
+        return new SoInfo(ptr);
     }
 
     getName(): string {
@@ -123,6 +131,15 @@ typedef struct {
 } thread_syscall_t;
 
 typedef struct {
+  char *phdr;
+  size_t phnum;
+  uint64_t base;
+  size_t size;
+  void *dynamic;
+  void *next;
+} so_info;
+
+typedef struct {
     uint64_t start;
     uint64_t end;
 } mem_region;
@@ -130,7 +147,7 @@ typedef struct {
 typedef struct {
     void *start;
     void *end;
-    char prot[4];
+    char prot[5];
     char name[256];
 } module_info;
 
@@ -141,6 +158,8 @@ typedef struct {
     void       *dli_saddr;  /* Exact address of symbol named dli_sname */
 } Dl_info;
 
+extern so_info *solist_get_head();
+extern char *soinfo_get_soname(so_info *info);
 extern int dladdr(const void *addr, Dl_info *info);
 extern int sscanf(const char * s, const char * format, ...);
 extern char *strcpy(char * destination, const char * source);
@@ -176,8 +195,29 @@ static void log(const gchar *format, ...){
     g_free(message);
 }
 
-module_info* modules = NULL;
+module_info modules[1024];
 int module_count = 0;
+char *find_module(void* addr) {
+    for (int i = 0; i < module_count; i++) {
+        if (addr >= modules[i].start && addr < modules[i].end) {
+            return modules[i].name;
+        }
+    }
+    return "unknown";
+}
+
+char *find_so_info(void *addr) {
+    so_info *info = solist_get_head();
+    while (info) {
+        if (__builtin_expect(((uint64_t) addr >= info->base && (uint64_t) addr < info->base + info->size), 0)) {
+            return soinfo_get_soname(info);
+        }
+
+        info = info->next;
+    }
+    return find_module(addr);
+}
+
 
 void* call_load_modules(void *args) {
     register uint64_t addr = (uint64_t) args;
@@ -185,10 +225,11 @@ void* call_load_modules(void *args) {
     static char prot[4];
     char line[512];
 
-    int fd = syscall(56, 0, "/proc/self/maps");
+    int fd = syscall(56, 0, "/proc/self/maps", 0, 0);
     FILE *fp = fdopen(fd, "r");
-    if (!fp) return  (void *) NULL;
+    if (!fp) return (void *) NULL;
     
+    module_count = 0;
     char *token, *saveptr;
     while (fgets(line, 512, fp) != NULL) {
         token = strtok_r(line, "-", &saveptr);
@@ -198,50 +239,45 @@ void* call_load_modules(void *args) {
         end = (uint64_t) strtoul(token, NULL, 16);
 
         token = strtok_r(NULL, " ", &saveptr);
-        if (__builtin_expect((addr >= start && addr < end), 0)) {
-            module_info mod;
-            mod.start = (void *) start;
-            mod.end = (void *) end;
-            __builtin_memcpy(mod.prot, token, 4);
 
-            char *nameptr = strchr(line, '/'); 
-            if (nameptr != NULL) {
-                log("hasname");
-                strcpy(mod.name, nameptr);
-            }
-            log("%d %d %s %s", mod.start, mod.end, mod.prot, mod.name);
-            return (void *) &mod;
+        module_info mod;
+        mod.start = (void *) start;
+        mod.end = (void *) end;
+        __builtin_memcpy(mod.prot, token, 4);
+        mod.prot[4] = 0;
+
+        token = strtok_r(NULL, " ", &saveptr);
+        char *nameptr = strchr(saveptr, '/');
+        if (nameptr != NULL) {
+            strcpy(mod.name, nameptr);
         }
+        modules[module_count++] = mod;
+        
+        if (__builtin_expect((addr >= start && addr < end), 0)) {
+            log("%x <= %x < %x %s %s", mod.start, addr, mod.end, mod.prot, mod.name);
+        }
+
     }
     fclose(fp);
     
     return (void *) 8;
 }
 
-const char* find_module(void* addr) {
-    for (int i = 0; i < module_count; i++) {
-        if (addr >= modules[i].start && addr < modules[i].end) {
-            return modules[i].name;
-        }
-    }
-    return "unknown";
-}
-
-void print_stacktrace() {
+void *print_stacktrace(void *addr) {
     // Get current frame pointer
-    uintptr_t* retaddr = (uintptr_t*)__builtin_extract_return_addr(__builtin_return_address(0));
-    uintptr_t* frame_ptr = (uintptr_t*)__builtin_frame_address(0);
+    uint64_t retaddr = (uint64_t )__builtin_extract_return_addr(__builtin_return_address(0));
+    uintptr_t *frame_ptr = (uintptr_t*)__builtin_frame_address(0);
     
     
     /*log("Stack trace: %p", retaddr);*/
     int depth = 0;
     // Walk the stack using frame pointers
-    while (frame_ptr && depth < 10) {
+    while (frame_ptr != NULL && depth < 10) {
         void* return_addr = (void*)*(frame_ptr + 1);
         if (!return_addr) break;
         
-        const char* module = find_module(return_addr);
-        /*log("  %p [%s]", return_addr, module);*/
+        char* module = find_so_info(return_addr);
+        log("  %p [%s]", return_addr, module);
         
         frame_ptr = (uintptr_t*)*frame_ptr;
         
@@ -250,6 +286,8 @@ void print_stacktrace() {
         
         depth+=1;
     }
+
+    return (void *) 0x0;
 }
 
 void *call_syscall(void *args) {
@@ -265,9 +303,9 @@ void *pthread_syscall(void *args){
             if(syscall_thread->type == 0){
                 syscall_thread->ret = call_syscall(syscall_thread->args);
             }else if(syscall_thread->type == 1){
-                syscall_thread->ret = (void*) 1; // call_log(syscall_thread->args);
+                syscall_thread->ret = (void*) 1; call_load_modules(syscall_thread->args);
             }else if(syscall_thread->type == 2){
-                syscall_thread->ret = call_load_modules(syscall_thread->args); // call_read_maps(syscall_thread->args);
+                syscall_thread->ret = (void*) print_stacktrace(syscall_thread->args); // call_read_maps(syscall_thread->args);
             }
             syscall_thread->args = NULL;
             syscall_thread->isReturn = 1;
@@ -356,6 +394,8 @@ int install_filter(__u32 nr) {
 }
 `,
     {
+        solist_get_head: _dl_solist_get_head,
+        soinfo_get_soname: soinfo_get_soname,
         pthread_create: Libc.pthread_create,
         pthread_mutex_init: Libc.pthread_mutex_init,
         pthread_mutex_lock: Libc.pthread_mutex_lock,
@@ -391,6 +431,7 @@ const CM_enqueue_task = new NativeFunction(cm.enqueue_task, 'pointer', ['pointer
 const CM_lock = new NativeFunction(cm.lock, 'int', ['pointer']);
 const CM_unlock = new NativeFunction(cm.unlock, 'int', ['pointer']);
 const CM_print_stacktrace = new NativeFunction(cm.print_stacktrace, 'void', []);
+const CM_find_so_info = new NativeFunction(cm.find_so_info, 'pointer', ['pointer']);
 
 let sysThread = NULL;
 type SyscallParams = {
@@ -433,16 +474,17 @@ function hookException(nums: number[], params: SyscallParams) {
     for (const num of new Set<number>(nums)) install(num);
 }
 
-function printStacktrace(ptr: NativePointer) {
+function printStacktrace(this: CpuContext, ptr: NativePointer) {
     let i = 1;
     try {
-        const retval = CM_enqueue_task(sysThread, ptr, 2);
+        const retval = CM_enqueue_task(sysThread, ptr, 1);
+        //const bt = Thread.backtrace(this, Backtracer.FUZZY).map((x) => CM_find_so_info(x));
+        //logger.info({ tag: 'bt' }, `${ptr}\n${bt.join(',\n')}`);
         logger.info({ tag: 'retval' }, `${retval}`);
-        CM_print_stacktrace();
     } catch (e: any) {
         i = -1;
         logger.info({ tag: 'pst' }, `${stringify(e)}`);
     }
 }
 
-export { hookException, printStacktrace };
+export { Linker, hookException, printStacktrace };

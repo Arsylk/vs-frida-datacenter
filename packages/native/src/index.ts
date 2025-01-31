@@ -22,7 +22,6 @@ export {
     mkdir,
     readFpPath,
     readFdPath,
-    tryResolveMapsSymbol,
 } from './utils.js';
 const { gray, magenta: pink } = Color.use();
 const mutex = Memory.alloc(Process.pointerSize === 4 ? 24 : 40);
@@ -155,9 +154,10 @@ type HookParamteres = {
     call?: boolean | ((this: InvocationContext, args: InvocationArguments) => void);
     ret?: boolean | ((this: InvocationContext, retval: InvocationReturnValue) => void);
     logcat?: boolean;
+    base?: NativePointer;
     predicate?: (returnAddress: NativePointer) => boolean;
 };
-function log(ptr: NativePointer, argdef: string, params?: HookParamteres) {
+function log(ptr: NativePointer, argdef: string, params?: HookParamteres, s?: () => any) {
     try {
         logger.info({ tag: 'log' }, `in: ${ptr} ${argdef}`);
         const resolved = DebugSymbol.fromAddress(ptr);
@@ -175,6 +175,9 @@ function log(ptr: NativePointer, argdef: string, params?: HookParamteres) {
                         const value: any = args[i];
                         let strvalue = `${args[i]}`;
                         switch (argdef[i]) {
+                            case 'r':
+                                strvalue = `${value.sub(params?.base)} ${params?.base}`;
+                                break;
                             case 's':
                                 strvalue = value.readCString();
                                 break;
@@ -196,6 +199,9 @@ function log(ptr: NativePointer, argdef: string, params?: HookParamteres) {
                     }
                     sb += ' }';
                     sb += ` ${addressOf(this.returnAddress)}`;
+                    if (sb.includes('0x1ff3cc')) {
+                        s?.();
+                    }
                     logger.info({ tag: tag }, sb);
                     if (typeof params?.call === 'function') {
                         params?.call.call(this, args);

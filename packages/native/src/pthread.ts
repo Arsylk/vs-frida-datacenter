@@ -1,3 +1,4 @@
+import { Text } from '@clockwork/common';
 import { isNully, tryNull } from '@clockwork/common';
 import { Color, logger } from '@clockwork/logging';
 import { addressOf, readTidName, tryDemangle } from './utils.js';
@@ -27,7 +28,7 @@ function hookPthread_create(params?: PthreadCreateHookParams) {
                 const threadName = tryNull(() => readTidName(tid));
 
                 const fTid = dim(ret === 0 ? green(tid) : red(tid));
-                const fThreadName = threadName ? `, ${bold(threadName)} ` : ' ';
+                const fThreadName = threadName ? `, ${bold(Text.noLines(threadName))} ` : ' ';
                 const fMethod = `[${gray(`${method.moduleName}`)} ${black(`${name}`)}] ${gray(`${method.address}`)}`;
                 logger.info(
                     { tag: 'pthread_create' },

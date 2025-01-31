@@ -1,9 +1,8 @@
-import { getSelfProcessName } from '@clockwork/native';
 import * as Anticloak from '@clockwork/anticloak';
 import { Color, logger } from '@clockwork/logging';
 import * as Native from '@clockwork/native';
-import { hookException, Struct, Syscalls } from '@clockwork/common';
-const { red, green, redBright, magentaBright: pink, gray, dim, black } = Color.use();
+import { hookException, Linker } from '@clockwork/common';
+const { red, magentaBright: pink, gray, dim, black } = Color.use();
 
 const predicate: (ptr: NativePointer) => true | undefined = () => true;
 
@@ -13,8 +12,8 @@ Native.attachSystemPropertyGet(predicate, (key) => {
 });
 
 Native.Files.hookFopen(predicate, true, (path) => {
-    if (path?.endsWith('/su') || path?.endsWith('/mountinfo')) {
-        return path.replace(/\/(su|mountinfo)$/, '/nya');
+    if (path?.endsWith('/su') || path?.endsWith('/mountinfo') || path?.endsWith('/maps')) {
+        return path.replace(/\/(su|mountinfo|maps)$/i, '/nya');
     }
     if (
         path?.includes('magisk') ||
@@ -62,21 +61,29 @@ Interceptor.replace(
 Native.Inject.onPrelinkOnce((module) => {
     const { base, name, size } = module;
     if (name === 'libreveny.so') {
-        let _x0: any = null;
+        let item = Linker.getSoListHead();
+        let prev: typeof item | null = null;
+        while (item) {
+            const name = item.getName();
+            if (name === 'libfrida-agent-raw.so') {
+                prev?.setNext(item.getNext());
+            }
+            prev = item;
+            item = item.getNext();
+        }
         hookException([160], {
-            onBefore({ x0, x8 }) {
-                const num = x8.toInt32();
+            onBefore({ x0 }, num) {
                 switch (num) {
                     case 160:
-                        _x0 = x0;
+                        this._x0 = x0;
                         break;
                 }
             },
-            onAfter({ x0 }, num) {
+            onAfter(_, num) {
                 switch (num) {
                     case 160:
                         {
-                            const addr = _x0.add(0x41 * 2);
+                            const addr = this._x0.add(0x41 * 2);
                             const text = addr.readCString().toLowerCase();
 
                             for (const key of ['ksu', 'kernelsu', 'lineage', 'dirty']) {
@@ -91,51 +98,15 @@ Native.Inject.onPrelinkOnce((module) => {
             },
         });
 
-        Native.Strings.hookStrstr(predicate);
-
-        const buffer = Memory.alloc(512);
-        Interceptor.replace(
-            Libc.open,
-            new NativeCallback(
-                (pathnameptr, flag) => {
-                    const pathname = pathnameptr.readCString();
-                    //logger.info({ tag: 'open' }, `${pathname} ${flag}`);
-                    const realFd = Libc.open(pathnameptr, flag).value;
-                    if (pathname?.includes('maps')) {
-                        const path = `/data/data/${getSelfProcessName()}/fake_map`;
-                        //@ts-ignore
-                        const file = new File(path, 'w');
-
-                        while (Libc.read(realFd, buffer, 512) !== 0) {
-                            const oneLine = buffer.readCString();
-
-                            if (!oneLine?.includes('tmp')) {
-                                file.write(oneLine);
-                            }
-                        }
-                        Libc.close(realFd);
-                        const newPathname = Memory.allocUtf8String(path);
-                        return Libc.open(newPathname, flag).value;
-                    }
-                    return realFd;
-                },
-                'int',
-                ['pointer', 'int'],
-            ),
-        );
-        Native.Files.hookDirent(() => true);
-        Native.Files.hookOpendir(
-            () => true,
-            (path) => {
-                if (
-                    path?.startsWith('/proc') &&
-                    (path?.includes('/task') ||
-                        path.endsWith('/fd') ||
-                        path.endsWith('/status') ||
-                        path.endsWith('/fs/jbd2'))
-                )
-                    return '/dev/null';
-            },
-        );
+        Native.Files.hookOpendir(predicate, (path) => {
+            if (
+                path?.startsWith('/proc') &&
+                (path?.includes('/task') ||
+                    path.endsWith('/fd') ||
+                    path.endsWith('/status') ||
+                    path.endsWith('/fs/jbd2'))
+            )
+                return '/dev/null';
+        });
     }
 });

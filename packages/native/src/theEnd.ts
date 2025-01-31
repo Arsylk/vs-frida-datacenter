@@ -1,3 +1,4 @@
+import { ProcMaps } from '@clockwork/cmodules';
 import { Libc } from '@clockwork/common';
 import { logger } from '@clockwork/logging';
 import { addressOf } from './utils.js';
@@ -11,10 +12,11 @@ function hookExit(predicate: (ptr: NativePointer) => boolean) {
             func,
             new NativeCallback(
                 function (code) {
-                    const stacktrace = Thread.backtrace(this?.context, Backtracer.FUZZY)
-                        .map((x) => addressOf(x, true))
-                        .join('\n\t');
-                    logger.info({ tag: key }, `code: ${code} ${stacktrace}`);
+                    //const stacktrace = Thread.backtrace(this?.context, Backtracer.FUZZY)
+                    //    .map((x) => addressOf(x, true))
+                    //    .join('\n\t');
+                    logger.info({ tag: key }, `code: ${code}`);
+                    ProcMaps.printStacktrace(this.context, key);
                     return 0;
                 },
                 'void',
@@ -23,17 +25,14 @@ function hookExit(predicate: (ptr: NativePointer) => boolean) {
         );
     }
     Interceptor.replace(
-        //@ts-ignore
         Libc.raise,
         new NativeCallback(
             function (err) {
-                const stacktrace = Thread.backtrace(this?.context, Backtracer.FUZZY)
-                    .map((x) => addressOf(x, true))
-                    .join('\n\t');
-                logger.info(
-                    { tag: 'raise' },
-                    `err: ${err} ${addressOf(this?.returnAddress ?? NULL)} ${stacktrace}`,
-                );
+                //const stacktrace = Thread.backtrace(this?.context, Backtracer.FUZZY)
+                //    .map((x) => addressOf(x, true))
+                //    .join('\n\t');
+                logger.info({ tag: 'raise' }, `err: ${err} ${addressOf(this?.returnAddress ?? NULL)}`);
+                ProcMaps.printStacktrace(this.context, 'raise');
                 return 0;
             },
             'int',
@@ -48,9 +47,10 @@ function hookKill(predicate: (ptr: NativePointer) => boolean) {
         new NativeCallback(
             // for some reason entire `this` object can be undefined here ?
             (pid, code) => {
-                const stacktrace = Thread.backtrace(this?.context, Backtracer.FUZZY).join('\n\t');
+                //const stacktrace = Thread.backtrace(this?.context, Backtracer.FUZZY).join('\n\t');
                 const strAddress = addressOf(this?.returnAddress ?? NULL);
-                logger.info({ tag: 'kill' }, `kill(${pid}, ${code}) ${strAddress}\n${stacktrace}`);
+                logger.info({ tag: 'kill' }, `kill(${pid}, ${code}) ${strAddress}`);
+                ProcMaps.printStacktrace(this.context, 'kill');
                 return 0;
             },
             'int',
@@ -65,11 +65,12 @@ function hookSignal(predicate: (ptr: NativePointer) => boolean) {
             Libc.signal,
             new NativeCallback(
                 (sig, handler) => {
-                    const stacktrace = Thread.backtrace(this.context, Backtracer.FUZZY).join('\n\t');
+                    //const stacktrace = Thread.backtrace(this.context, Backtracer.FUZZY).join('\n\t');
                     logger.info(
                         { tag: 'signal' },
-                        `signal(${sig}, ${handler}) ${addressOf(this.returnAddress)} ${stacktrace}`,
+                        `signal(${sig}, ${handler}) ${addressOf(this.returnAddress)}`,
                     );
+                    ProcMaps.printStacktrace(this.context, 'signal');
                     return Libc.signal(sig, handler);
                 },
                 'pointer',
@@ -79,11 +80,8 @@ function hookSignal(predicate: (ptr: NativePointer) => boolean) {
     } catch (e) {
         Interceptor.attach(Libc.signal, {
             onEnter({ 0: sig, 1: handler }) {
-                const stacktrace = Thread.backtrace(this.context, Backtracer.FUZZY).join('\n\t');
-                logger.info(
-                    { tag: 'signal' },
-                    `signal(${sig}, ${handler}) ${addressOf(this.returnAddress)} ${stacktrace}`,
-                );
+                logger.info({ tag: 'signal' }, `signal(${sig}, ${handler}) ${addressOf(this.returnAddress)}`);
+                ProcMaps.printStacktrace(this.context, 'signal');
             },
         });
     }
@@ -95,11 +93,12 @@ function hookPError(predicate: (ptr: NativePointer) => boolean) {
             Libc.perror,
             new NativeCallback(
                 (err) => {
-                    const stacktrace = Thread.backtrace(this.context, Backtracer.FUZZY).join('\n\t');
+                    //const stacktrace = Thread.backtrace(this.context, Backtracer.FUZZY).join('\n\t');
                     logger.info(
                         { tag: 'perror' },
-                        `perror(${err.readCString()}) ${addressOf(this.returnAddress)} ${stacktrace}`,
+                        `perror(${err.readCString()}) ${addressOf(this.returnAddress)}`,
                     );
+                    ProcMaps.printStacktrace(this.context, 'perror');
                     return Libc.perror(err);
                 },
                 'void',

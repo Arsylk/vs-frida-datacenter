@@ -348,6 +348,11 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'fgets');
         return new NativeFunction(ptr, 'pointer', ['pointer', 'int', 'pointer']);
     },
+    //  char *fgets_unlocked(char *restrict s, int n, FILE *restrict stream);
+    fgets_unlocked: () => {
+        const ptr = Module.getExportByName('libc.so', 'fgets_unlocked');
+        return new NativeFunction(ptr, 'pointer', ['pointer', 'int', 'pointer']);
+    },
     //  int fstat(int fd, struct stat *statbuf);
     stat: () => {
         const ptr = Module.getExportByName('libc.so', 'stat');
@@ -503,6 +508,11 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'strtok_r');
         return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer', 'pointer']);
     },
+    // char * strdup(const char *str1);
+    strdup: () => {
+        const ptr = Module.getExportByName('libc.so', 'strdup');
+        return new NativeFunction(ptr, 'pointer', ['pointer']);
+    },
     // void* memcpy( void* dest, const void* src, std::size_t count );
     memcpy: () => {
         const ptr = Module.getExportByName('libc.so', 'memcpy');
@@ -512,6 +522,11 @@ const LibcFinder = {
     memcmp: () => {
         const ptr = Module.getExportByName('libc.so', 'memcmp');
         return new NativeFunction(ptr, 'int', ['pointer', 'pointer', 'int']);
+    },
+    // void *memmove(void * destination, const void * source, size_t num);
+    memmove: () => {
+        const ptr = Module.getExportByName('libc.so', 'memmove');
+        return new NativeFunction(ptr, 'pointer', ['pointer', 'pointer', 'int']);
     },
     // unsigned long getauxval(unsigned long type);
     getauxval: () => {
