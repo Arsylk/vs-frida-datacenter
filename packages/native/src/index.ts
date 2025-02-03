@@ -153,11 +153,12 @@ type HookParamteres = {
     tag?: string;
     call?: boolean | ((this: InvocationContext, args: InvocationArguments) => void);
     ret?: boolean | ((this: InvocationContext, retval: InvocationReturnValue) => void);
+    nolog?: true;
     logcat?: boolean;
     base?: NativePointer;
     predicate?: (returnAddress: NativePointer) => boolean;
 };
-function log(ptr: NativePointer, argdef: string, params?: HookParamteres, s?: () => any) {
+function log(ptr: NativePointer, argdef: string, params?: HookParamteres) {
     try {
         logger.info({ tag: 'log' }, `in: ${ptr} ${argdef}`);
         const resolved = DebugSymbol.fromAddress(ptr);
@@ -167,8 +168,8 @@ function log(ptr: NativePointer, argdef: string, params?: HookParamteres, s?: ()
         logger.info({ tag: 'log' }, `${resolved} ${tag}`);
         Interceptor.attach(ptr, {
             onEnter(args) {
-                if (params?.predicate !== undefined && !params?.predicate?.(this.returnAddress)) return;
-                if (params?.call !== false) {
+                if (!params?.predicate?.(this.returnAddress) === false) return;
+                if (params?.call !== false && params?.nolog !== true) {
                     let sb = '';
                     sb += '{ ';
                     for (let i = 0; i < argSize; i += 1) {
@@ -178,6 +179,9 @@ function log(ptr: NativePointer, argdef: string, params?: HookParamteres, s?: ()
                             case 'r':
                                 strvalue = `${value.sub(params?.base)} ${params?.base}`;
                                 break;
+                            case 'c':
+                                strvalue = String.fromCharCode(Number(value) & 0xff);
+                                break;
                             case 's':
                                 strvalue = value.readCString();
                                 break;
@@ -185,7 +189,7 @@ function log(ptr: NativePointer, argdef: string, params?: HookParamteres, s?: ()
                                 strvalue = value.readLong();
                                 break;
                             case 'i':
-                                strvalue = value.toUInt32();
+                                strvalue = value.toInt32();
                                 break;
                             case '_':
                                 strvalue = '_';
@@ -199,13 +203,10 @@ function log(ptr: NativePointer, argdef: string, params?: HookParamteres, s?: ()
                     }
                     sb += ' }';
                     sb += ` ${addressOf(this.returnAddress)}`;
-                    if (sb.includes('0x1ff3cc')) {
-                        s?.();
-                    }
-                    logger.info({ tag: tag }, sb);
-                    if (typeof params?.call === 'function') {
-                        params?.call.call(this, args);
-                    }
+                    logger.info({ tag: resolved }, sb);
+                }
+                if (typeof params?.call === 'function') {
+                    params?.call.call(this, args);
                 }
                 if (params?.logcat === true) {
                     const stacktrace = Thread.backtrace(this.context, Backtracer.FUZZY)
@@ -215,11 +216,11 @@ function log(ptr: NativePointer, argdef: string, params?: HookParamteres, s?: ()
                 }
             },
             onLeave(retval) {
-                if (params?.predicate !== undefined && !params?.predicate?.(this.returnAddress)) return;
-                if (params?.ret !== false) {
-                    if (typeof params?.ret === 'function') {
-                        params?.ret?.call(this, retval);
-                    }
+                if (!params?.predicate?.(this.returnAddress) === false) return;
+                if (typeof params?.ret === 'function') {
+                    params?.ret?.call(this, retval);
+                }
+                if (params?.ret !== false && params?.nolog !== true) {
                     logger.info({ tag: tag }, `${gray('return')} ${retval}`);
                 }
             },
@@ -227,6 +228,25 @@ function log(ptr: NativePointer, argdef: string, params?: HookParamteres, s?: ()
     } catch (e: any) {
         logger.error({ tag: 'log' }, `ptr: ${ptr}, argdef: ${argdef}\n${Text.stringify(e)} ${e.stack}`);
     }
+}
+
+function replace<Ret extends NativeCallbackReturnType, Arg extends NativeCallbackArgumentType[] | []>(
+    ptr: NativePointer,
+    retType: Ret,
+    argTypes: Arg,
+    fn: NativeCallbackImplementation<
+        GetNativeCallbackReturnValue<Ret>,
+        Extract<GetNativeCallbackArgumentValue<Arg>, unknown[]>
+    >,
+) {
+    const cb = new NativeCallback(
+        function (this, ...args) {
+            return fn.call(this, ...args);
+        },
+        retType,
+        argTypes,
+    );
+    Interceptor.replace(ptr, cb);
 }
 
 function prettyMethod(methodID: NativePointer, withSignature: boolean) {
@@ -262,4 +282,5 @@ export {
     log,
     memWatch,
     predicate,
+    replace,
 };

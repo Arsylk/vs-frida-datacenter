@@ -1,8 +1,8 @@
 import * as Anticloak from '@clockwork/anticloak';
 import { Color, logger } from '@clockwork/logging';
 import * as Native from '@clockwork/native';
-import { hookException, Linker } from '@clockwork/common';
-const { red, magentaBright: pink, gray, dim, black } = Color.use();
+import { Text, hookException, Linker } from '@clockwork/common';
+const { red, magentaBright: pink, gray, dim, green } = Color.use();
 
 const predicate: (ptr: NativePointer) => true | undefined = () => true;
 
@@ -58,19 +58,24 @@ Interceptor.replace(
     ),
 );
 
+Native.replace(Libc.popen, 'pointer', ['pointer', 'pointer'], (path, type) => {
+    const pathstr = path.readCString();
+    let newpath: string | null = null;
+    if (pathstr?.includes('getenforce')) {
+        newpath = 'echo Enforcing';
+    }
+
+    if (newpath) path = Memory.allocUtf8String(newpath);
+    const msg = newpath ? `${red(pathstr)} -> ${green(newpath)}` : `${pathstr}`;
+    logger.info({ tag: 'popen' }, msg);
+    return Libc.popen(path, type);
+});
+
 Native.Inject.onPrelinkOnce((module) => {
     const { base, name, size } = module;
-    if (name === 'libreveny.so') {
-        let item = Linker.getSoListHead();
-        let prev: typeof item | null = null;
-        while (item) {
-            const name = item.getName();
-            if (name === 'libfrida-agent-raw.so') {
-                prev?.setNext(item.getNext());
-            }
-            prev = item;
-            item = item.getNext();
-        }
+    if (name === 'libreveny.so' || name.includes('libjiagu')) {
+        Linker.patchSoList();
+
         hookException([160], {
             onBefore({ x0 }, num) {
                 switch (num) {

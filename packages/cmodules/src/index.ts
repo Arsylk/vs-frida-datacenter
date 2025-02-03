@@ -2,7 +2,6 @@ import { Libc } from '@clockwork/common';
 import { logger } from '@clockwork/logging';
 import _memcmp from '@src/memcmp.c';
 import _procmaps from '@src/procmaps.c';
-import { createPrinter } from 'frida-compile/ext/typescript';
 
 function base64(str: string) {
     const base64Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -100,4 +99,42 @@ namespace ProcMaps {
     }
 }
 
-export { memcmp, ProcMaps };
+namespace SvcHook {
+    const cm = new CModule('');
+    //@ts-ignore
+    const _svc_hook =
+        //@ts-ignore
+        cm === null ? new NativeFunction(cm.svc_hook as any, 'uint', ['uint', 'pointer', 'pointer']) : null;
+
+    export function svc_hook(
+        sysno: number,
+        before?: (...args: NativePointer[]) => void,
+        after?: (...args: NativePointer[]) => void,
+    ) {
+        const before_func =
+            (before &&
+                new NativeCallback(
+                    (...args: NativePointer[]) => {
+                        before(...args);
+                        return NULL;
+                    },
+                    'pointer',
+                    ['pointer', 'pointer', 'pointer', 'pointer', 'pointer'],
+                )) ||
+            NULL;
+        const after_func =
+            (after &&
+                new NativeCallback(
+                    (...args: NativePointer[]) => {
+                        after(...args);
+                        return NULL;
+                    },
+                    'pointer',
+                    ['pointer', 'pointer', 'pointer', 'pointer', 'pointer'],
+                )) ||
+            NULL;
+        logger.info({ tag: 'svchook' }, `${_svc_hook(sysno, before_func, after_func)}`);
+    }
+}
+
+export { memcmp, ProcMaps, SvcHook };

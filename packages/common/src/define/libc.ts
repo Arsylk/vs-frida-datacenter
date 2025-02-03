@@ -263,6 +263,11 @@ const LibcFinder = {
         const ptr = Module.getExportByName('libc.so', 'mmap');
         return new NativeFunction(ptr, 'pointer', ['pointer', 'size_t', 'int', 'int', 'uint', 'long']);
     },
+    // int mprotect(void *addr, size_t len, int prot);
+    mprotect: () => {
+        const ptr = Module.getExportByName('libc.so', 'mprotect');
+        return new SystemFunction(ptr, 'int', ['pointer', 'size_t', 'int']);
+    },
     // int gettimeofday(struct timeval *restrict tv, struct timezone *_Nullable restrict tz);
     gettimeofday: () => {
         const ptr = Module.getExportByName('libc.so', 'gettimeofday');
@@ -336,6 +341,11 @@ const LibcFinder = {
     // char *strchr(char * str, int character);
     strchr: () => {
         const ptr = Module.getExportByName('libc.so', 'strchr');
+        return new NativeFunction(ptr, 'pointer', ['pointer', 'int']);
+    },
+    // char *strchr(char * str, int character);
+    strrchr: () => {
+        const ptr = Module.getExportByName('libc.so', 'strrchr');
         return new NativeFunction(ptr, 'pointer', ['pointer', 'int']);
     },
     // char *strcat(char *restrict dst, char *restrict src);

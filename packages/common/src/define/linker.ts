@@ -1,10 +1,11 @@
-import { Buffer } from 'frida-buffer';
-import { logger } from '@clockwork/logging';
+import { Color, logger, subLogger } from '@clockwork/logging';
 import { Libc } from '../index.js';
 import { stringify } from '../text.js';
 import { Linker as LinkerStruct } from './struct.js';
+import { isNully } from '../index.js';
 import { SYSCALLS } from './syscalls.js';
 const { soinfo } = LinkerStruct;
+const { red, gray, dim } = Color.use();
 
 let _dl_solist_get_head = NULL;
 let soinfo_get_soname = NULL;
@@ -24,13 +25,57 @@ for (const i in syms) {
     }
 }
 
-// biome-ignore lint/complexity/noStaticOnlyClass: <explanation>
-class Linker {
-    static #getSoListHead = new NativeFunction(_dl_solist_get_head, 'pointer', []);
+namespace Linker {
+    const _getSoListHead = new NativeFunction(_dl_solist_get_head, 'pointer', []);
 
-    static getSoListHead() {
-        const ptr = Linker.#getSoListHead();
+    export function getSoListHead() {
+        const ptr = _getSoListHead();
         return new SoInfo(ptr);
+    }
+
+    /**
+     * Patches the so list to bypass frida detection
+     *
+     * This should be called directly before your module
+     * ex. {@see "android_dlopen_ext"}
+     */
+    export function patchSoList(predicate?: (name: string) => boolean) {
+        const _predicate = (name: string) => {
+            for (const match of ['frida']) if (name.includes(match)) return true;
+            return false;
+        };
+        const skip: string[] = [];
+
+        let item: SoInfo | null = Linker.getSoListHead();
+        let prev: SoInfo | null = null;
+        while (item) {
+            const name = item.getName();
+            const next = item.getNext();
+            if (_predicate(name) && predicate?.(name) !== false) {
+                prev?.setNext(next);
+                skip.push(name);
+            }
+            prev = item;
+            item = next;
+        }
+
+        let sb = '';
+        sb += gray('[ ');
+        for (let i = 0; i < skip.length; i += 1) {
+            sb += dim(red(`${skip[i]}`));
+            sb += i + 1 < skip.length ? ', ' : ' ';
+        }
+        sb += gray(']');
+        const msg = `skipped ${sb}`;
+        logger.info({ tag: 'linker' }, msg);
+    }
+
+    export function getParsedList() {
+        const list: { name: string; base: NativePointer }[] = [];
+        for (let item = getSoListHead() as SoInfo | null; item; item = item.getNext()) {
+            list.push({ name: item.getName(), base: item.getBase() });
+        }
+        return list;
     }
 }
 
@@ -50,7 +95,7 @@ class SoInfo {
 
     getNext(): SoInfo | null {
         const ptr = this.#struct.next.value;
-        if (ptr.isNull()) return null;
+        if (isNully(ptr)) return null;
         return new SoInfo(ptr);
     }
 
@@ -175,7 +220,6 @@ extern unsigned long strtoul(const char* __s, char** __end_ptr, int __base);
 extern unsigned long strlen( const char * str);
 extern char *strtok(char *str, const char *delim);
 extern char *strtok_r(char *str, const char *delim, char **saveptr);
-extern void *malloc(size_t __byte_count);
 extern void free(void *ptr);
 extern long syscall(long __number, ...);
 extern int pthread_mutex_init(pthread_mutex_t* __mutex, const void* __attr);
@@ -316,7 +360,7 @@ void *pthread_syscall(void *args){
 }
 
 thread_syscall_t *pthread_syscall_create(){
-    thread_syscall_t *syscall_thread = (thread_syscall_t *)malloc(sizeof(thread_syscall_t));
+    thread_syscall_t *syscall_thread = (thread_syscall_t *)g_malloc(sizeof(thread_syscall_t));
     syscall_thread->type = 0;
     syscall_thread->isTask = 0;
     syscall_thread->args = NULL;
@@ -400,7 +444,6 @@ int install_filter(__u32 nr) {
         pthread_mutex_init: Libc.pthread_mutex_init,
         pthread_mutex_lock: Libc.pthread_mutex_lock,
         pthread_mutex_unlock: Libc.pthread_mutex_unlock,
-        malloc: Libc.malloc,
         prctl: Libc.prctl,
         free: Libc.free,
         dladdr: Libc.dladdr,
@@ -474,17 +517,4 @@ function hookException(nums: number[], params: SyscallParams) {
     for (const num of new Set<number>(nums)) install(num);
 }
 
-function printStacktrace(this: CpuContext, ptr: NativePointer) {
-    let i = 1;
-    try {
-        const retval = CM_enqueue_task(sysThread, ptr, 1);
-        //const bt = Thread.backtrace(this, Backtracer.FUZZY).map((x) => CM_find_so_info(x));
-        //logger.info({ tag: 'bt' }, `${ptr}\n${bt.join(',\n')}`);
-        logger.info({ tag: 'retval' }, `${retval}`);
-    } catch (e: any) {
-        i = -1;
-        logger.info({ tag: 'pst' }, `${stringify(e)}`);
-    }
-}
-
-export { Linker, hookException, printStacktrace };
+export { Linker, hookException };

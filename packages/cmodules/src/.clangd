@@ -1,5 +1,12 @@
 CompileFlags:
   Add: [
+        "-target",
+        "aarch64-linux-gnu",
+        "-march=armv8-a",
+        "-mabi=lp64",
+        "-ffixed-x18",
+        "fPIE",
+        "-pie",
         "-Wall",
-        "-Iinclude"
+        "-Iinclude",
   ]

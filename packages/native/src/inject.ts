@@ -1,4 +1,5 @@
 import { Color, logger } from '@clockwork/logging';
+import { addressOf } from './index.js';
 import { Text } from '@clockwork/common';
 const { blue, red, magentaBright: pink } = Color.use();
 
@@ -53,8 +54,8 @@ namespace Inject {
 
     export const modules = new ModuleMap();
     const initArrayCallbacks: ((this: InvocationContext, name: string) => void)[] = [];
-    const prelinkCallbacks: ((module: Module) => void)[] = [];
-    const prelinkOnceCallbacks: ((module: Module) => void)[] = [];
+    const prelinkCallbacks: ((this: InvocationContext, module: Module) => void)[] = [];
+    const prelinkOnceCallbacks: ((this: InvocationContext, module: Module) => void)[] = [];
     const prelinked = new Set<string>();
 
     let do_dlopen: NativePointer | null = null;
@@ -93,7 +94,7 @@ namespace Inject {
                 const module = Process.getModuleByAddress(_init);
                 logger.info({ tag: 'phdr_init' }, `${Text.stringify(module)}`);
                 modules.update();
-                doOnPrelink(module);
+                doOnPrelink.call(this, module);
             },
         });
 
@@ -136,17 +137,17 @@ namespace Inject {
         },
     });
 
-    function doOnPrelink(module: Module) {
+    function doOnPrelink(this: InvocationContext, module: Module) {
         const key = module.name;
         const unique = !prelinked.has(key);
         prelinked.add(key);
         if (unique) {
             for (const cb of prelinkOnceCallbacks) {
-                cb(module);
+                cb.call(this, module);
             }
         }
         for (const cb of prelinkCallbacks) {
-            cb(module);
+            cb.call(this, module);
         }
     }
 
@@ -160,7 +161,7 @@ namespace Inject {
         prelinkCallbacks.push(fn);
     }
 
-    export function onPrelinkOnce(fn: (module: Module) => void) {
+    export function onPrelinkOnce(fn: (this: InvocationContext, module: Module) => void) {
         prelinkCallbacks.push(fn);
     }
 

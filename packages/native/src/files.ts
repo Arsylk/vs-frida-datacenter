@@ -494,34 +494,22 @@ function hookReadlink(predicate: (ptr: NativePointer) => boolean) {
 }
 
 function hookFgets(predicate: (ptr: NativePointer) => boolean, fn?: (line: string) => string | undefined) {
-    const array: ('fgets' | 'fgets_unlocked')[] = ['fgets', 'fgets_unlocked'];
+    const array: ('fgets' | 'fgets_unlocked')[] = ['fgets_unlocked'];
     for (const key of array) {
         const func = Libc[key];
         function callback(buffer: NativePointer, size: number, fp: NativePointer) {
             const retval = func(buffer, size, fp);
 
             if (predicate(this.returnAddress)) {
-                const endUserMssg = buffer.readCString()?.trimEnd();
-                if (
-                    endUserMssg?.includes('shadow map') ||
-                    endUserMssg?.includes('KSU') ||
-                    endUserMssg?.includes('debug_ramdisk') ||
-                    endUserMssg?.includes('devpts') ||
-                    endUserMssg?.includes('tracefs') ||
-                    endUserMssg?.includes('tmpfs') ||
-                    endUserMssg?.includes('ramdisk') ||
-                    endUserMssg?.includes('virtio') ||
-                    endUserMssg?.includes('weishu') ||
-                    endUserMssg?.includes('magisk') ||
-                    endUserMssg?.includes('frida') ||
-                    endUserMssg?.includes('gbond') ||
-                    endUserMssg?.includes('termux')
-                ) {
-                    logger.info({ tag: key }, `${endUserMssg} ${red('SKIP')}`);
-                    buffer.writeByteArray(new Array(size).fill(0x0));
-                    retval.writeByteArray(new Array(size).fill(0x0));
-                    return callback.call(this, buffer, size, fp);
+                const fd = Libc.fileno(fp).value;
+                const fdp = readFdPath(fd, 64);
+                if (fdp?.endsWith('/status') || fdp?.endsWith('/maps')) {
+                    Libc.lseek(fd, NULL, 2);
+                    return NULL;
                 }
+                const m = buffer.readCString()?.trimEnd();
+
+                // logger.info({ tag: key }, `${m}`);
             }
             return retval;
         }

@@ -10,6 +10,7 @@ export default {
         justcocos: './agent/justcocos.ts',
         justcli: './agent/justcli.ts',
         justcloak: './agent/justcloak.ts',
+        libreveny: './agent/libreveny.so.ts',
     },
     output: {
         filename: '[name].js',

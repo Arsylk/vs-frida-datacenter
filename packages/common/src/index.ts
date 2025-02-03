@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { ClassesProxy, ClassesString, type ClassesType } from './define/java.js';
 import { LibcFinderProxy, type LibcType } from './define/libc.js';
-import { Linker, hookException, printStacktrace } from './define/linker.js';
+import { Linker, hookException } from './define/linker.js';
 import { enumerateMembers, findChoose, findClass, getFindUnique } from './search.js';
 import { SYSCALLS } from './define/syscalls.js';
 export { SYSCALLS as Syscalls };
@@ -70,6 +70,10 @@ declare global {
     function findClass(className: string, ...loaders: Java.Wrapper[]): Java.Wrapper | null;
 }
 Object.defineProperties(global, {
+    Linker: {
+        value: Linker,
+        writable: false,
+    },
     Classes: {
         value: ClassesProxy,
         writable: false,
@@ -107,5 +111,4 @@ export {
     tryErr,
     isIterable,
     hookException,
-    printStacktrace,
 };
