@@ -133,7 +133,7 @@ namespace SvcHook {
                     ['pointer', 'pointer', 'pointer', 'pointer', 'pointer'],
                 )) ||
             NULL;
-        logger.info({ tag: 'svchook' }, `${_svc_hook(sysno, before_func, after_func)}`);
+        // logger.info({ tag: 'svchook' }, `${_svc_hook(sysno, before_func, after_func)}`);
     }
 }
 

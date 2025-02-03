@@ -49,7 +49,7 @@ Native.Files.hookOpen(
         if (path?.endsWith('/build.prop')) return '/dev/null';
         if (path?.endsWith('/maps')) return '/dev/null';
         if (path?.endsWith('/status')) return '/proc/9/status';
-        if (path?.includes('classes') && path?.includes('.dex')) dumpLib('libjiagu_64.so', true);
+        // if (path?.includes('classes') && path?.includes('.dex')) dumpLib('libjiagu_64.so', true);
     },
 );
 
@@ -64,6 +64,7 @@ Native.Inject.onPrelinkOnce((module) => {
     const { base, name, size } = module;
     if (name === 'libjiagu_64.so') {
         Linker.patchSoList();
+        Native.log(base.add(0xa5f8), 'ss', { tag: 'my_strcmp@0xa5f8' });
         Native.log(Libc.dlopen, 'si', { predicate: isNotFrida });
         Native.Files.hookDirent(isNotFrida);
         Native.Files.hookOpendir(isNotFrida, (path) => {
