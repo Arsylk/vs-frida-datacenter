@@ -12,6 +12,9 @@ const uniqHook = getHookUnique(true);
 const uniqFind = getFindUnique(false);
 
 Java.performNow(Anticloak.hookPackageManager);
+Java.performNow(() => {
+    uniqHook('com.cocos.lib.CocosActivity', 'loadNativeHelper');
+});
 
 //let start = !true;
 //JniTrace.attach((thisRef) => predicate(thisRef.returnAddress), false);
@@ -44,9 +47,9 @@ Native.System.hookPosixSpawn();
 //Native.Time.hookGettimeofday(predicate);
 Native.Pthread.hookPthread_create({
     after(threadId, returnAddress) {
-        if (predicate(returnAddress)) {
-            stalk(threadId, Process.getModuleByAddress(returnAddress));
-        }
+        //if (predicate(returnAddress)) {
+        //    stalk(threadId, Process.getModuleByAddress(returnAddress));
+        //}
     },
 });
 Native.Pthread.hookPthread_join();
@@ -118,31 +121,37 @@ Interceptor.replace(
 //    ),
 //);
 
-Native.TheEnd.hook(predicate);
-let done = false;
-Native.Inject.afterInitArrayModule((module: Module) => {
-    logger.info({ tag: 'base' }, Text.stringify(module));
+const inRange = (module: { base: NativePointer; size: number }, ptr: NativePointer) =>
+    ptr >= module.base && module.base.add(module.size) > ptr;
+const conds: any[] = [];
+Native.Inject.onPrelinkOnce((module: Module) => {
     const { base, name, size } = module;
-    if (name === 'libreveny.so') {
-        if (!done) {
-            stalk(Process.getCurrentThreadId(), module);
-            Native.Files.hookOpen(predicate);
-            Native.Files.hookAccess(predicate);
-            Native.Files.hookReadlink(predicate);
-            Native.Files.hookDirent(predicate);
-            Native.Files.hookOpendir(predicate, (path) => {
-                if (
-                    (path?.startsWith('/proc') && (path?.endsWith('/task') || path?.endsWith('/fd'))) ||
-                    path?.endsWith('/sys/module') ||
-                    path?.endsWith('/system/priv-app')
-                )
-                    return '/dev/null';
-            });
-            Native.Files.hookStat(predicate);
-            Native.Files.hookRemove(predicate);
-
-            done = true;
-        }
+    if (name === 'libcocos.so') {
+        conds.push(inRange.bind(null, module));
+        JniTrace.attach((x) => conds.find((c) => c(x.returnAddress)), true);
+    }
+    if (name === 'libcocos_helper.so') {
+        conds.push(inRange.bind(null, module));
+        //const sus = base.add(0x79f0);
+        //Memory.protect(sus, 4, 'rwx');
+        //sus.writeByteArray([0x21, 0x40, 0x10, 0x90]);
+        //Memory.protect(sus, 4, 'rx');
+        //logger.info({ tag: 'help' }, `${Instruction.parse(sus)}`);
+        //stalk(Process.getCurrentThreadId(), module);
+        //Native.Files.hookOpen(predicate);
+        //Native.Files.hookAccess(predicate);
+        //Native.Files.hookReadlink(predicate);
+        //Native.Files.hookDirent(predicate);
+        //Native.Files.hookOpendir(predicate, (path) => {
+        //    if (
+        //        (path?.startsWith('/proc') && (path?.endsWith('/task') || path?.endsWith('/fd'))) ||
+        //        path?.endsWith('/sys/module') ||
+        //        path?.endsWith('/system/priv-app')
+        //    )
+        //        return '/dev/null';
+        //});
+        //Native.Files.hookStat(predicate);
+        //Native.Files.hookRemove(predicate);
     }
 });
 
@@ -164,7 +173,12 @@ function stalk(pid: number, module: Module) {
     Stalker.exclude(Process.getModuleByName('libopenjdkjvm.so'));
     Stalker.exclude(Process.getModuleByName('libbase.so'));
     Stalker.exclude(Process.getModuleByName('libandroid_runtime.so'));
+    Stalker.exclude(Process.getModuleByName('libcocos.so'));
 
+    File.writeAllBytes(
+        '/data/data/com.msmbet.zxczzzwaoaskz-FZkMteCZAExdP79731-qfA==/files/mynewlibcocos.so',
+        ptr(0x72fba05000).readByteArray(24317952),
+    );
     Stalker.follow(pid, {
         events: {
             call: false,
@@ -177,16 +191,24 @@ function stalk(pid: number, module: Module) {
         transform: (iterator: StalkerArm64Iterator) => {
             let instruction = iterator.next();
             do {
-                if (instruction?.groups.includes('call')) {
-                    //@ts-ignore
-                    const value = tryNull(() => ptr(instruction.operands[0].value));
-                    logger.info({ tag: 'call' }, `${times}:${instruction} | ${value}`);
-                    times = times + 1;
+                if (
+                    instruction?.groups.includes('call') &&
+                    `${Native.addressOf(instruction.address)}`.includes('cocos')
+                ) {
+                    iterator.putCallout((ctx: Arm64CpuContext) => {
+                        const inst = Instruction.parse(ctx.pc);
+                        //@ts-ignore
+                        const addr = inst.mnemonic === 'bl' ? inst.operands[0].value : ctx.x8;
+                        logger.info(
+                            { tag: 'call' },
+                            `${times}:${inst} ${Native.addressOf(addr)} ${Native.addressOf(ctx.pc)}`,
+                        );
+                        times = times + 1;
+                    });
                 }
                 iterator.keep();
             } while ((instruction = iterator.next()) !== null);
         },
-
         onCallSummary: (summary) => {},
     });
 }

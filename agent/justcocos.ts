@@ -1,7 +1,7 @@
 import * as Anticloak from '@clockwork/anticloak';
 import { Color, logger } from '@clockwork/logging';
 import * as Native from '@clockwork/native';
-import { hookException, Linker, printStacktrace } from '@clockwork/common';
+import { hookException, Linker } from '@clockwork/common';
 const { red, magentaBright: pink, gray, dim, black } = Color.use();
 
 const predicate: (ptr: NativePointer) => true | undefined = () => true;

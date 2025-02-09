@@ -3,18 +3,18 @@ import { Inject } from './inject.js';
 
 function hookLogcat(fn?: (this: InvocationContext, msg: string) => void) {
     const liblog = Process.getModuleByName('liblog.so');
-    const _isLoggable = Module.getExportByName(null, '__android_log_is_loggable');
-    Interceptor.replaceFast(_isLoggable, new NativeCallback(() => 1, 'bool', ['int', 'pointer', 'int']));
+    //const _isLoggable = Module.getExportByName(null, '__android_log_is_loggable');
+    //Interceptor.replaceFast(_isLoggable, new NativeCallback(() => 1, 'bool', ['int', 'pointer', 'int']));
     const _logPrint = Module.getExportByName(null, '__android_log_print');
     Interceptor.attach(_logPrint, {
         onEnter: function (args) {
             this.resultPtr = this.context.sp.sub(1112);
-            const tag = (this.tag = args[1].readCString()) ?? '';
+            //const tag = (this.tag = args[1].readCString()) ?? '';
             const msg = (this.msg = args[2].readCString()) ?? '';
-            // logger.info(`${this.resultPtr} +- ${args[1]} = ${args[1].sub(this.resultPtr)}` )
+            //logger.info(`${this.resultPtr} +- ${args[1]} = ${args[1].sub(this.resultPtr)}` )
         },
         onLeave(retval) {
-            // ogger.info({ tag: 'logcat', id: this.tag }, `{${counter++}} ${this.resultPtr.readCString(200)}`);
+            logger.info({ tag: 'logcat' }, `${this.resultPtr.readCString()}`);
         },
     });
     const vsnprintf = Module.getExportByName(null, 'vsnprintf');

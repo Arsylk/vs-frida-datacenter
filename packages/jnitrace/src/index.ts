@@ -18,6 +18,19 @@ const logger = subLogger('jnitrace');
 const { black, gray, dim, redBright, magenta, orange, lavender } = Color.use();
 const { JavaPrimitive } = Consts;
 
+function previousReturn(ctx: Arm64CpuContext): NativePointer {
+    const addr1 = ctx.lr;
+    try {
+        const fp = ctx.fp;
+        if (fp) {
+            const addr2 = fp.add(8).readPointer();
+            return addr2 ?? NULL;
+        }
+    } catch (e) {}
+
+    return NULL;
+}
+
 function ColorMethod(jMethodId: NativePointer, method: JavaMethod): string {
     let sb = '';
     sb += redBright(`${jMethodId} -${dim('>')}`);
@@ -142,27 +155,25 @@ let envWrapper: EnvWrapper;
 function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) => boolean, full: boolean) {
     envWrapper ??= new EnvWrapper(Java.vm.getEnv());
 
-    false &&
-        repl(envWrapper, JNI.GetStringUTFChars, function (retval, env, str, smth) {
-            if (!predicate(this) || isNully(retval)) return;
+    repl(envWrapper, JNI.GetStringUTFChars, function (retval, env, str, smth) {
+        if (!predicate(this) || isNully(retval)) return;
 
-            const msg = Color.string(retval.readCString());
-            gLogger.info(`[${dim('GetStringUTFChars')}] ${msg}`);
-        });
-    false &&
-        repl(envWrapper, JNI.NewStringUTF, function (retval, env, str) {
-            if (!predicate(this) || isNully(str)) return;
-            const text = str.readCString();
-            switch (text) {
-                case 'com/cocos/lib/CocosHelper':
-                case 'org/cocos2dx/lib/CanvasRenderingContext2DImpl':
-                case 'com/cocos/lib/CanvasRenderingContext2DImpl':
-                    return;
-            }
+        const msg = Color.string(retval.readCString());
+        gLogger.info(`[${dim('GetStringUTFChars')}] ${msg}`);
+    });
+    repl(envWrapper, JNI.NewStringUTF, function (retval, env, str) {
+        if (!predicate(this) || isNully(str)) return;
+        const text = str.readCString();
+        switch (text) {
+            case 'com/cocos/lib/CocosHelper':
+            case 'org/cocos2dx/lib/CanvasRenderingContext2DImpl':
+            case 'com/cocos/lib/CanvasRenderingContext2DImpl':
+                return;
+        }
 
-            const msg = Color.string(text);
-            gLogger.info(`[${dim('NewStringUTF')}] ${msg} ${addressOf(this.returnAddress)}`);
-        });
+        const msg = Color.string(text);
+        gLogger.info(`[${dim('NewStringUTF')}] ${msg} ${this.prevRet()}`);
+    });
     repl(envWrapper, JNI.FindClass, function (retval, env, str) {
         if (!predicate(this) || isNully(str)) return;
 
@@ -497,11 +508,21 @@ function hookLibart(predicate: (thisRef: InvocationContext | CallbackContext) =>
                 //    ];
                 //    // retval.replace(ptr(offs[0]));
                 //}
-                //if (method?.className === ClassesString.String && method?.name === 'contains') {
-                //    logger.info({ tag: 'contains' }, `${Java.cast(obj as NativePointer, Classes.String)}`);
-                //}
+
+                if (method?.className === ClassesString.Intent && method?.name === 'getStringExtra') {
+                    logger.info(
+                        { tag: 'getStringExtra' },
+                        `${Java.cast(retval as NativePointer, Classes.String)}`,
+                    );
+                    const ns = asFunction(env, JNI.NewStringUTF);
+                    const p = ns(env, Memory.allocUtf8String('https://google.pl/search?q=hi'));
+                    retval.replace(p);
+                }
+                if (method?.className === ClassesString.String && method?.name === 'contains') {
+                    logger.info({ tag: 'contains' }, `${Java.cast(obj as NativePointer, Classes.String)}`);
+                }
                 const msg = formatMethodReturn(env, retval, method?.returnType);
-                gLogger.info(`[${dim(name)}] ${msg} ${addressOf(this.returnAddress)}`);
+                gLogger.info(`[${dim(name)}] ${msg} ${addressOf(previousReturn(this.returnAddress as any))}`);
             },
         });
         Interceptor.attach(address, cb);
@@ -512,20 +533,21 @@ function repl<T extends NativeFunctionReturnType, R extends [] | NativeFunctionA
     envWrapper: EnvWrapper,
     def: JniDefinition<T, R>,
     log: (
-        this: InvocationContext | CallbackContext,
+        this: (InvocationContext | CallbackContext) & { prevRet: () => any },
         retval: mFunctionReturn<T>,
         ...args: mFunctionParameters<R>
     ) => void,
 ) {
     const fn = envWrapper.getFunction<T, R>(def);
     const cb: NativeCallbackImplementation<any, any> = function (
-        this,
+        this: (InvocationContext | CallbackContext) & { prevRet: () => any },
         ...args: mFunctionParameters<R>
     ): mFunctionReturn<T> {
         const retval: mFunctionReturn<T> = fn(...args);
+        this.prevRet = () => addressOf(previousReturn(this.context as Arm64CpuContext));
         log.call(this, retval, ...args);
         return retval;
-    };
+    } as any;
     Interceptor.replace(
         fn,
         new NativeCallback(

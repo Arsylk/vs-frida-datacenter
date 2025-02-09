@@ -67,9 +67,22 @@ function vs(value: any, type?: string, jniEnv: NativePointer = Java.vm.tryGetEnv
             return Color.number(strFloat(Number(value)));
         }
         case 'double': {
+            function swapEndian64(num: bigint) {
+                return (
+                    ((num & 0xff0000000000000n) >> 56n) |
+                    ((num & 0x00ff00000000000n) >> 40n) |
+                    ((num & 0x0000ff000000000n) >> 24n) |
+                    ((num & 0x000000ff0000000n) >> 8n) |
+                    ((num & 0x00000000ff00000n) << 8n) |
+                    ((num & 0x0000000000ff000n) << 24n) |
+                    ((num & 0x000000000000ff0n) << 40n) |
+                    ((num & 0x00000000000000fn) << 56n)
+                );
+            }
+            const little = typeof value === 'object' ? Number(swapEndian64(BigInt(value))) : Number(value);
             //@ts-ignore
-            const strDoubke = Classes.String.valueOf.overload('double').bind(Classes.String);
-            return Color.number(strDoubke(value));
+            const strFloat = Classes.String.valueOf.overload('float').bind(Classes.String);
+            return Color.number(strFloat(little));
         }
         case 'long':
             return Color.number(`${new Int64(value.toString())}`);

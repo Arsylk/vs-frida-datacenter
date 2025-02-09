@@ -583,12 +583,3 @@ const LibcFinder = {
 type LibcType = PropertyCallbackMapper<typeof LibcFinder>;
 const LibcFinderProxy: LibcType = proxyCallback(LibcFinder);
 export { LibcFinderProxy, type LibcType };
-`
-  #include <gum/guminterceptor.h>
-  #include <stdio.h>
-  #include <stdarg.h>
-
-  void init() {
-    printf("hi")
-  }
-`;

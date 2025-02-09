@@ -1,4 +1,4 @@
-import { Libc, Struct, isNully, Text, printStacktrace } from '@clockwork/common';
+import { Libc, Struct, isNully, Text } from '@clockwork/common';
 import { Color, logger } from '@clockwork/logging';
 import { addressOf, readFdPath } from './utils.js';
 import { unbox } from './index.js';
@@ -249,7 +249,6 @@ function hookFopen(
                     let replaceStr = fn?.call(this, `${fd}`);
                     if (statfd) replaceStr ??= fn?.call(this, readFdPath(fd));
 
-                    printStacktrace.call(this.context, this.returnAddress);
                     let errno: any;
                     if (replaceStr) {
                         const replacePtr = Memory.allocUtf8String(replaceStr);

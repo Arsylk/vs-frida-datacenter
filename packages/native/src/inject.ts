@@ -11,6 +11,11 @@ type NatveFunctionCallbacks = {
 // using namespace for singleton with all callbacks
 namespace Inject {
     export const ctorIgnored = [
+        'libmain.so',
+        'libil2cpp.so',
+        'libunity.so',
+        'lib_burst_generated.so',
+        'DynamiteLoader.uncompressed.odex',
         'org.apache.http.legacy.odex',
         'androidx.window.sidecar.odex',
         'com.android.location.provider.odex',
@@ -46,6 +51,7 @@ namespace Inject {
         //'libvulkan.so',
         'libswappy.so',
         'liblog.so',
+        'libapp.so',
         'libz.so',
         'libm.so',
         'libstdc++.so',
@@ -91,10 +97,37 @@ namespace Inject {
                 const _init = x2_load_bias.add(_init_offset);
 
                 // this is some black magic stuff
-                const module = Process.getModuleByAddress(_init);
-                logger.info({ tag: 'phdr_init' }, `${Text.stringify(module)}`);
+                const _module = Process.getModuleByAddress(_init);
+
+                // no idea why this suddenly seems to be neccessary ???
+                const obj = Object.defineProperties(
+                    {},
+                    {
+                        path: {
+                            value: _module.path,
+                            writable: false,
+                            enumerable: true,
+                        },
+                        name: {
+                            value: _module.name,
+                            writable: false,
+                            enumerable: true,
+                        },
+                        base: {
+                            value: _module.base,
+                            writable: false,
+                            enumerable: true,
+                        },
+                        size: {
+                            value: _module.size,
+                            writable: false,
+                            enumerable: true,
+                        },
+                    },
+                );
+                logger.info({ tag: 'phdr_init' }, `${Text.stringify(obj)}`);
                 modules.update();
-                doOnPrelink.call(this, module);
+                doOnPrelink.call(this, _module);
             },
         });
 

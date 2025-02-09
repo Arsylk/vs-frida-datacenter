@@ -59,6 +59,9 @@ const predicate: (r: NativePointer) => boolean = (r: NativePointer) => {
     return !true && Inject.modules.find(r) === null;
 };
 
+const isInRange = (module: { base: NativePointer; size: number }, ptr: NativePointer) =>
+    ptr && module && ptr >= module.base && module.base.add(module.size) > ptr;
+
 function hardBreakPoint(ptr: NativePointer, fn: () => void) {
     const prot = Memory.queryProtection(ptr);
     Process.setExceptionHandler(function (this: CallbackContext) {
@@ -203,7 +206,7 @@ function log(ptr: NativePointer, argdef: string, params?: HookParamteres) {
                     }
                     sb += ' }';
                     sb += ` ${addressOf(this.returnAddress)}`;
-                    logger.info({ tag: resolved }, sb);
+                    logger.info({ tag: tag }, sb);
                 }
                 if (typeof params?.call === 'function') {
                     params?.call.call(this, args);
@@ -246,7 +249,7 @@ function replace<Ret extends NativeCallbackReturnType, Arg extends NativeCallbac
         retType,
         argTypes,
     );
-    Interceptor.replace(ptr, cb);
+    return Interceptor.replace(ptr, cb);
 }
 
 function prettyMethod(methodID: NativePointer, withSignature: boolean) {
@@ -282,5 +285,6 @@ export {
     log,
     memWatch,
     predicate,
+    isInRange,
     replace,
 };

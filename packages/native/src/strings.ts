@@ -12,7 +12,10 @@ function colorsign(success: boolean): string {
     return success ? green('?') : red('?');
 }
 
-function hookStrstr(predicate: (ptr: NativePointer) => boolean) {
+function hookStrstr(
+    predicate: (ptr: NativePointer) => boolean,
+    fn?: (haystack: NativePointer, needle: NativePointer) => void,
+) {
     const array: ('strstr' | 'strcasestr')[] = ['strstr', 'strcasestr'];
     for (const key of array) {
         const func = Libc[key];
@@ -20,8 +23,9 @@ function hookStrstr(predicate: (ptr: NativePointer) => boolean) {
             func,
             new NativeCallback(
                 function (this: InvocationContext, haystack, needle) {
+                    fn?.call(this, haystack, needle);
                     const strNeedle = needle.readCString();
-                    if (strNeedle === 'gmain' || strNeedle === 'gum-js-loop') {
+                    if (strNeedle === 'gmain' || strNeedle === 'gum-js-loop' || strNeedle === 'frida') {
                         return NULL;
                     }
                     const strHaystack = haystack.readCString();
@@ -35,11 +39,13 @@ function hookStrstr(predicate: (ptr: NativePointer) => boolean) {
                         !strHaystack.includes('Roboto')
                     ) {
                         const isFound = ret && !ret.isNull();
-                        const strhay = gray(`"${strOneLine(haystack)}"`);
-                        const strned = isFound ? `"${strOneLine(needle)}"` : gray(`"${strOneLine(needle)}"`);
+                        const strhay = gray(`"${strOneLine(haystack, 100)}"`);
+                        const strned = isFound
+                            ? `"${strOneLine(needle, 100)}"`
+                            : gray(`"${strOneLine(needle, 100)}"`);
                         logger.info(
                             { tag: key },
-                            `${strhay} ${colorsign(isFound)} ${strned} &${this.threadId}`,
+                            `${strhay} ${colorsign(isFound)} ${strned} &${this.threadId} ${this.returnAddress ? addressOf(this.returnAddress) : ''}`,
                         );
                     }
 

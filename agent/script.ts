@@ -1,9 +1,11 @@
 import * as Anticloak from '@clockwork/anticloak';
-import { dump as cocosdump } from '@clockwork/cocos2dx';
+import { ProcMaps } from '@clockwork/cmodules';
+import * as Cocos2dx from '@clockwork/cocos2dx';
 import {
     Classes,
     ClassesString,
     Consts,
+    Linker,
     Struct,
     Text,
     emitter,
@@ -12,7 +14,6 @@ import {
     getFindUnique,
     hookException,
     isNully,
-    printStacktrace,
     stacktrace,
     tryNull,
 } from '@clockwork/common';
@@ -30,14 +31,26 @@ import * as Unity from '@clockwork/unity';
 const { red, green, redBright, magentaBright: pink, gray, dim, black } = Color.use();
 const uniqHook = getHookUnique(false);
 const uniqFind = getFindUnique(false);
+const uniqEnum = (clazzName: string, depth?: number) => {
+    uniqFind(clazzName, (clazz) => {
+        hook(clazz, '$init');
+        enumerateMembers(
+            clazz,
+            {
+                onMatchMethod(clazz, member, depth) {
+                    hook(clazz, member);
+                },
+            },
+            depth,
+        );
+    });
+};
 
-const predicate = (ptr: NativePointer) =>
-    _predicate(ptr) &&
-    Native.Inject.modules.getName(ptr)?.includes('unity') !== true &&
-    Native.Inject.modules.getName(ptr)?.includes('il2cpp') !== true;
+const predicate = (ptr: NativePointer) => _predicate(ptr);
 
 function hookActivity() {
-    7893429;
+    let createdLast: any = null;
+    let resumedLast: any = null;
     hook(Classes.Activity, '$init', {
         after() {
             logger.info({ tag: 'activity' }, `${gray('$init')}: ${this.$className}`);
@@ -46,12 +59,14 @@ function hookActivity() {
     hook(Classes.Activity, 'onCreate', {
         after() {
             logger.info({ tag: 'activity' }, `${gray('onCreate')}: ${this.$className}`);
+            createdLast = this;
         },
         logging: { arguments: false },
     });
     hook(Classes.Activity, 'onResume', {
         after() {
             logger.info({ tag: 'activity' }, `${gray('onResume')}: ${this.$className}`);
+            resumedLast = this;
         },
         logging: { arguments: false },
     });
@@ -509,12 +524,14 @@ function bypassReceiverFlags() {
 }
 
 function swapIntent(/*target: string, dest: string*/) {
-    let c = 0;
+    let i = 0;
     hook(Classes.Intent, '$init', {
         predicate: (_, index) => index === 1,
         replace(method, context, clazz) {
-            if ((c += 1) < 5) {
-                clazz = findClass('com.netmarb.MainActivity2')?.class;
+            const tmpclazz = findClass('com.tamanedukasianak.laguanakpaud.RateappActivity')?.class;
+            if (tmpclazz && i < 2) {
+                i += 1;
+                clazz = tmpclazz;
             }
             return method.call(this, context, clazz);
         },
@@ -531,7 +548,8 @@ Java.performNow(() => {
     hookFile();
     hookJson((key, _method, fallback) => {
         switch (key) {
-            case 'errer':
+            //case 'r_debugger':
+            //    return true;
             case 'referrer':
             case 'applink_url':
             case 'af_message':
@@ -570,7 +588,11 @@ Java.performNow(() => {
             case 'KEY_LOCALE':
             case 'key_country':
             case 'Plat_Lang':
-                return 'BR';
+                return 'VN';
+            case 'install_referrer':
+                return INSTALL_REFERRER;
+            case '_rs_app_start_route':
+                return 'Login';
         }
     });
     hook(Classes.SharedPreferencesImpl$EditorImpl, 'putString');
@@ -613,7 +635,7 @@ Java.performNow(() => {
     Anticloak.hookSettings();
     Anticloak.hookAdId(AD_ID);
     Anticloak.hookPackageManager();
-    Anticloak.Country.mock('ID');
+    Anticloak.Country.mock('VN');
     Anticloak.InstallReferrer.replace({ install_referrer: INSTALL_REFERRER });
 
     hook(Classes.SystemProperties, 'get', {
@@ -649,9 +671,7 @@ Java.performNow(() => {
     });
 
     const conf = { logging: { short: true, multiline: false } };
-    ClassLoader.perform(() => {
-        //Dump.hookInMemoryDexDump();
-    });
+    ClassLoader.perform(() => {});
 });
 
 Native.initLibart();
@@ -668,40 +688,28 @@ Native.attachSystemPropertyGet(
     },
 );
 
-cocosdump();
-//Cocos2dx.hookLocalStorage(function (key) {
-//    switch (key) {
-//        case '__FirstLanuchTime':
-//            return 'false';
-//        case 'GMNeedLog':
-//            return 'true';
-//        case 'isRealUser':
-//        case 'force_update':
-//            return 'true';
-//    }
+//Cocos2dx.dump({ name: 'libcocos2djs.so', fn_dump: ptr(0x00b72f78), fn_key: ptr(0x01a53d60) });
+//Cocos2dx.hookLocalStorage((key) => {
+//    logger.info({ tag: 'cocossetlocal' }, key);
+//    return undefined;
 //});
-
-//Unity.setVersion('2022.3.48f1c1');
-Unity.patchSsl();
-Unity.attachScenes();
-Unity.attachStrings();
+//Unity.setVersion('2019.3.13f1');
+//Unity.patchSsl();
+//Unity.attachScenes();
+//Unity.attachStrings();
 
 //let enabled = false;
-//JniTrace.attach(({ returnAddress }) => {
-//    return predicate(returnAddress);
-//}, true);
 //setTimeout(() => (enabled = true), 8000);
 
 Native.Pthread.hookPthread_create();
 Native.Files.hookFopen(predicate, true, (path) => {
     if (
         path?.endsWith('/proc/net/tcp') ||
-        //path?.endsWith('/maps') ||
+        path?.endsWith('/maps') ||
         path?.endsWith('/smaps') ||
         path?.includes('/proc/self/environ')
     ) {
-        //return '/dev/null';
-        return `/data/data/${getSelfProcessName()}/files/fakes`;
+        return '/dev/null';
     }
     if (path?.endsWith('/su') || path?.endsWith('/mountinfo')) {
         return path.replace(/\/(su|mountinfo)$/, '/nya');
@@ -716,10 +724,10 @@ Native.Files.hookFopen(predicate, true, (path) => {
 });
 //Native.Strings.hookStrtoLong(predicate);
 
-Native.hookGlGetString();
-Native.System.hookSystem();
-Native.System.hookGetauxval();
-Native.TheEnd.hook(predicate);
+//Native.hookGlGetString();
+//Native.System.hookSystem();
+//Native.System.hookGetauxval();
+//Native.TheEnd.hook(predicate);
 
 //Interceptor.attach(Libc.vsnprintf, {
 //    onEnter(args) {
@@ -781,35 +789,6 @@ Interceptor.replace(
 );
 
 Interceptor.replace(
-    Libc.fgets,
-    new NativeCallback(
-        (buffer, size, fp) => {
-            const retval = Libc.fgets(buffer, size, fp);
-            const endUserMssg = buffer.readCString()?.trimEnd();
-            if (
-                endUserMssg?.includes('KSU') ||
-                endUserMssg?.includes('debug_ramdisk') ||
-                endUserMssg?.includes('devpts') ||
-                endUserMssg?.includes('tracefs') ||
-                endUserMssg?.includes('tmpfs') ||
-                endUserMssg?.includes('ramdisk') ||
-                endUserMssg?.includes('virtio') ||
-                endUserMssg?.includes('weishu') ||
-                endUserMssg?.includes('magisk')
-            ) {
-                logger.info({ tag: 'fgets' }, `${endUserMssg} ${red('SKIP')}`);
-                Libc.fclose(fp);
-                return Libc.fgets(buffer, size, fp);
-            }
-            //logger.info({ tag: 'fgets' }, `${endUserMssg}`);
-            return retval;
-        },
-        'pointer',
-        ['pointer', 'int', 'pointer'],
-    ),
-);
-
-Interceptor.replace(
     Libc.popen,
     new NativeCallback(
         (arg0, arg1) => {
@@ -829,54 +808,99 @@ Interceptor.replace(
     ),
 );
 
-Native.Inject.onPrelinkOnce((module) => {
-    const { base, name, size } = module;
-    if (
-        name === 'libfurbish.so' ||
-        name === 'libnativehelper.so' ||
-        name === 'lib-native.so' ||
-        name === 'kibcocos2djs.so' ||
-        name === 'libjiagu_64.so' ||
-        name === 'libreveny.so' ||
-        name === 'libchancechaser_offlinegame.so' ||
-        name === 'libcovault-appsec.so'
-    ) {
-        hookException([160], {
-            onBefore({ x0, x1, x2, x3 }, num) {
-                switch (num) {
-                    case 56:
-                        this.path = x1.readCString();
-                        break;
-                    case 57:
-                        //this.path = `/proc/self/fd/${x1.toUInt32()}`;
-                        break;
-                    case 160:
-                        this.ptr = x0;
-                        break;
-                }
-            },
-            onAfter(ctx, num) {
-                if (num === 160) {
-                    const addr = this.ptr.add(0x41 * 2);
-                    const text = addr.readCString().toLowerCase();
-                    for (const key of ['ksu', 'kernelsu', 'lineage', 'dirty']) {
-                        const i = text.indexOf(key);
-                        if (i !== -1) {
-                            addr.add(i).writeByteArray(new Array(key.length).map((_) => 0x0));
-                        }
-                    }
-                }
-                if (num === 56) {
-                    logger.info({ tag: 'openat' }, `${this.path} ${ctx.x0}`);
-                }
-            },
-        });
+function stalk(pid: number, module: Module) {
+    const func_addr: { [key: string]: string } = {};
+    let times = 0;
 
+    Stalker.exclude(Process.getModuleByName('libc.so'));
+    Stalker.exclude(Process.getModuleByName('libart.so'));
+    Stalker.exclude(Process.getModuleByName('libartbase.so'));
+    Stalker.exclude(Process.getModuleByName('libnetd_client.so'));
+    Stalker.exclude(Process.getModuleByName('libdl.so'));
+    Stalker.exclude(Process.getModuleByName('libc++.so'));
+    Stalker.exclude(Process.getModuleByName('liblog.so'));
+    Stalker.exclude(Process.getModuleByName('boot.oat'));
+    Stalker.exclude(Process.getModuleByName('boot-framework.oat'));
+    Stalker.exclude(Process.getModuleByName('libandroidfw.so'));
+    Stalker.exclude(Process.getModuleByName('libselinux.so'));
+    Stalker.exclude(Process.getModuleByName('libopenjdkjvm.so'));
+    Stalker.exclude(Process.getModuleByName('libbase.so'));
+    Stalker.exclude(Process.getModuleByName('libandroid_runtime.so'));
+
+    Stalker.follow(pid, {
+        events: {
+            call: false,
+            ret: true,
+            exec: false,
+            block: false,
+            compile: false,
+        },
+        onReceive: (events: ArrayBuffer) => {},
+        transform: (iterator: StalkerArm64Iterator) => {
+            let instruction = iterator.next();
+            do {
+                if (instruction?.groups.includes('call')) {
+                    //@ts-ignore
+
+                    const value = tryNull(() => ptr(instruction.operands[0].value));
+                    logger.info({ tag: 'call' }, `${times}:${instruction} | ${value}`);
+                    times = times + 1;
+                }
+                iterator.keep();
+            } while ((instruction = iterator.next()) !== null);
+        },
+
+        onCallSummary: (summary) => {},
+    });
+}
+
+Native.Strings.hookStrstr(() => true);
+Native.Files.hookFgets(predicate);
+
+Native.Inject.onPrelinkOnce(function (module) {
+    const isNotFrida = (r: NativePointer) => !ProcMaps.isFridaAddress(r) && `${r}`.startsWith('0xab');
+    const { base, name, size, path } = module;
+    if (name === 'libcocos.so') {
+        //hookException([160], {
+        //    onBefore({ x0, x1, x2, x3 }, num) {
+        //        switch (num) {
+        //            case 56:
+        //                this.path = x1.readCString();
+        //                break;
+        //            case 57:
+        //                //this.path = `/proc/self/fd/${x1.toUInt32()}`;
+        //                break;
+        //            case 160:
+        //                this.ptr = x0;
+        //                break;
+        //        }
+        //    },
+        //    onAfter(ctx, num) {
+        //        if (num === 160) {
+        //            const addr = this.ptr.add(0x41 * 2);
+        //            const text = addr.readCString().toLowerCase();
+        //            for (const key of ['ksu', 'kernelsu', 'lineage', 'dirty']) {
+        //                const i = text.indexOf(key);
+        //                if (i !== -1) {
+        //                    addr.add(i).writeByteArray(new Array(key.length).map((_) => 0x0));
+        //                }
+        //            }
+        //        }
+        //        if (num === 56) {
+        //            logger.info({ tag: 'openat' }, `${this.path} ${ctx.x0}`);
+        //        }
+        //    },
+        //});
+        stalk(this.threadId, module);
+        Native.Logcat.hookLogcat(function (...args) {
+            return !ProcMaps.isFridaAddress(this.returnAddress);
+        });
         Anticloak.Debug.hookPtrace();
+
         //Native.Strings.hookStrcpy(predicate);
-        //Native.Strings.hookStrcmp(predicate);
-        //Native.Strings.hookStrlen(predicate);
-        Native.Strings.hookStrstr(predicate);
+        Native.Strings.hookStrcmp(isNotFrida);
+        Native.Strings.hookStrlen(isNotFrida);
+        Native.Strings.hookStrstr(isNotFrida);
         //Native.Strings.hookStrchr(predicate);
         //Native.Strings.hookStrcat(predicate);
 
@@ -906,110 +930,26 @@ Native.Inject.onPrelinkOnce((module) => {
                 return;
             },
         });
-        const buffer1 = Memory.alloc(512);
-        const buffer2 = Memory.alloc(512);
-        const buffer3 = Memory.alloc(512);
-        const buffer4 = Memory.alloc(512);
-        //Interceptor.replace(
-        //    Libc.open,
-        //    new NativeCallback(
-        //        function (pathnameptr, flag) {
-        //            this.context;
-        //            const pathname = pathnameptr.readCString();
-        //            logger.info({ tag: 'open' }, `${pathname} ${flag}`);
-        //            const realFd: number = Libc.open(pathnameptr, flag).value;
-        //            printStacktrace.call(this.context, this.returnAddress);
-        //            //@ts-ignore
-        //            //return realFd;
-        //            if (pathname?.startsWith('/proc/') && pathname?.includes('/maps')) {
-        //                Libc.close(realFd);
-        //                const path = `/data/data/${getSelfProcessName()}/fake_m${pathname.replaceAll('/', '_')}`;
-        //                File.writeAllText(path, syscallRead(pathname));
-        //                return Libc.open(Memory.allocUtf8String(path), flag).value;
-        //                const file = new File(path, 'w');
-        //                while (Libc.read(realFd, buffer1, 512) !== 0) {
-        //                    const oneLine = buffer1.readCString();
-        //
-        //                    let buffer = `${oneLine}`;
-        //                    buffer = buffer.replaceAll('re.frida.server', 'nya');
-        //                    buffer = buffer.replaceAll('frida-agent-64.so', 'nya');
-        //                    buffer = buffer.replaceAll('rida-agent-64.so', 'nya');
-        //                    buffer = buffer.replaceAll('agent-64.so', 'nya');
-        //                    buffer = buffer.replaceAll('frida-agent-32.so', 'nya');
-        //                    buffer = buffer.replaceAll('frida-helper-32', 'nya');
-        //                    buffer = buffer.replaceAll('frida-helper', 'nya');
-        //                    buffer = buffer.replaceAll('frida-agent', 'nya');
-        //                    buffer = buffer.replaceAll('pool-frida', 'nya');
-        //                    buffer = buffer.replaceAll('frida', 'nya');
-        //                    buffer = buffer.replaceAll('/data/local/tmp', '/data');
-        //                    buffer = buffer.replaceAll('server', 'nya');
-        //                    buffer = buffer.replaceAll('frida-server', 'nya');
-        //                    buffer = buffer.replaceAll('linjector', 'nya');
-        //                    buffer = buffer.replaceAll('gum-js-loop', 'nya');
-        //                    buffer = buffer.replaceAll('frida_agent_main', 'nya');
-        //                    buffer = buffer.replaceAll('gmain', 'nya');
-        //                    buffer = buffer.replaceAll('magisk', 'nya');
-        //                    buffer = buffer.replaceAll('.magisk', 'nya');
-        //                    buffer = buffer.replaceAll('/sbin/.magisk', 'nya');
-        //                    buffer = buffer.replaceAll('libriru', 'nya');
-        //                    buffer = buffer.replaceAll('xposed', 'nya');
-        //                    buffer = buffer.replaceAll('pool-spawner', 'nya');
-        //                    buffer = buffer.replaceAll('gdbus', 'nya');
-        //                    if (!buffer?.includes('tmp')) file.write(buffer);
-        //                }
-        //                file.flush();
-        //                file.close();
-        //                Libc.close(realFd);
-        //                const newPathname = Memory.allocUtf8String(path);
-        //
-        //                return Libc.open(newPathname, flag).value;
-        //            }
-        //            //if (pathname?.includes('/smaps')) {
-        //            //    const path = `/data/data/${getSelfProcessName()}/fake_smaps`;
-        //            //    //@ts-ignore
-        //            //    const file = new File(path, 'w');
-        //            //    while (Libc.read(realFd, buffer3, 512) !== 0) {
-        //            //        const oneLine = buffer3.readCString();
-        //            //        if (!oneLine?.includes('tmp')) {
-        //            //            //@ts-ignore
-        //            //            file.write(oneLine);
-        //            //        }
-        //            //    }
-        //            //    const newPathname = Memory.allocUtf8String(path);
-        //            //    return Libc.open(newPathname, flag).value;
-        //            //}
-        //            //if (pathname?.includes('/cmdline')) {
-        //            //    const path = `/data/data/${getSelfProcessName()}/fake_environ`;
-        //            //    //@ts-ignore
-        //            //    const file = new File(path, 'w');
-        //            //    while (Libc.read(realFd, buffer4, 512) !== 0) {
-        //            //        const oneLine = buffer4.readCString();
-        //            //        logger.info({ tag: 'env' }, `${oneLine}`);
-        //            //        //@ts-ignore
-        //            //        file.write(oneLine);
-        //            //    }
-        //            //    const newPathname = Memory.allocUtf8String(path);
-        //            //    return Libc.open(newPathname, flag).value;
-        //            //}
-        //            return realFd;
-        //        },
-        //        'int',
-        //        ['pointer', 'int'],
-        //    ),
-        //);
-        //Native.Files.hookOpen(predicate);
+        //const buffer1 = Memory.alloc(512);
+        //const buffer2 = Memory.alloc(512);
+        //const buffer3 = Memory.alloc(512);
+        //const buffer4 = Memory.alloc(512);
         Native.Files.hookAccess(predicate);
-        Native.Files.hookStat(predicate);
-        Native.Files.hookRemove(predicate);
+        //Native.Files.hookStat(predicate);
+        //Native.Files.hookRemove(predicate);
         Native.Files.hookDirent(() => true);
         Native.Files.hookOpendir(
             () => true,
             (path) => {
-                if (path?.startsWith('/proc') && (path?.includes('/task') || path?.endsWith('/fd')))
+                if (
+                    path === '/dev' ||
+                    (path?.startsWith('/proc') &&
+                        (path?.includes('/task') ||
+                            path.endsWith('/fd') ||
+                            path.endsWith('/status') ||
+                            path.endsWith('/fs/jbd2')))
+                )
                     return '/dev/null';
-                if (path?.includes('/proc/fs/jbd2')) {
-                    return '/nya/nya/nya';
-                }
             },
         );
     }
@@ -1043,3 +983,73 @@ function syscallRead(path: string): string | null {
 //    // @ts-ignore
 //    File.writeAllText(`${dir}/fake_maps`, File.readAllText('/proc/self/maps'));
 //});
+
+Object.defineProperty(global, 'keysJs', {
+    value: (str: string) => {
+        findClass('d.try')?.type(`
+            var tryNull = (x) => {
+                var r = null;
+                try {
+                    r = x();
+                } catch (e) {}
+                return r;
+            };
+            var __iterAs = (a) => {
+                var keys = null;
+                try {
+                    keys = Object.keys(a);
+                } catch(e) {
+                }
+                return keys !== null ? keys : null;
+            };
+            var sss = ${str};
+            __iterAs(sss)?.forEach(x => {
+                tryNull(() => {console.log(x)});
+            });`);
+    },
+});
+Object.defineProperty(global, 'evalJs', {
+    value: (str: string) => {
+        findClass('d.try')?.type(`
+            var __this;
+            __this = this;
+            var __iterAs = null;
+            __iterAs = (a) => {
+                var keys = null;
+                try {
+                    keys = Object.keys(a);
+                } catch(e) {
+                }
+                return keys !== null ? keys : null;
+            };
+            var ej = null;
+            ej = (sss, depth) => {
+                sss = sss?.toString();
+                var pp = ' '.repeat(depth * 2);
+                var refget = (x, y) => {
+                    var z = null;
+                    try {
+                        z = Reflect.get(x, y);
+                    } catch (e) {}
+                    return z;
+                };
+                var be = sss?.split('.')?.reduce?.((p, c) => (p === null) ? refget(__this, c) : refget(p, c), null);
+                var lm = JSON.stringify({ arg0: sss, type: typeof be, value: new String(be) });
+                console.log(lm);
+                __iterAs(be)?.forEach((key) => {
+                    var fk = [sss, key].join('.');
+                    if ((key === 'window' || key === 'parent' || key === 'top') && fk.startsWith('window')) return;
+                    if (depth > 4) return;
+                    ej(fk, depth+1);
+                });
+            };
+            ej('${str}', 0);`);
+    },
+});
+Object.defineProperty(global, 'setJs', {
+    value: (str: string, key: string, val: any) => {
+        findClass('d.try')?.type(
+            `var ejv; ejv = (sss, kkk, vvv) => { var pr = sss?.toString(); var be = pr.split('.').reduce((p, c) => Reflect.get(p !== null ? p : this, c), null); console.log(pr, be, Reflect.get(be, kkk)); console.log(be[kkk] = val); }; ejv('${str}', '${key}', ${val});`,
+        );
+    },
+});

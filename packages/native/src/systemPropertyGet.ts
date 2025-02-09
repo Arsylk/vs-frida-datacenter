@@ -3,7 +3,12 @@ import { subLogger, Color } from '@clockwork/logging';
 const { gray, green, red } = Color.use();
 const logger = subLogger('sysprop');
 
-const spammyKeys = ['debug.stagefright.ccodec_timeout_mult', 'ro.build.version.sdk', 'debug.force_rtl'];
+const spammyKeys = [
+    'debug.stagefright.ccodec_timeout_mult',
+    'vendor.debug.egl.swapinterval',
+    'ro.build.version.sdk',
+    'debug.force_rtl',
+];
 
 function attachSystemPropertyGet(
     predicate?: (returnAddress: NativePointer) => true | undefined,

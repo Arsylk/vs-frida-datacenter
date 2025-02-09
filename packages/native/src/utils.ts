@@ -50,7 +50,9 @@ Object.defineProperties(addressOf, {
         value: (ptr: NativePointer) => ptr,
     },
 });
+
 function addressOf(ptr: NativePointer, extended?: boolean) {
+    if (!ptr) return;
     const str = ProcMaps.addressOf(ptr);
     return str;
 
